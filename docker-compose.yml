@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tms_saas_app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - tms_network
+    depends_on:
+      - pgsql
+      - redis
+      - wuzapi
+
+  pgsql:
+    image: postgres:15-alpine
+    container_name: tms_saas_pgsql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tms_saas
+      POSTGRES_USER: tms_user
+      POSTGRES_PASSWORD: tms_password
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+    networks:
+      - tms_network
+    ports:
+      - "5435:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: tms_saas_redis
+    restart: unless-stopped
+    networks:
+      - tms_network
+    ports:
+      - "6380:6379"
+
+  nginx:
+    image: nginx:alpine
+    container_name: tms_saas_nginx
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - tms_network
+    depends_on:
+      - app
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tms_saas_queue
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - tms_network
+    depends_on:
+      - pgsql
+      - redis
+    command: php artisan queue:work --verbose --tries=3 --timeout=90
+
+  wuzapi:
+    build:
+      context: ./docker/wuzapi
+      dockerfile: Dockerfile
+    container_name: tms_saas_wuzapi
+    restart: unless-stopped
+    ports:
+      - "${WUZAPI_HTTP_PORT:-8081}:3000"
+      - "${WUZAPI_API_PORT:-8083}:8080"
+    environment:
+      - WUZAPI_ADMIN_TOKEN=${WUZAPI_ADMIN_TOKEN:-admin_token_123}
+      - DB_HOST=${WUZAPI_DB_HOST:-pgsql}
+      - DB_PORT=${WUZAPI_DB_PORT:-5432}
+      - DB_USER=${WUZAPI_DB_USER:-tms_user}
+      - DB_PASSWORD=${WUZAPI_DB_PASSWORD:-tms_password}
+      - DB_NAME=${WUZAPI_DB_NAME:-wuzapi}
+      - TZ=${APP_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - wuzapi_data:/app/data
+      - wuzapi_sessions:/app/sessions
+    networks:
+      - tms_network
+
+networks:
+  tms_network:
+    driver: bridge
+
+volumes:
+  pgsql_data:
+    driver: local
+  wuzapi_data:
+    driver: local
+  wuzapi_sessions:
+    driver: local

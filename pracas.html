@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta Comercial - Thiga Transportes</title>
+    <!-- Bibliotecas para gerar o PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 40px;
+            background-color: #f8f9fa;
+            border-bottom: 4px solid #E66A35;
+        }
+
+        .header img { max-height: 70px; }
+        .header-info { text-align: right; }
+        .header-info h1 { margin: 0; color: #245a49; font-size: 26px; font-weight: 700; }
+        .header-info p { margin: 5px 0 0; font-size: 14px; color: #555; }
+        .content { padding: 30px 40px; }
+        .intro p { font-size: 16px; margin-bottom: 30px; }
+
+        h2 {
+            color: #245a49;
+            border-bottom: 2px solid #E66A35;
+            padding-bottom: 10px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        h3.table-subtitle {
+            color: #333;
+            font-size: 16px;
+            margin-top: 25px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .price-table th, .price-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        .price-table td:first-child { text-align: left; font-weight: 500; }
+        .price-table thead { background-color: #245a49; color: #ffffff; font-weight: 500; }
+        .price-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
+        .price-table tbody tr:hover { background-color: #fdeee7; }
+        
+        .cities-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 10px; /* Letra bem pequena */
+        }
+        .cities-table th, .cities-table td {
+            border: 1px solid #ddd;
+            padding: 5px 8px; /* Células menores */
+            text-align: left;
+            vertical-align: top;
+        }
+        .cities-table thead th {
+            background-color: #245a49;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .cities-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
+
+        .calculator-section {
+            background-color: #f8f9fa;
+            padding: 30px;
+            margin: -30px -40px 30px -40px;
+            border-bottom: 1px solid #ddd;
+        }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 8px; font-weight: 500; color: #245a49; }
+        .form-group input, .form-group select { 
+            padding: 12px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            font-size: 16px; 
+            background-color: #fff;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        .form-group select:hover, .form-group input:hover {
+            border-color: #E66A35;
+            box-shadow: 0 0 5px rgba(230, 106, 53, 0.3);
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: #E66A35;
+            box-shadow: 0 0 8px rgba(230, 106, 53, 0.5);
+        }
+
+        .form-group select option {
+            background-color: #fff;
+            color: #333;
+            padding: 8px;
+        }
+
+        .form-group select option:hover {
+            background-color: #E66A35;
+            color: #fff;
+        }
+        .form-group input[type="text"][disabled] { background-color: #e9ecef; cursor: not-allowed; }
+        .full-width { grid-column: 1 / -1; }
+
+        .buttons-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+        #calculate-btn { background-color: #E66A35; }
+        #calculate-btn:hover { background-color: #d15a29; }
+        #export-btn { background-color: #245a49; }
+        #export-btn:hover { background-color: #1a3d33; }
+
+        #result-section {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e4f0f7;
+            border-left: 5px solid #245a49;
+            border-radius: 4px;
+            text-align: center;
+            display: none;
+        }
+        #result-section p { margin: 0; font-size: 18px; }
+        #result-section .price { font-size: 28px; font-weight: 700; color: #245a49; }
+        
+        .generalidades ol { padding-left: 20px; font-size: 14px; column-count: 2; }
+        .generalidades li { margin-bottom: 12px; }
+        
+        .company-data {
+            font-size: 13px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .company-data p { margin: 5px 0; }
+
+        .footer {
+            background-color: #245a49;
+            color: #ffffff;
+            text-align: center;
+            padding: 30px 40px;
+        }
+        .footer h3 { margin-top: 0; margin-bottom: 20px; font-weight: 500; font-size: 18px; color: #E66A35; }
+        .branches { display: flex; justify-content: space-around; gap: 20px; text-align: left; margin-bottom: 30px; }
+        .branch { width: 45%; }
+        .branch h4 { margin-top: 0; margin-bottom: 10px; font-size: 16px; color: #fff; border-bottom: 1px solid #E66A35; padding-bottom: 5px; }
+        .branch p { font-size: 14px; margin: 5px 0; opacity: 0.9; }
+        .footer .main-contact { margin-top: 20px; font-weight: 500;}
+        .footer .legal-note { font-size: 12px; opacity: 0.8; margin-top: 30px; padding-top: 20px; border-top: 1px solid #1a3d33; }
+
+        @media (max-width: 768px) {
+            body { padding: 0; }
+            .container { border-radius: 0; box-shadow: none; }
+            .header { flex-direction: column; gap: 20px; text-align: center; }
+            .header-info { text-align: center; }
+            .content { padding: 20px; }
+            .calculator-section { margin: -20px -20px 30px -20px; padding: 20px; }
+            .generalidades ol { column-count: 1; }
+            .branches { flex-direction: column; align-items: center; }
+            .branch { width: 90%; text-align: center;}
+            .branch h4 { text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="proposal-content">
+        <header class="header">
+            <img src="https://www.thiga.com.br/LOGO-black.svg" alt="Logo Thiga Transportes">
+            <div class="header-info">
+                <h1>Proposta Comercial</h1>
+                <p>Proposta Nº: <span id="proposal-number"></span> | Data: <span id="proposal-date"></span></p>
+            </div>
+        </header>
+
+        <main class="content">
+            <!-- Seção da Calculadora -->
+            <section class="calculator-section">
+                <h2 style="margin-top: 0;">Calculadora de Frete Aproximado</h2>
+                <div id="calculator-form">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="client-name">Nome do Cliente</label>
+                            <input type="text" id="client-name" name="client-name" placeholder="Digite o nome da sua empresa ou cliente">
+                        </div>
+                        <div class="form-group">
+                            <label for="whatsapp">WhatsApp *</label>
+                            <input type="tel" id="whatsapp" name="whatsapp" placeholder="(11) 99999-9999" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email (opcional)</label>
+                            <input type="email" id="email" name="email" placeholder="seu@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="origin">De</label>
+                            <input type="text" id="origin" name="origin" value="São Paulo / SP" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label for="destination">Para</label>
+                            <select id="destination" name="destination">
+                                <option value="" disabled selected>Selecione um destino</option>
+                                <option value="Belo Horizonte">BELO HORIZONTE - MG</option>
+                                <option value="Grande BH">GRANDE BH - MG</option>
+                                <option value="Sete Lagoas">SETE LAGOAS - MG</option>
+                                <option value="Centro-Oeste MG">DIVINÓPOLIS – ITAÚNA - PARÁ MINAS - MG</option>
+                                <option value="Juiz de Fora">JUIZ DE FORA - MG</option>
+                                <option value="Demais Cidades">DEMAIS CIDADES - MG</option>
+                                <option value="Norte de Minas">NORTE DE MINAS - MG</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="weight">Peso Real (em Kg)</label>
+                            <input type="number" id="weight" name="weight" placeholder="Ex: 55">
+                        </div>
+                        <div class="form-group">
+                            <label for="cubagem">Cubagem (m³)</label>
+                            <input type="number" id="cubagem" name="cubagem" step="0.01" placeholder="Ex: 0.5">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="valor-nf">Valor da Nota Fiscal (R$)</label>
+                            <input type="number" id="valor-nf" name="valor-nf" step="0.01" placeholder="Ex: 1500.00">
+                        </div>
+                    </div>
+                    <div class="buttons-container">
+                        <button id="calculate-btn" class="btn">Calcular Frete</button>
+                        <button id="export-btn" class="btn">Exportar para PDF</button>
+                    </div>
+                    <!-- A seção de resultado será preenchida dinamicamente pelo JavaScript -->
+                    <div id="result-section"></div>
+                </div>
+            </section>
+            
+            <div class="intro">
+                <p>Apresentamos nossas condições comerciais para a prestação de serviços de transporte rodoviário de suas mercadorias na modalidade "Carga Seca".</p>
+            </div>
+
+            <h2>Tabela de Fretes</h2>
+            <table class="price-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">DESTINO</th>
+                        <th colspan="4">ATÉ 100Kgs</th>
+                        <th colspan="2">ACIMA DE 100Kgs</th>
+                    </tr>
+                    <tr>
+                        <th>De 0 à 30kgs</th>
+                        <th>De 31 à 50kgs</th>
+                        <th>De 51 à 70kgs</th>
+                        <th>De 71 à 100kgs</th>
+                        <th>FRETE PESO</th>
+                        <th>TAXA CTRC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr> <td>BELO HORIZONTE - MG*</td> <td>R$ 78,30</td> <td>R$ 87,08</td> <td>R$ 103,75</td> <td>R$ 118,60</td> <td>R$ 0,86</td> <td>R$ 60,45</td> </tr>
+                    <tr> <td>GRANDE BH - MG*</td> <td>R$ 83,46</td> <td>R$ 92,78</td> <td>R$ 110,86</td> <td>R$ 122,50</td> <td>R$ 0,90</td> <td>R$ 60,45</td> </tr>
+                    <tr> <td>SETE LAGOAS - MG*</td> <td>R$ 86,05</td> <td>R$ 95,35</td> <td>R$ 114,75</td> <td>R$ 126,35</td> <td>R$ 1,00</td> <td>R$ 60,45</td> </tr>
+                    <tr> <td>DIVINÓPOLIS – ITAÚNA - PARÁ MINAS - MG*</td> <td>R$ 90,20</td> <td>R$ 102,20</td> <td>R$ 117,30</td> <td>R$ 131,50</td> <td>R$ 1,50</td> <td>R$ 60,45</td> </tr>
+                    <tr> <td>JUIZ DE FORA - MG*</td> <td>R$ 96,65</td> <td>R$ 105,70</td> <td>R$ 118,60</td> <td>R$ 134,10</td> <td>R$ 1,60</td> <td>R$ 60,45</td> </tr>
+                    <tr> <td>DEMAIS CIDADES - MG*</td> <td>R$ 99,90</td> <td>R$ 108,30</td> <td>R$ 123,80</td> <td>R$ 136,70</td> <td>R$ 1,85</td> <td>R$ 72,00</td> </tr>
+                    <tr> <td>NORTE DE MINAS - MG*</td> <td>R$ 107,60</td> <td>R$ 115,85</td> <td>R$ 126,40</td> <td>R$ 149,30</td> <td>R$ 1,95</td> <td>R$ 72,00</td> </tr>
+                </tbody>
+            </table>
+
+            <div class="generalidades">
+                <h2>Condições Gerais</h2>
+                <ol>
+                    <li>Não emitimos CTRC com valor inferior a 1% da nota fiscal, acrescenta-se pedágio + taxas se houver.</li>
+                    <li>Ad-valorem: 0,40% sobre o valor da Nota Fiscal.</li>
+                    <li>GRIS: 0,30% sobre o valor da Nota Fiscal, com mínimo de R$ 8,70.</li>
+                    <li>Pedágio: R$ 12,95 a cada fração de 100kgs.</li>
+                    <li>Taxa Emissão CTRC: Acrescenta-se ao frete peso somente para frações acima de 100kgs.</li>
+                    <li>TDE (Mercados, etc): R$ 300,00 + frete.</li>
+                    <li>TDE (CD'S Supermercados): R$ 450,00 + frete.</li>
+                    <li>Paletização: R$ 40,00 por pallet.</li>
+                    <li>Carga assegurada conforme apólice.</li>
+                    <li>ICMS de acordo com a legislação vigente.</li>
+                    <li>Mercadorias devem estar devidamente embaladas. Não indenizamos avarias de vidros e similares.</li>
+                    <li>Responsabilidade do remetente sobre as informações da mercadoria.</li>
+                    <li>Preços sujeitos a reajuste conforme aumento de combustível.</li>
+                    <li>Taxa para Entrega/coleta Sábado, Domingo e Feriado: 30% sobre o frete original.</li>
+                    <li>Cubagem de 300 kgs/m³.</li>
+                    <li>Reentrega: 50% do frete original ou frete mínimo da praça.</li>
+                    <li>Devolução: 100% do frete original.</li>
+                    <li>Taxa de descarga: R$ 90,00 p/ nota + descarga + impostos, conforme procedimento de cada cliente.</li>
+                    <li>Ocorrências: Prazo de 24 horas para solução, caso contrário será devolvido com cobrança de frete.</li>
+                    <li>Faturamento Semanal com 7 dias. Desp. bancária R$ 3,50 para faturamento abaixo de R$ 500,00.</li>
+                    <li>Algumas cidades possuem taxas de emplacamento (consultar Relação de Cidades).</li>
+                </ol>
+            </div>
+
+            <div class="cities-section">
+                <h2>Relação de Cidades Atendidas em Minas Gerais</h2>
+                
+                <h3 class="table-subtitle">Parte 1 de 2</h3>
+                <table class="cities-table">
+                    <thead>
+                        <tr>
+                            <th>VALE DO AÇO</th>
+                            <th>NORTE DE MINAS</th>
+                            <th>CENTRAL DE MINAS</th>
+                            <th>ROTA BH</th>
+                            <th>ROTA GRANDE BH 01</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr> <td>ABRE CAMPO</td> <td>ARAÇAÍ</td> <td>ÁGUA BOA</td> <td>BELO HORIZONTE</td> <td>BETIM</td> </tr>
+                        <tr> <td>ALPERCATA</td> <td>AUGUSTO DE LIMA</td> <td>ANGELÂNDIA</td> <td>CONTAGEM</td> <td>CONTAGEM</td> </tr>
+                        <tr> <td>BARÃO DE COCAIS</td> <td>BOCAIÚVA</td> <td>ARCÂNGELO</td> <td></td> <td>IBIRITÉ</td> </tr>
+                        <tr> <td>BELA VISTA DE MINAS</td> <td>BUENÓPOLIS</td> <td>CAETANÓPOLIS</td> <td></td> <td>LAGOA SANTA</td> </tr>
+                        <tr> <td>BOM JESUS DO AMPARO</td> <td>CAMPO DE PORTÕES</td> <td>CANTAGALO</td> <td></td> <td>NOVA LIMA</td> </tr>
+                        <tr> <td>CAETÉ</td> <td>CORDISBURGO</td> <td>CAPELINHA</td> <td></td> <td>RIBEIRÃO DAS NEVES</td> </tr>
+                        <tr> <td>CARATINGA</td> <td>CORINTO</td> <td>CARBONITA</td> <td></td> <td>SANTA LUZIA</td> </tr>
+                        <tr> <td>CATAS ALTAS</td> <td>CURVELO</td> <td>CHAPADA DO NORTE</td> <td></td> <td></td> </tr>
+                        <tr> <td>CORONEL FABRICIANO</td> <td>ENGENHEIRO NAVARRO</td> <td>CORREGO DANTAS</td> <td></td> <td></td> </tr>
+                        <tr> <td>DOM CAVATI</td> <td>INIMUTABA</td> <td>COUTO MAGALHÃES</td> <td></td> <td></td> </tr>
+                        <tr> <td>ENGENHEIRO CALDAS</td> <td>JOAQUIM FELICIO</td> <td>DIAMANTINA</td> <td></td> <td></td> </tr>
+                        <tr> <td>FERNANDES TOURINHO</td> <td>JEQUITIBÁ</td> <td>DIVINOLÂNDIA DE MINAS</td> <td></td> <td></td> </tr>
+                        <tr> <td>INHAPIM</td> <td>LASSANCE</td> <td>GOUVEIA</td> <td></td> <td></td> </tr>
+                        <tr> <td>IPABA</td> <td>MONTES CLAROS</td> <td>GUANHÃES</td> <td></td> <td></td> </tr>
+                        <tr> <td>IPATINGA</td> <td>MORRO DA GARÇA</td> <td>ITAMARANDIBA</td> <td></td> <td></td> </tr>
+                        <tr> <td>JAGUARAÇU</td> <td>PIRAPORA</td> <td>JOSÉ RAYDAN</td> <td></td> <td></td> </tr>
+                        <tr> <td>JOÃO MONLEVADE</td> <td>SANTO HIPÓLITO</td> <td>MINAS NOVA</td> <td></td> <td></td> </tr>
+                        <tr> <td>MANHUAÇU</td> <td>VARZEA DA PALMA</td> <td>PARAOPEBA</td> <td></td> <td></td> </tr>
+                        <tr> <td>MANHUMIRIM</td> <td></td> <td>PEÇANHA</td> <td></td> <td></td> </tr>
+                        <tr> <td>MATIPO</td> <td></td> <td>RESPLENDOR DE ÁGUA BOA</td> <td></td> <td></td> </tr>
+                        <tr> <td>NAQUE</td> <td></td> <td>RIO VERMELHO</td> <td></td> <td></td> </tr>
+                        <tr> <td>NOVA UNIÃO</td> <td></td> <td>SABINÓPOLIS</td> <td></td> <td></td> </tr>
+                        <tr> <td>PERIQUITO</td> <td></td> <td>SANTA MARIA DO SUAÇUÍ</td> <td></td> <td></td> </tr>
+                        <tr> <td>PIEDADE DE CARATINGA</td> <td></td> <td>SÃO JOSÉ DO JACURI</td> <td></td> <td></td> </tr>
+                        <tr> <td>RIO CASCA</td> <td></td> <td>SÃO JOSÉ EVANGELISTA</td> <td></td> <td></td> </tr>
+                        <tr> <td>SANTA BÁRBARA</td> <td></td> <td>SÃO PEDRO DO SUAÇUÍ</td> <td></td> <td></td> </tr>
+                        <tr> <td>SANTANA DO PARAÍSO</td> <td></td> <td>SERRO</td> <td></td> <td></td> </tr>
+                        <tr> <td>SÃO DOMINGOS DO PRATA</td> <td></td> <td>SETE LAGOAS</td> <td></td> <td></td> </tr>
+                        <tr> <td>SÃO GONÇALO DO RIO ABAIXO</td> <td></td> <td>TURMALINA</td> <td></td> <td></td> </tr>
+                        <tr> <td>SÃO JOSÉ DO GOIABAL</td> <td></td> <td>VEREDINHA</td> <td></td> <td></td> </tr>
+                        <tr> <td>TIMÓTEO</td> <td></td> <td>VIRGINÓPOLIS</td> <td></td> <td></td> </tr>
+                        <tr> <td>UBAPORANGA</td> <td></td> <td></td> <td></td> <td></td> </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="table-subtitle">Parte 2 de 2</h3>
+                <table class="cities-table">
+                    <thead>
+                        <tr>
+                            <th>ROTA GRANDE BH 02</th>
+                            <th>TRIÂNGULO MINEIRO</th>
+                            <th>CENTRO OESTE</th>
+                            <th>SUL DE MINAS</th>
+                            <th>ZONA DA MATA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr> <td>BALDIM</td> <td>ARAGUARI</td> <td>ABAETE</td> <td>AREADO</td> <td>ALFREDO VASCONCELOS</td> </tr>
+                        <tr> <td>BELO VALE</td> <td>ARAPORÃ</td> <td>ARAUJOS</td> <td>ALFENAS</td> <td>AMPARO DA SERRA</td> </tr>
+                        <tr> <td>CACHOEIRA DA PRATA</td> <td>ARAXÁ</td> <td>ARCOS</td> <td>BOA ESPERANÇA</td> <td>ASTOLFO DUTRA</td> </tr>
+                        <tr> <td>CAETÉ</td> <td>CAMPOS ALTOS</td> <td>CAMACHO</td> <td>BOM SUCESSO</td> <td>BARBACENA</td> </tr>
+                        <tr> <td>CAPIM BRANCO</td> <td>CARMO DO PARANAIBA</td> <td>CONCEIÇÃO DO PARA</td> <td>BORDA DA MATA</td> <td>BARROSO</td> </tr>
+                        <tr> <td>ESMERALDAS</td> <td>COROMANDEL</td> <td>CORREGO FUNDO</td> <td>CAMPANHA</td> <td>BICAS</td> </tr>
+                        <tr> <td>IGARAPÉ</td> <td>IBIA</td> <td>DIVINOPOLIS</td> <td>CAMPESTRE</td> <td>CARANDAI</td> </tr>
+                        <tr> <td>INHAÚMA</td> <td>INDIANOPOLIS</td> <td>DORES DO INDAIA</td> <td>CAMPO BELO</td> <td>CARANGUAS</td> </tr>
+                        <tr> <td>JABOTICATUBAS</td> <td>IRAI DE MINAS</td> <td>FLORESTAL</td> <td>CAMPO VERDE</td> <td>CARMÉSIA</td> </tr>
+                        <tr> <td>JEQUITIBÁ</td> <td>LAGOA FORMOSA</td> <td>FORMIGA</td> <td>CANDEIAS</td> <td>CONGONHAS</td> </tr>
+                        <tr> <td>MARIANA</td> <td>LUZ</td> <td>IGARATINGA</td> <td>CARMO DA CACHOEIRA</td> <td>CONSELHEIRO LAFAIETE</td> </tr>
+                        <tr> <td>OURO BRANCO</td> <td>NOVA PONTE</td> <td>ITAPECERICA</td> <td>CARMO DA MATA</td> <td>CORONEL PACHECO</td> </tr>
+                        <tr> <td>OURO PRETO</td> <td>PATOS DE MINAS</td> <td>ITAUNA</td> <td>CARMOPOLIS DE MINAS</td> <td>CORONEL XAVIER</td> </tr>
+                        <tr> <td>SARZEDO</td> <td>PATROCINIO</td> <td>JAPARAIBA</td> <td>CLAUDIO</td> <td>CRISTIANO OTONI</td> </tr>
+                        <tr> <td>SETE LAGOAS</td> <td>PERDIZES</td> <td>JUATUBA</td> <td>COQUEIRAL</td> <td>DESCOBERTO</td> </tr>
+                        <tr> <td></td> <td>RIO PARANAIBA</td> <td>LAGOA DA PRATA</td> <td>IGARAPE</td> <td>DONA EUZEBIA</td> </tr>
+                        <tr> <td></td> <td>ROMARIA</td> <td>MARTINHO CAMPOS</td> <td>IJACI</td> <td>DORES DE CAMPO</td> </tr>
+                        <tr> <td></td> <td>SANTA JULIANA</td> <td>MATEUS LEME</td> <td>ITAGUARA</td> <td>ENTRE RIOS DE MINAS</td> </tr>
+                        <tr> <td></td> <td>SÃO GOTARDO</td> <td>NOVA SERRANA</td> <td>ITAU DE MINAS</td> <td>EUGENIO DE CAMARÁ</td> </tr>
+                        <tr> <td></td> <td>UBERABA</td> <td>ONÇA DE PITANGUI</td> <td>ITATIAIUÇU</td> <td>GUARACIABA</td> </tr>
+                        <tr> <td></td> <td>UBERLANDIA</td> <td>PAINS</td> <td>LAVRAS</td> <td>GUARANI</td> </tr>
+                        <tr> <td></td> <td></td> <td>PARÁ DE MINAS</td> <td>MACHADO</td> <td>ITABIRITO</td> </tr>
+                        <tr> <td></td> <td></td> <td>PASSOS</td> <td>MONSENHOR PAULO</td> <td>ITAMARATI DE MINAS</td> </tr>
+                        <tr> <td></td> <td></td> <td>PEDRA DO INDAIA</td> <td>NEPOMUCENO</td> <td>JUIZ DE FORA</td> </tr>
+                        <tr> <td></td> <td></td> <td>PERDIGÃO</td> <td>OLIVEIRA</td> <td>LAGOA DOURADA</td> </tr>
+                        <tr> <td></td> <td></td> <td>PIMENTA</td> <td>POÇOS DE CALDAS</td> <td>LARANJAL</td> </tr>
+                        <tr> <td></td> <td></td> <td>PITANGUI</td> <td>PARAGUAÇU</td> <td>LEOPOLDINA</td> </tr>
+                        <tr> <td></td> <td></td> <td>PIUMHI</td> <td>PERDOES</td> <td>LIMA DUARTE</td> </tr>
+                        <tr> <td></td> <td></td> <td>POMPEU</td> <td>PIRACEMA</td> <td>MARIANA</td> </tr>
+                        <tr> <td></td> <td></td> <td>QUARTEL GERAL</td> <td>POÇO FUNDO</td> <td>MURIAE</td> </tr>
+                        <tr> <td></td> <td></td> <td>SANTO ANTONIO DO MONTE</td> <td>POUSO ALEGRE</td> <td>OURO BRANCO</td> </tr>
+                        <tr> <td></td> <td></td> <td>SÃO GONÇALO DO PARA</td> <td>RIBEIRÃO VERMELHO</td> <td>OURO PRETO</td> </tr>
+                        <tr> <td></td> <td></td> <td>SÃO SEBASTIÃO DO OESTE</td> <td>RIO MANSO</td> <td>PEDRO DO ANTA</td> </tr>
+                        <tr> <td></td> <td></td> <td></td> <td>SANTA RITA DE CALDAS</td> <td>PIRAUBA</td> </tr>
+                        <tr> <td></td> <td></td> <td></td> <td>SANTANA DO JACARÉ</td> <td>PRADOS</td> </tr>
+                        <tr> <td></td> <td></td> <td></td> <td>SANTANA DA VARGEM</td> <td>QUELUZITA</td> </tr>
+                        <tr> <td></td> <td></td> <td></td> <td>SÃO FRANCISCO PAULA</td> <td>RESSAQUINHA</td> </tr>
+                        <tr> <td></td> <td></td> <td></td> <td>TRÊS CORAÇÕES</td> <td>RIO POMBA</td> </tr>
+                        <tr> <td></td> <td></td> <td></td> <td>VARGINHA</td> <td>SANTOS DUMONT</td> </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+             <div class="company-data">
+                <p><strong>THIGA TRANSPORTES LTDA</strong></p>
+                <p><strong>CNPJ:</strong> 12.421.379/0001-92</p>
+                <p><strong>Matriz:</strong> R João Batista Montanari, 433, Sala 01, Bairro São José, Caxias do Sul / RS</p>
+                <p><strong>Telefone:</strong> (54) 9948-4342</p>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <h3>Nossas Filiais</h3>
+            <div class="branches">
+                <div class="branch">
+                    <h4>São Paulo (SP)</h4>
+                    <p>Av. Patos, 133 - Cidade Industrial Satélite Cumbica, Guarulhos - SP</p>
+                    <p><strong>Email:</strong> comercial@thiga.com.br</p>
+                </div>
+                <div class="branch">
+                    <h4>Minas Gerais (MG)</h4>
+                    <p>Rua BB, 181 - Bairro Arvoredo, Contagem - MG</p>
+                </div>
+            </div>
+            <div class="main-contact">
+                <p><strong>Email:</strong> comercial@thiga.com.br | atendimento@thiga.com.br | <strong>Site:</strong> www.thiga.com.br</p>
+            </div>
+            <p class="legal-note">ESTA NEGOCIAÇÃO COMERCIAL NÃO CONTEMPLA MULTA CONTRATUAL</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const day = String(today.getDate()).padStart(2, '0');
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const year = today.getFullYear();
+            const formattedDate = `${day}/${month}/${year}`;
+            const proposalNumber = String(Date.now()).slice(-8);
+
+            document.getElementById('proposal-number').textContent = proposalNumber;
+            document.getElementById('proposal-date').textContent = formattedDate;
+            
+            document.getElementById('calculate-btn').addEventListener('click', calculateFreight);
+            document.getElementById('export-btn').addEventListener('click', exportToPDF);
+            
+            // Máscara para WhatsApp
+            const whatsappInput = document.getElementById('whatsapp');
+            whatsappInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 0) {
+                    value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+                }
+                e.target.value = value;
+            });
+        });
+
+        const priceData = {
+            "Belo Horizonte":     { "30": 78.30, "50": 87.08, "70": 103.75, "100": 118.60, "over": 0.86, "ctrc": 60.45 },
+            "Grande BH":          { "30": 83.46, "50": 92.78, "70": 110.86, "100": 122.50, "over": 0.90, "ctrc": 60.45 },
+            "Sete Lagoas":        { "30": 86.05, "50": 95.35, "70": 114.75, "100": 126.35, "over": 1.00, "ctrc": 60.45 },
+            "Centro-Oeste MG":    { "30": 90.20, "50": 102.20, "70": 117.30, "100": 131.50, "over": 1.50, "ctrc": 60.45 },
+            "Juiz de Fora":       { "30": 96.65, "50": 105.70, "70": 118.60, "100": 134.10, "over": 1.60, "ctrc": 60.45 },
+            "Demais Cidades":     { "30": 99.90, "50": 108.30, "70": 123.80, "100": 136.70, "over": 1.85, "ctrc": 72.00 },
+            "Norte de Minas":     { "30": 107.60, "50": 115.85, "70": 126.40, "100": 149.30, "over": 1.95, "ctrc": 72.00 }
+        };
+
+        function calculateFreight() {
+            // --- 1. Obter os dados do formulário ---
+            const destination = document.getElementById('destination').value;
+            const weight = parseFloat(document.getElementById('weight').value) || 0;
+            const cubagem = parseFloat(document.getElementById('cubagem').value) || 0;
+            const valorNF = parseFloat(document.getElementById('valor-nf').value) || 0;
+            const whatsapp = document.getElementById('whatsapp').value;
+            const resultSection = document.getElementById('result-section');
+
+            // --- 2. Validação dos campos obrigatórios ---
+            if (!destination) {
+                alert("Por favor, selecione um destino.");
+                return;
+            }
+             if (weight <= 0 && cubagem <= 0) {
+                alert("Por favor, insira um Peso ou Cubagem válido.");
+                return;
+            }
+             if (valorNF <= 0) {
+                alert("Por favor, insira um Valor de Nota Fiscal válido.");
+                return;
+            }
+            if (!whatsapp || whatsapp.trim().length < 14) { // Verifica um tamanho mínimo para o whats formatado
+                alert("Por favor, preencha o campo WhatsApp corretamente.");
+                return;
+            }
+
+            // --- 3. Definir constantes das Condições Gerais ---
+            const AD_VALOREM_RATE = 0.004; // 0,40%
+            const GRIS_RATE = 0.0030;      // 0,30% - AJUSTADO
+            const GRIS_MIN = 8.70;
+            const PEDAGIO_PER_100KG = 12.95; // AJUSTADO
+            const CUBAGE_FACTOR = 300;     // 300 kgs/m³
+            const MIN_FREIGHT_RATE_VS_NF = 0.01; // 1%
+
+            // --- 4. Calcular o Peso Taxado (maior entre o peso real e o cubado) ---
+            const volumetricWeight = cubagem * CUBAGE_FACTOR;
+            const chargeableWeight = Math.max(weight, volumetricWeight);
+
+            // --- 5. Calcular o Frete Peso Base ---
+            const rates = priceData[destination];
+            let fretePeso = 0;
+            let freteBaseDetalhe = ""; // Para mostrar no detalhamento
+
+            if (chargeableWeight <= 30) {
+                fretePeso = rates["30"];
+                freteBaseDetalhe = `(Tabela 0-30kg)`;
+            } else if (chargeableWeight <= 50) {
+                fretePeso = rates["50"];
+                freteBaseDetalhe = `(Tabela 31-50kg)`;
+            } else if (chargeableWeight <= 70) {
+                fretePeso = rates["70"];
+                freteBaseDetalhe = `(Tabela 51-70kg)`;
+            } else if (chargeableWeight <= 100) {
+                fretePeso = rates["100"];
+                freteBaseDetalhe = `(Tabela 71-100kg)`;
+            } else {
+                // Lógica para cargas acima de 100kg - AJUSTADO
+                const base100kg = rates["100"];
+                const excessWeight = chargeableWeight - 100;
+                const excessCost = excessWeight * rates["over"];
+                const ctrcTax = rates["ctrc"];
+                fretePeso = base100kg + excessCost + ctrcTax;
+                freteBaseDetalhe = `(Base 100kg: R$ ${base100kg.toFixed(2).replace('.',',')} + Excesso: R$ ${excessCost.toFixed(2).replace('.',',')} + CTRC: R$ ${ctrcTax.toFixed(2).replace('.',',')})`;
+            }
+
+            // --- 6. Calcular as Taxas Adicionais ---
+            const adValorem = valorNF * AD_VALOREM_RATE;
+            const gris = Math.max(valorNF * GRIS_RATE, GRIS_MIN);
+            // Pedágio: cálculo ajustado para multiplicar pela fração exata (ex: 2.5 para 250kg)
+            const pedagio = (chargeableWeight / 100) * PEDAGIO_PER_100KG;
+
+            // --- 7. Calcular o Frete Total ---
+            let totalFreight = fretePeso + adValorem + gris + pedagio;
+
+            // --- 8. Aplicar Regra do Frete Mínimo (1% do valor da NF) ---
+            const minFreightVsNf = valorNF * MIN_FREIGHT_RATE_VS_NF;
+            let appliedMinFreightNote = '';
+            if (totalFreight < minFreightVsNf) {
+                totalFreight = minFreightVsNf;
+                appliedMinFreightNote = `<br><em>* Aplicado frete mínimo de 1% do valor da NF (R$ ${minFreightVsNf.toFixed(2).replace('.', ',')})</em>`;
+            }
+
+            // --- 9. Exibir o resultado detalhado ---
+            resultSection.innerHTML = `
+                <p>Valor Aproximado do Frete (com taxas):</p>
+                <p class="price" id="freight-result">R$ ${totalFreight.toFixed(2).replace('.', ',')}</p>
+                <div style="font-size: 14px; text-align: left; margin-top: 15px; background-color: #d4e0e7; padding: 10px; border-radius: 4px;">
+                    <strong>Detalhamento do Cálculo:</strong><br>
+                    - Peso Taxado: ${chargeableWeight.toFixed(2).replace('.', ',')} kg <em style="font-size:12px;">(maior valor entre peso real e cubado)</em><br>
+                    - Frete Peso Base: R$ ${fretePeso.toFixed(2).replace('.', ',')} ${freteBaseDetalhe}<br>
+                    - Ad Valorem (0,40%): R$ ${adValorem.toFixed(2).replace('.', ',')}<br>
+                    - GRIS (0,30%, mín. R$ 8,70): R$ ${gris.toFixed(2).replace('.', ',')}<br>
+                    - Pedágio (R$ 12,95 x fração de 100kg): R$ ${pedagio.toFixed(2).replace('.', ',')}
+                    ${appliedMinFreightNote}
+                </div>
+            `;
+            resultSection.style.display = 'block';
+        }
+
+        function exportToPDF() {
+            // A função de exportar PDF foi mantida como estava, apenas com validação melhorada.
+            const { jsPDF } = window.jspdf;
+            const content = document.getElementById('proposal-content');
+            const clientName = document.getElementById('client-name').value || 'proposta-comercial';
+            const whatsapp = document.getElementById('whatsapp').value;
+            
+            if (!whatsapp || whatsapp.trim().length < 14) {
+                alert("Por favor, preencha o campo WhatsApp corretamente antes de exportar.");
+                return;
+            }
+            
+            const buttons = document.querySelector('.buttons-container');
+            buttons.style.visibility = 'hidden';
+            
+            html2canvas(content, { scale: 2, useCORS: true }).then(canvas => {
+                buttons.style.visibility = 'visible';
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                let heightLeft = pdfHeight;
+                let position = 0;
+                pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+                while (heightLeft > 0) {
+                    position -= pdf.internal.pageSize.getHeight();
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+                    heightLeft -= pdf.internal.pageSize.getHeight();
+                }
+                
+                let fileName = `${clientName.replace(/\s/g, '_').toLowerCase()}_${whatsapp.replace(/\D/g, '')}_thiga.pdf`;
+                pdf.save(fileName);
+            });
+        }
+    </script>
+
+</body>
+</html>
+

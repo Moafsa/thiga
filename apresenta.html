@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apresentação Visual - Rana Express</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #38bdf8, #f8fafc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .brand-blue { color: #0ea5e9; }
+        .bg-brand-dark { background-color: #0f172a; }
+        .bg-brand-card { background-color: #1e293b; }
+        .border-brand-accent { border-color: #0ea5e9; }
+    </style>
+</head>
+<body class="bg-brand-dark text-gray-300">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- Hero Section -->
+        <header class="text-center py-16 md:py-24">
+            <!-- Simulação do Logo -->
+            <div class="flex justify-center items-center gap-4 mb-8">
+                 <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-sky-400">
+                    <path d="M2 9.5H9L12 4L15 14L18 9.5H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 15.5H6L9 20L12 10L15 15.5H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                 <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-white">
+                    RANA <span class="text-gray-400">express</span>
+                 </h1>
+            </div>
+            
+            <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4">
+                Conectando o Brasil com <span class="gradient-text">Agilidade e Confiança</span>.
+            </h2>
+            <p class="max-w-3xl mx-auto text-lg md:text-xl text-gray-400">
+                Soluções completas em transporte de cargas fracionadas e dedicadas, com infraestrutura moderna e foco total no cliente.
+            </p>
+        </header>
+
+        <!-- Sobre Nós & Valores -->
+        <section class="py-16">
+            <div class="grid md:grid-cols-5 gap-12 items-center">
+                <div class="md:col-span-2">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-sky-400 mb-2">SOBRE NÓS</h3>
+                    <h4 class="text-3xl font-bold text-white mb-4">Compromisso que movimenta.</h4>
+                    <p class="text-gray-400 leading-relaxed">
+                        Realizamos transporte de cargas fracionadas para os estados do Sul e Sudeste, e cargas dedicadas para todo o Brasil. O aperfeiçoamento técnico, a melhoria contínua em infraestrutura e um atendimento personalizado são as marcas do nosso negócio, garantindo novas oportunidades e a satisfação de nossos parceiros.
+                    </p>
+                </div>
+                <div class="md:col-span-3 grid sm:grid-cols-3 gap-6">
+                    <div class="bg-brand-card p-6 rounded-xl border border-slate-700">
+                        <i data-lucide="award" class="w-8 h-8 brand-blue mb-4"></i>
+                        <h5 class="text-lg font-bold text-white mb-2">Qualidade</h5>
+                        <p class="text-sm text-gray-400">Garantimos a integridade da sua carga com um alto nível de aprovação e excelência em cada etapa.</p>
+                    </div>
+                    <div class="bg-brand-card p-6 rounded-xl border border-slate-700">
+                        <i data-lucide="handshake" class="w-8 h-8 brand-blue mb-4"></i>
+                        <h5 class="text-lg font-bold text-white mb-2">Confiança</h5>
+                        <p class="text-sm text-gray-400">Construímos relações sólidas e duradouras, prezando pela transparência e segurança em cada trabalho.</p>
+                    </div>
+                    <div class="bg-brand-card p-6 rounded-xl border border-slate-700">
+                        <i data-lucide="git-fork" class="w-8 h-8 brand-blue mb-4"></i>
+                        <h5 class="text-lg font-bold text-white mb-2">Adaptabilidade</h5>
+                        <p class="text-sm text-gray-400">Atendemos às diferentes necessidades dos nossos clientes com flexibilidade e agilidade.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nossos Serviços -->
+        <section class="py-16">
+             <div class="text-center mb-12">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-sky-400 mb-2">SOLUÇÕES COMPLETAS</h3>
+                <h4 class="text-4xl font-extrabold text-white">Nossos Serviços</h4>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-brand-card p-8 rounded-2xl border border-slate-700 hover:border-brand-accent transform hover:-translate-y-2 transition-all duration-300">
+                    <i data-lucide="package-search" class="w-10 h-10 brand-blue mb-4"></i>
+                    <h5 class="text-xl font-bold text-white mb-2">Cargas Fracionadas</h5>
+                    <p class="text-gray-400">Otimização de custos e rotas para pequenas e médias remessas.</p>
+                </div>
+                <div class="bg-brand-card p-8 rounded-2xl border border-slate-700 hover:border-brand-accent transform hover:-translate-y-2 transition-all duration-300">
+                    <i data-lucide="truck" class="w-10 h-10 brand-blue mb-4"></i>
+                    <h5 class="text-xl font-bold text-white mb-2">Cargas Dedicadas</h5>
+                    <p class="text-gray-400">Exclusividade e agilidade para entregas urgentes em todo o Brasil.</p>
+                </div>
+                <div class="bg-brand-card p-8 rounded-2xl border border-slate-700 hover:border-brand-accent transform hover:-translate-y-2 transition-all duration-300">
+                    <i data-lucide="warehouse" class="w-10 h-10 brand-blue mb-4"></i>
+                    <h5 class="text-xl font-bold text-white mb-2">Logística e Armazenamento</h5>
+                    <p class="text-gray-400">Soluções integradas para otimizar sua cadeia de suprimentos.</p>
+                </div>
+                <div class="bg-brand-card p-8 rounded-2xl border border-slate-700 hover:border-brand-accent transform hover:-translate-y-2 transition-all duration-300">
+                    <i data-lucide="recycle" class="w-10 h-10 brand-blue mb-4"></i>
+                    <h5 class="text-xl font-bold text-white mb-2">Transporte Milk Run</h5>
+                    <p class="text-gray-400">Coletas programadas para uma gestão de estoque mais eficiente.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Área de Atuação -->
+        <section class="py-16">
+            <div class="bg-brand-card rounded-2xl p-8 md:p-12 border border-slate-700">
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-sky-400 mb-2">COBERTURA NACIONAL</h3>
+                        <h4 class="text-4xl font-extrabold text-white mb-6">Nossa Área de Atuação</h4>
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-4">
+                                <i data-lucide="map-pinned" class="w-6 h-6 brand-blue flex-shrink-0 mt-1"></i>
+                                <div>
+                                    <h5 class="font-bold text-white">Cargas Fracionadas</h5>
+                                    <p class="text-gray-400">Atendimento especializado nos estados das regiões Sul e Sudeste.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4">
+                                <i data-lucide="globe" class="w-6 h-6 brand-blue flex-shrink-0 mt-1"></i>
+                                <div>
+                                    <h5 class="font-bold text-white">Cargas Dedicadas</h5>
+                                    <p class="text-gray-400">Cobertura completa em todo o território brasileiro.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <img src="https://placehold.co/600x400/1e293b/94a3b8?text=Mapa+de+Atua%C3%A7%C3%A3o" alt="Mapa da área de atuação da Rana Express" class="rounded-lg shadow-lg w-full h-auto">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nossas Unidades -->
+        <section class="py-16">
+            <div class="text-center mb-12">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-sky-400 mb-2">ESTRUTURA</h3>
+                <h4 class="text-4xl font-extrabold text-white">Nossas Unidades</h4>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <div class="bg-brand-card p-6 rounded-lg border border-slate-700">
+                    <h5 class="font-bold text-white">Guarulhos, SP</h5>
+                    <p class="text-sm text-gray-400">Avenida Diorama, 66 - Bairro Industrial Satélite de Cumbica</p>
+                    <p class="text-sm font-semibold brand-blue mt-2">(11) 2412.2100</p>
+                </div>
+                 <div class="bg-brand-card p-6 rounded-lg border border-slate-700">
+                    <h5 class="font-bold text-white">Araraquara, SP</h5>
+                    <p class="text-sm text-gray-400">Avenida Alfredo Coelho de Oliveira, 177 - Bairro Jardim Califórnia</p>
+                    <p class="text-sm font-semibold brand-blue mt-2">(16) 99717.7613</p>
+                </div>
+                <div class="bg-brand-card p-6 rounded-lg border border-slate-700">
+                    <h5 class="font-bold text-white">São José dos Pinhais, PR</h5>
+                    <p class="text-sm text-gray-400">Rua Pedro Valaski, 1791 - Bairro Rio Pequeno</p>
+                    <p class="text-sm font-semibold brand-blue mt-2">(41) 3382.9662</p>
+                </div>
+                <div class="bg-brand-card p-6 rounded-lg border border-slate-700">
+                    <h5 class="font-bold text-white">Itajaí, SC</h5>
+                    <p class="text-sm text-gray-400">Rua 21 de Junho, 1204 - Bairro Poço Grande</p>
+                    <p class="text-sm font-semibold brand-blue mt-2">(47) 3513.4717</p>
+                </div>
+                 <div class="bg-brand-card p-6 rounded-lg border border-slate-700">
+                    <h5 class="font-bold text-white">Caxias do Sul, RS</h5>
+                    <p class="text-sm text-gray-400">Rua Senador Alberto Pasqualini, 2265 - Bairro Mariland</p>
+                    <p class="text-sm font-semibold brand-blue mt-2">(54) 3041.3300</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-8 mt-16 border-t border-slate-800">
+            <p class="text-gray-500">&copy; 2025 Rana Express. Todos os direitos reservados.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

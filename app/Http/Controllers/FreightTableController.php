@@ -1,0 +1,225 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\FreightTable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class FreightTableController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
+     * Display a listing of freight tables for the tenant
+     */
+    public function index()
+    {
+        $tenant = Auth::user()->tenant;
+        
+        if (!$tenant) {
+            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
+        }
+        
+        $freightTables = FreightTable::where('tenant_id', $tenant->id)
+            ->orderBy('is_default', 'desc')
+            ->orderBy('destination_name')
+            ->get();
+        
+        return view('freight-tables.index', compact('freightTables'));
+    }
+
+    /**
+     * Show the form for creating a new freight table
+     */
+    public function create()
+    {
+        return view('freight-tables.create');
+    }
+
+    /**
+     * Store a newly created freight table
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'destination_name' => 'required|string|max:255',
+            'destination_state' => 'nullable|string|max:2',
+            'weight_0_30' => 'nullable|numeric|min:0',
+            'weight_31_50' => 'nullable|numeric|min:0',
+            'weight_51_70' => 'nullable|numeric|min:0',
+            'weight_71_100' => 'nullable|numeric|min:0',
+            'weight_over_100_rate' => 'nullable|numeric|min:0',
+            'ctrc_tax' => 'nullable|numeric|min:0',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        $tenant = Auth::user()->tenant;
+
+        // If setting as default, unset other defaults
+        if ($request->is_default) {
+            FreightTable::where('tenant_id', $tenant->id)
+                ->update(['is_default' => false]);
+        }
+
+        $freightTable = FreightTable::create([
+            'tenant_id' => $tenant->id,
+            'name' => $request->name,
+            'description' => $request->description,
+            'destination_type' => $request->destination_type ?? 'city',
+            'destination_name' => $request->destination_name,
+            'destination_state' => $request->destination_state,
+            'cep_range_start' => $request->cep_range_start,
+            'cep_range_end' => $request->cep_range_end,
+            'weight_0_30' => $request->weight_0_30,
+            'weight_31_50' => $request->weight_31_50,
+            'weight_51_70' => $request->weight_51_70,
+            'weight_71_100' => $request->weight_71_100,
+            'weight_over_100_rate' => $request->weight_over_100_rate,
+            'ctrc_tax' => $request->ctrc_tax,
+            'ad_valorem_rate' => $this->convertPercentageToDecimal($request->ad_valorem_rate) ?? 0.0040,
+            'gris_rate' => $this->convertPercentageToDecimal($request->gris_rate) ?? 0.0030,
+            'gris_minimum' => $request->gris_minimum ?? 8.70,
+            'toll_per_100kg' => $request->toll_per_100kg ?? 12.95,
+            'cubage_factor' => $request->cubage_factor ?? 300,
+            'min_freight_rate_vs_nf' => $this->convertPercentageToDecimal($request->min_freight_rate_vs_nf) ?? 0.01,
+            'tde_markets' => $request->tde_markets,
+            'tde_supermarkets_cd' => $request->tde_supermarkets_cd,
+            'palletization' => $request->palletization,
+            'unloading_tax' => $request->unloading_tax,
+            'weekend_holiday_rate' => $this->convertPercentageToDecimal($request->weekend_holiday_rate) ?? 0.30,
+            'redelivery_rate' => $this->convertPercentageToDecimal($request->redelivery_rate) ?? 0.50,
+            'return_rate' => $this->convertPercentageToDecimal($request->return_rate) ?? 1.00,
+            'is_default' => $request->is_default ?? false,
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('freight-tables.show', $freightTable)
+            ->with('success', 'Tabela de frete criada com sucesso!');
+    }
+
+    /**
+     * Display the specified freight table
+     */
+    public function show(FreightTable $freightTable)
+    {
+        $this->authorizeAccess($freightTable);
+        
+        return view('freight-tables.show', compact('freightTable'));
+    }
+
+    /**
+     * Show the form for editing the specified freight table
+     */
+    public function edit(FreightTable $freightTable)
+    {
+        $this->authorizeAccess($freightTable);
+        
+        return view('freight-tables.edit', compact('freightTable'));
+    }
+
+    /**
+     * Update the specified freight table
+     */
+    public function update(Request $request, FreightTable $freightTable)
+    {
+        $this->authorizeAccess($freightTable);
+        
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'destination_name' => 'required|string|max:255',
+            'destination_state' => 'nullable|string|max:2',
+            'weight_0_30' => 'nullable|numeric|min:0',
+            'weight_31_50' => 'nullable|numeric|min:0',
+            'weight_51_70' => 'nullable|numeric|min:0',
+            'weight_71_100' => 'nullable|numeric|min:0',
+            'weight_over_100_rate' => 'nullable|numeric|min:0',
+            'ctrc_tax' => 'nullable|numeric|min:0',
+        ]);
+
+        // If setting as default, unset other defaults
+        if ($request->is_default && !$freightTable->is_default) {
+            FreightTable::where('tenant_id', $freightTable->tenant_id)
+                ->where('id', '!=', $freightTable->id)
+                ->update(['is_default' => false]);
+        }
+
+        // Prepare data with percentage conversion
+        $data = $request->except(['ad_valorem_rate', 'gris_rate', 'min_freight_rate_vs_nf', 'weekend_holiday_rate', 'redelivery_rate', 'return_rate']);
+        
+        // Convert percentages to decimals
+        if ($request->has('ad_valorem_rate')) {
+            $data['ad_valorem_rate'] = $this->convertPercentageToDecimal($request->ad_valorem_rate);
+        }
+        if ($request->has('gris_rate')) {
+            $data['gris_rate'] = $this->convertPercentageToDecimal($request->gris_rate);
+        }
+        if ($request->has('min_freight_rate_vs_nf')) {
+            $data['min_freight_rate_vs_nf'] = $this->convertPercentageToDecimal($request->min_freight_rate_vs_nf);
+        }
+        if ($request->has('weekend_holiday_rate')) {
+            $data['weekend_holiday_rate'] = $this->convertPercentageToDecimal($request->weekend_holiday_rate);
+        }
+        if ($request->has('redelivery_rate')) {
+            $data['redelivery_rate'] = $this->convertPercentageToDecimal($request->redelivery_rate);
+        }
+        if ($request->has('return_rate')) {
+            $data['return_rate'] = $this->convertPercentageToDecimal($request->return_rate);
+        }
+
+        $freightTable->update($data);
+
+        return redirect()->route('freight-tables.show', $freightTable)
+            ->with('success', 'Tabela de frete atualizada com sucesso!');
+    }
+
+    /**
+     * Remove the specified freight table
+     */
+    public function destroy(FreightTable $freightTable)
+    {
+        $this->authorizeAccess($freightTable);
+        
+        $freightTable->delete();
+
+        return redirect()->route('freight-tables.index')
+            ->with('success', 'Tabela de frete excluída com sucesso!');
+    }
+
+    /**
+     * Authorize access to freight table (tenant isolation)
+     */
+    protected function authorizeAccess(FreightTable $freightTable)
+    {
+        $tenant = Auth::user()->tenant;
+        
+        if (!$tenant || $freightTable->tenant_id !== $tenant->id) {
+            abort(403, 'Unauthorized access to freight table');
+        }
+    }
+
+    /**
+     * Convert percentage value from form (0-100) to decimal (0-1)
+     * If value is already < 1, assume it's already in decimal format
+     */
+    protected function convertPercentageToDecimal($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $value = (float) $value;
+
+        // If value is >= 1, assume it's a percentage and convert (e.g., 0.40 -> 0.0040)
+        // If value is < 1, assume it's already in decimal format (e.g., 0.0040 stays 0.0040)
+        if ($value >= 1) {
+            return $value / 100;
+        }
+
+        return $value;
+    }
+}

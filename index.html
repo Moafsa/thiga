@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thiga Transportes - Soluções em Logística e Transporte</title>
+    <link rel="icon" type="image/svg+xml" href="LOGO.svg">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Variáveis de cores */
+        :root {
+            --cor-principal: #245a49;
+            --cor-secundaria: #1a3d33;
+            --cor-acento: #FF6B35;
+            --cor-texto-claro: #F5F5F5;
+            --cor-texto-escuro: #333;
+        }
+
+        /* Estilos globais */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        h1, h2, h3 {
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--cor-acento);
+        }
+
+        a {
+            color: var(--cor-acento);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        a:hover {
+            color: var(--cor-texto-claro);
+        }
+
+        /* Cabeçalho */
+        header {
+            background-color: var(--cor-secundaria);
+            padding: 20px 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-svg {
+            height: 80px;
+            width: auto;
+            transition: transform 0.3s ease;
+        }
+        .logo-svg:hover {
+            transform: scale(1.05);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 25px;
+        }
+
+        nav a {
+            font-weight: 600;
+        }
+
+        /* Seção Principal (Hero) */
+        .hero {
+            background: url('https://via.placeholder.com/1920x1080/1C2D41/F5F5F5?text=IMAGEM+DE+CAMINHAO+IMPOENTE') no-repeat center center/cover;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--cor-texto-claro);
+            padding-top: 80px;
+        }
+        
+        .hero-content h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .hero-content p {
+            font-size: 1.5em;
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+
+        .btn-cta {
+            background-color: var(--cor-acento);
+            color: var(--cor-principal);
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .btn-cta:hover {
+            background-color: #FF885A;
+        }
+
+        /* Seções de Conteúdo */
+        section {
+            padding: 80px 0;
+            text-align: center;
+        }
+
+        section h2 {
+            font-size: 2.5em;
+            margin-bottom: 50px;
+            position: relative;
+            display: inline-block;
+        }
+
+        section h2::after {
+            content: '';
+            width: 80px;
+            height: 4px;
+            background-color: var(--cor-acento);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: -15px;
+        }
+
+        .servicos-grid {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .servico-card {
+            background-color: var(--cor-secundaria);
+            padding: 40px;
+            border-radius: 10px;
+            width: 300px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+        
+        .servico-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .servico-card i {
+            font-size: 3em;
+            color: var(--cor-acento);
+            margin-bottom: 20px;
+        }
+        
+        .servico-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        /* Rodapé */
+        footer {
+            background-color: var(--cor-secundaria);
+            padding: 40px 0;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .contato-info {
+            text-align: left;
+        }
+
+        .contato-info p {
+            margin: 10px 0;
+        }
+        
+        .contato-info i {
+            margin-right: 10px;
+            color: var(--cor-acento);
+        }
+        
+        /* Estilos do Mapa */
+        .map-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 40px;
+            border: 2px solid var(--cor-secundaria);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .map-container iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        
+        /* Ajuste para o logo no footer */
+        .footer-logo-svg {
+            height: 80px;
+            width: auto;
+        }
+
+        /* Estilos da Calculadora */
+        .calculator-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: var(--cor-secundaria);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .calculator-form {
+            margin-bottom: 30px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+
+        .form-group.full-width {
+            flex: 1 1 100%;
+            min-width: 100%;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--cor-texto-claro);
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            font-size: 16px;
+        }
+
+        .form-group input:disabled {
+            background-color: #444;
+            cursor: not-allowed;
+        }
+
+        /* Estilos customizados para dropdowns */
+        .form-group select {
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .form-group select:hover {
+            border-color: var(--cor-acento);
+            box-shadow: 0 0 5px rgba(255, 107, 53, 0.3);
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--cor-acento);
+            box-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
+        }
+
+        /* Estilos para as opções do dropdown */
+        .form-group select option {
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            padding: 8px;
+        }
+
+        .form-group select option:hover {
+            background-color: var(--cor-acento);
+        }
+
+        .btn-calculate {
+            background-color: var(--cor-acento);
+            color: var(--cor-principal);
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        .btn-calculate:hover {
+            background-color: #FF885A;
+        }
+
+        .result-section {
+            background-color: var(--cor-principal);
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+
+        .result-section p {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .price-result {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--cor-acento);
+            margin-top: 10px;
+        }
+
+        /* Estilos da Tabela de Preços */
+        .pricing-table-container {
+            overflow-x: auto;
+            margin-top: 30px;
+        }
+
+        .pricing-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--cor-texto-claro);
+            color: var(--cor-texto-escuro);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .pricing-table th,
+        .pricing-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .pricing-table th {
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            font-weight: 700;
+        }
+
+        .pricing-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .pricing-table tbody tr:hover {
+            background-color: #fdeee7;
+        }
+
+        /* Estilos das Cidades */
+        .cities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .city-category {
+            background-color: var(--cor-secundaria);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .city-category h3 {
+            color: var(--cor-acento);
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid var(--cor-acento);
+            padding-bottom: 10px;
+        }
+
+        .cities-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cities-list span {
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Estilos do Botão de Orçamento */
+        .quote-button-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .btn-quote {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background-color: var(--cor-acento);
+            color: var(--cor-principal);
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-weight: 700;
+            font-size: 18px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-quote:hover {
+            background-color: #FF885A;
+            color: var(--cor-principal);
+        }
+
+        /* Estilos da Busca de Cidades */
+        .city-search-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .search-box {
+            position: relative;
+            max-width: 500px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            background-color: var(--cor-secundaria);
+            border-radius: 25px;
+            padding: 10px 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .search-box i {
+            color: var(--cor-acento);
+            margin-right: 10px;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--cor-texto-claro);
+            font-size: 16px;
+            outline: none;
+        }
+
+        .search-box input::placeholder {
+            color: #999;
+        }
+
+        .clear-btn {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            color: var(--cor-acento);
+            background-color: rgba(255, 107, 53, 0.1);
+        }
+
+        .search-results {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: var(--cor-secundaria);
+            border-radius: 10px;
+            padding: 15px;
+            display: none;
+        }
+
+        .search-results.show {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background-color: var(--cor-principal);
+            border-radius: 8px;
+            color: var(--cor-texto-claro);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .search-result-item:hover {
+            background-color: var(--cor-acento);
+        }
+
+        /* Estilos do Carrossel de Cidades */
+        .cities-carousel-container {
+            margin-top: 30px;
+            position: relative;
+        }
+
+        .cities-carousel {
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        .cities-slide {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .cities-slide.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .cities-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .cities-column {
+            background-color: var(--cor-secundaria);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .cities-column:hover {
+            transform: translateY(-5px);
+        }
+
+        .cities-column h3 {
+            color: var(--cor-acento);
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid var(--cor-acento);
+            padding-bottom: 8px;
+            text-align: center;
+        }
+
+        .cities-column .cities-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .cities-column .cities-list span {
+            background-color: var(--cor-principal);
+            color: var(--cor-texto-claro);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .cities-column .cities-list span:hover {
+            transform: scale(1.05);
+            background-color: var(--cor-acento);
+        }
+
+        /* Controles do Carrossel */
+        .carousel-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .carousel-btn {
+            background-color: var(--cor-acento);
+            color: var(--cor-principal);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-btn:hover {
+            background-color: #FF885A;
+            transform: scale(1.1);
+        }
+
+        .carousel-btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .carousel-dots {
+            display: flex;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: var(--cor-acento);
+            transform: scale(1.2);
+        }
+
+        .dot:hover {
+            background-color: var(--cor-acento);
+        }
+
+        /* Estilos do FAQ */
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background-color: var(--cor-principal);
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .faq-question {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            cursor: pointer;
+            background-color: var(--cor-secundaria);
+            transition: background-color 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background-color: var(--cor-acento);
+        }
+
+        .faq-question h3 {
+            margin: 0;
+            font-size: 16px;
+            color: var(--cor-texto-claro);
+        }
+
+        .faq-question i {
+            color: var(--cor-acento);
+            transition: transform 0.3s ease;
+        }
+
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .faq-item.active .faq-answer {
+            padding: 20px;
+            max-height: 200px;
+        }
+
+        .faq-answer p {
+            margin: 0;
+            color: var(--cor-texto-claro);
+            line-height: 1.6;
+        }
+
+        /* Estilos das Filiais */
+        .branches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .branch-card {
+            background-color: var(--cor-secundaria);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .branch-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .branch-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--cor-acento);
+        }
+
+        .branch-header i {
+            font-size: 24px;
+            color: var(--cor-acento);
+        }
+
+        .branch-header h3 {
+            margin: 0;
+            color: var(--cor-texto-claro);
+            font-size: 18px;
+        }
+
+        .branch-info p {
+            margin: 8px 0;
+            color: var(--cor-texto-claro);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .branch-info i {
+            color: var(--cor-acento);
+            width: 16px;
+        }
+
+        /* Menu Mobile */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 5px;
+        }
+
+        .menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background-color: var(--cor-acento);
+            margin: 3px 0;
+            transition: 0.3s;
+            border-radius: 2px;
+        }
+
+        .menu-toggle.active span:nth-child(1) {
+            transform: rotate(-45deg) translate(-5px, 6px);
+        }
+
+        .menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-toggle.active span:nth-child(3) {
+            transform: rotate(45deg) translate(-5px, -6px);
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 3em;
+            }
+            
+            .menu-toggle {
+                display: flex;
+            }
+            
+            nav ul {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                width: 100%;
+                background-color: var(--cor-secundaria);
+                flex-direction: column;
+                padding: 20px 0;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            }
+            
+            nav ul.active {
+                display: flex;
+            }
+            
+            nav ul li {
+                margin: 10px 0;
+            }
+            
+            nav ul li a {
+                display: block;
+                padding: 10px 20px;
+                text-align: center;
+            }
+            
+            .servicos-grid {
+                flex-direction: column;
+                align-items: center;
+            }
+            .footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            .contato-info {
+                text-align: center;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .form-group {
+                min-width: 100%;
+            }
+            
+            .cities-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .pricing-table-container {
+                overflow-x: scroll;
+            }
+            
+            .calculator-container {
+                padding: 20px;
+                margin: 0 10px;
+            }
+            
+            .cities-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .cities-column .cities-list {
+                gap: 4px;
+            }
+            
+            .cities-column .cities-list span {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+            
+            .carousel-controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .carousel-dots {
+                order: -1;
+            }
+            
+            .search-box {
+                margin: 0 10px;
+            }
+            
+            .branches-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <a href="#" class="logo">
+                <img src="LOGO.svg" alt="Thiga Transportes" class="logo-svg">
+            </a>
+            <nav>
+                <ul>
+                    <li><a href="#sobre">Sobre</a></li>
+                    <li><a href="#servicos">Serviços</a></li>
+                    <li><a href="#calculadora">Calculadora</a></li>
+                    <li><a href="#precos">Preços</a></li>
+                    <li><a href="#cidades">Cidades</a></li>
+                    <li><a href="#filiais">Filiais</a></li>
+                    <li><a href="#contato">Contato</a></li>
+                </ul>
+            </nav>
+            <button class="menu-toggle" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Sua Carga. Nosso Compromisso.</h1>
+                <p>Oferecemos soluções logísticas eficientes e seguras para levar o seu negócio mais longe.</p>
+                <a href="#contato" class="btn-cta">Entre em Contato</a>
+            </div>
+        </section>
+
+        <section id="sobre">
+            <div class="container">
+                <h2>Sobre Nós</h2>
+                <p>A Thiga Transportes é uma empresa dedicada a fornecer serviços de transporte e logística de alta qualidade. Com uma frota moderna e uma equipe experiente, garantimos que suas mercadorias cheguem ao destino com segurança e no prazo. Nosso compromisso é com a excelência e a satisfação total dos nossos clientes.</p>
+            </div>
+        </section>
+
+        <section id="servicos" style="background-color: var(--cor-secundaria);">
+            <div class="container">
+                <h2>Nossos Serviços</h2>
+                <div class="servicos-grid">
+                    <div class="servico-card">
+                        <i class="fas fa-truck-moving"></i>
+                        <h3>Cargas Fracionadas</h3>
+                        <p>Transporte de pequenas e médias cargas com agilidade e economia.</p>
+                    </div>
+                    <div class="servico-card">
+                        <i class="fas fa-box-open"></i>
+                        <h3>Cargas Completas</h3>
+                        <p>Soluções completas para o transporte exclusivo de grandes volumes.</p>
+                    </div>
+                    <div class="servico-card">
+                        <i class="fas fa-pallet"></i>
+                        <h3>Logística Integrada</h3>
+                        <p>Planejamento e gestão completa da cadeia de suprimentos.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="calculadora">
+            <div class="container">
+                <h2>Calculadora de Frete</h2>
+                <div class="calculator-container">
+                    <div class="calculator-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="origin">De</label>
+                                <input type="text" id="origin" value="São Paulo / SP" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label for="destination">Para</label>
+                                <select id="destination">
+                                    <option value="" disabled selected>Selecione um destino</option>
+                                    <option value="Belo Horizonte">BELO HORIZONTE - MG</option>
+                                    <option value="Grande BH">GRANDE BH - MG</option>
+                                    <option value="Sete Lagoas">SETE LAGOAS - MG</option>
+                                    <option value="Centro-Oeste MG">DIVINÓPOLIS – ITAÚNA - PARÁ MINAS - MG</option>
+                                    <option value="Juiz de Fora">JUIZ DE FORA - MG</option>
+                                    <option value="Demais Cidades">DEMAIS CIDADES - MG</option>
+                                    <option value="Norte de Minas">NORTE DE MINAS - MG</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="weight">Peso Real (em Kg)</label>
+                                <input type="number" id="weight" placeholder="Ex: 55">
+                            </div>
+                            <div class="form-group">
+                                <label for="cubagem">Cubagem (m³)</label>
+                                <input type="number" id="cubagem" step="0.01" placeholder="Ex: 0.5">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label for="valor-nf">Valor da Nota Fiscal (R$)</label>
+                                <input type="number" id="valor-nf" step="0.01" placeholder="Ex: 1500.00">
+                            </div>
+                        </div>
+                        <button id="calculate-btn" class="btn-calculate">Calcular Frete</button>
+                    </div>
+                    <div id="result-section" class="result-section">
+                        <!-- O resultado será inserido aqui pelo JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="precos" style="background-color: var(--cor-secundaria);">
+            <div class="container">
+                <h2>Solicite Seu Orçamento</h2>
+                <p>Para consultar nossa tabela completa de preços e solicitar uma proposta comercial personalizada, acesse nossa calculadora avançada.</p>
+                <div class="quote-button-container">
+                    <a href="pracas.html" class="btn-quote">
+                        <i class="fas fa-calculator"></i>
+                        Solicitar Proposta Comercial
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section id="cidades">
+            <div class="container">
+                <h2>Cidades Atendidas em Minas Gerais</h2>
+                
+                <!-- Busca de Cidades -->
+                <div class="city-search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="citySearch" placeholder="Buscar cidade...">
+                        <button id="clearSearch" class="clear-btn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+                
+                <div class="cities-carousel-container">
+                    <div class="cities-carousel">
+                        <div class="cities-slide active">
+                            <div class="cities-grid">
+                                <div class="cities-column">
+                                    <h3>Vale do Aço</h3>
+                                    <div class="cities-list">
+                                        <span>ABRE CAMPO</span><span>ALPERCATA</span><span>BARÃO DE COCAIS</span><span>BELA VISTA DE MINAS</span>
+                                        <span>BOM JESUS DO AMPARO</span><span>CAETÉ</span><span>CARATINGA</span><span>CATAS ALTAS</span>
+                                        <span>CORONEL FABRICIANO</span><span>DOM CAVATI</span><span>ENGENHEIRO CALDAS</span><span>FERNANDES TOURINHO</span>
+                                        <span>INHAPIM</span><span>IPABA</span><span>IPATINGA</span><span>JAGUARAÇU</span><span>JOÃO MONLEVADE</span>
+                                        <span>MANHUAÇU</span><span>MANHUMIRIM</span><span>MATIPO</span><span>NAQUE</span><span>NOVA UNIÃO</span>
+                                        <span>PERIQUITO</span><span>PIEDADE DE CARATINGA</span><span>RIO CASCA</span><span>SANTA BÁRBARA</span>
+                                        <span>SANTANA DO PARAÍSO</span><span>SÃO DOMINGOS DO PRATA</span><span>SÃO GONÇALO DO RIO ABAIXO</span>
+                                        <span>SÃO JOSÉ DO GOIABAL</span><span>TIMÓTEO</span><span>UBAPORANGA</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Norte de Minas</h3>
+                                    <div class="cities-list">
+                                        <span>ARAÇAÍ</span><span>AUGUSTO DE LIMA</span><span>BOCAIÚVA</span><span>BUENÓPOLIS</span>
+                                        <span>CAMPO DE PORTÕES</span><span>CORDISBURGO</span><span>CORINTO</span><span>CURVELO</span>
+                                        <span>ENGENHEIRO NAVARRO</span><span>INIMUTABA</span><span>JOAQUIM FELICIO</span><span>JEQUITIBÁ</span>
+                                        <span>LASSANCE</span><span>MONTES CLAROS</span><span>MORRO DA GARÇA</span><span>PIRAPORA</span>
+                                        <span>SANTO HIPÓLITO</span><span>VARZEA DA PALMA</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Central de Minas</h3>
+                                    <div class="cities-list">
+                                        <span>ÁGUA BOA</span><span>ANGELÂNDIA</span><span>ARCÂNGELO</span><span>CAETANÓPOLIS</span>
+                                        <span>CANTAGALO</span><span>CAPELINHA</span><span>CARBONITA</span><span>CHAPADA DO NORTE</span>
+                                        <span>CORREGO DANTAS</span><span>COUTO MAGALHÃES</span><span>DIAMANTINA</span><span>DIVINOLÂNDIA DE MINAS</span>
+                                        <span>GOUVEIA</span><span>GUANHÃES</span><span>ITAMARANDIBA</span><span>JOSÉ RAYDAN</span>
+                                        <span>MINAS NOVA</span><span>PARAOPEBA</span><span>PEÇANHA</span><span>RESPLENDOR DE ÁGUA BOA</span>
+                                        <span>RIO VERMELHO</span><span>SABINÓPOLIS</span><span>SANTA MARIA DO SUAÇUÍ</span><span>SÃO JOSÉ DO JACURI</span>
+                                        <span>SÃO JOSÉ EVANGELISTA</span><span>SÃO PEDRO DO SUAÇUÍ</span><span>SERRO</span><span>SETE LAGOAS</span>
+                                        <span>TURMALINA</span><span>VEREDINHA</span><span>VIRGINÓPOLIS</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cities-slide">
+                            <div class="cities-grid">
+                                <div class="cities-column">
+                                    <h3>Rota BH</h3>
+                                    <div class="cities-list">
+                                        <span>BELO HORIZONTE</span><span>CONTAGEM</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Grande BH</h3>
+                                    <div class="cities-list">
+                                        <span>BETIM</span><span>CONTAGEM</span><span>IBIRITÉ</span><span>LAGOA SANTA</span>
+                                        <span>NOVA LIMA</span><span>RIBEIRÃO DAS NEVES</span><span>SANTA LUZIA</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Rota Grande BH 02</h3>
+                                    <div class="cities-list">
+                                        <span>BALDIM</span><span>BELO VALE</span><span>CACHOEIRA DA PRATA</span><span>CAETÉ</span>
+                                        <span>CAPIM BRANCO</span><span>ESMERALDAS</span><span>IGARAPÉ</span><span>INHAÚMA</span>
+                                        <span>JABOTICATUBAS</span><span>JEQUITIBÁ</span><span>MARIANA</span><span>OURO BRANCO</span>
+                                        <span>OURO PRETO</span><span>SARZEDO</span><span>SETE LAGOAS</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cities-slide">
+                            <div class="cities-grid">
+                                <div class="cities-column">
+                                    <h3>Triângulo Mineiro</h3>
+                                    <div class="cities-list">
+                                        <span>ARAGUARI</span><span>ARAPORÃ</span><span>ARAXÁ</span><span>CAMPOS ALTOS</span>
+                                        <span>CARMO DO PARANAIBA</span><span>COROMANDEL</span><span>IBIA</span><span>INDIANOPOLIS</span>
+                                        <span>IRAI DE MINAS</span><span>LAGOA FORMOSA</span><span>LUZ</span><span>NOVA PONTE</span>
+                                        <span>PATOS DE MINAS</span><span>PATROCINIO</span><span>PERDIZES</span><span>RIO PARANAIBA</span>
+                                        <span>ROMARIA</span><span>SANTA JULIANA</span><span>SÃO GOTARDO</span><span>UBERABA</span>
+                                        <span>UBERLANDIA</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Centro Oeste</h3>
+                                    <div class="cities-list">
+                                        <span>ABAETE</span><span>ARAUJOS</span><span>ARCOS</span><span>CAMACHO</span>
+                                        <span>CONCEIÇÃO DO PARA</span><span>CORREGO FUNDO</span><span>DIVINOPOLIS</span><span>DORES DO INDAIA</span>
+                                        <span>FLORESTAL</span><span>FORMIGA</span><span>IGARATINGA</span><span>ITAPECERICA</span>
+                                        <span>ITAUNA</span><span>JAPARAIBA</span><span>JUATUBA</span><span>LAGOA DA PRATA</span>
+                                        <span>MARTINHO CAMPOS</span><span>MATEUS LEME</span><span>NOVA SERRANA</span><span>ONÇA DE PITANGUI</span>
+                                        <span>PAINS</span><span>PARÁ DE MINAS</span><span>PASSOS</span><span>PEDRA DO INDAIA</span>
+                                        <span>PERDIGÃO</span><span>PIMENTA</span><span>PITANGUI</span><span>PIUMHI</span>
+                                        <span>POMPEU</span><span>QUARTEL GERAL</span><span>SANTO ANTONIO DO MONTE</span><span>SÃO GONÇALO DO PARA</span>
+                                        <span>SÃO SEBASTIÃO DO OESTE</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Sul de Minas</h3>
+                                    <div class="cities-list">
+                                        <span>AREADO</span><span>ALFENAS</span><span>BOA ESPERANÇA</span><span>BOM SUCESSO</span>
+                                        <span>BORDA DA MATA</span><span>CAMPANHA</span><span>CAMPESTRE</span><span>CAMPO BELO</span>
+                                        <span>CAMPO VERDE</span><span>CANDEIAS</span><span>CARMO DA CACHOEIRA</span><span>CARMO DA MATA</span>
+                                        <span>CARMOPOLIS DE MINAS</span><span>CLAUDIO</span><span>COQUEIRAL</span><span>IGARAPE</span>
+                                        <span>IJACI</span><span>ITAGUARA</span><span>ITAU DE MINAS</span><span>ITATIAIUÇU</span>
+                                        <span>LAVRAS</span><span>MACHADO</span><span>MONSENHOR PAULO</span><span>NEPOMUCENO</span>
+                                        <span>OLIVEIRA</span><span>POÇOS DE CALDAS</span><span>PARAGUAÇU</span><span>PERDOES</span>
+                                        <span>PIRACEMA</span><span>POÇO FUNDO</span><span>POUSO ALEGRE</span><span>RIBEIRÃO VERMELHO</span>
+                                        <span>RIO MANSO</span><span>SANTA RITA DE CALDAS</span><span>SANTANA DO JACARÉ</span><span>SANTANA DA VARGEM</span>
+                                        <span>SÃO FRANCISCO PAULA</span><span>TRÊS CORAÇÕES</span><span>VARGINHA</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cities-slide">
+                            <div class="cities-grid">
+                                <div class="cities-column">
+                                    <h3>Rota Grande BH 02</h3>
+                                    <div class="cities-list">
+                                        <span>BALDIM</span><span>BELO VALE</span><span>CACHOEIRA DA PRATA</span><span>CAETÉ</span>
+                                        <span>CAPIM BRANCO</span><span>ESMERALDAS</span><span>IGARAPÉ</span><span>INHAÚMA</span>
+                                        <span>JABOTICATUBAS</span><span>JEQUITIBÁ</span><span>MARIANA</span><span>OURO BRANCO</span>
+                                        <span>OURO PRETO</span><span>SARZEDO</span><span>SETE LAGOAS</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Triângulo Mineiro</h3>
+                                    <div class="cities-list">
+                                        <span>ARAGUARI</span><span>ARAPORÃ</span><span>ARAXÁ</span><span>CAMPOS ALTOS</span>
+                                        <span>CARMO DO PARANAIBA</span><span>COROMANDEL</span><span>IBIA</span><span>INDIANOPOLIS</span>
+                                        <span>IRAI DE MINAS</span><span>LAGOA FORMOSA</span><span>LUZ</span><span>NOVA PONTE</span>
+                                        <span>PATOS DE MINAS</span><span>PATROCINIO</span><span>PERDIZES</span><span>RIO PARANAIBA</span>
+                                        <span>ROMARIA</span><span>SANTA JULIANA</span><span>SÃO GOTARDO</span><span>UBERABA</span>
+                                        <span>UBERLANDIA</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Centro Oeste</h3>
+                                    <div class="cities-list">
+                                        <span>ABAETE</span><span>ARAUJOS</span><span>ARCOS</span><span>CAMACHO</span>
+                                        <span>CONCEIÇÃO DO PARA</span><span>CORREGO FUNDO</span><span>DIVINOPOLIS</span><span>DORES DO INDAIA</span>
+                                        <span>FLORESTAL</span><span>FORMIGA</span><span>IGARATINGA</span><span>ITAPECERICA</span>
+                                        <span>ITAUNA</span><span>JAPARAIBA</span><span>JUATUBA</span><span>LAGOA DA PRATA</span>
+                                        <span>MARTINHO CAMPOS</span><span>MATEUS LEME</span><span>NOVA SERRANA</span><span>ONÇA DE PITANGUI</span>
+                                        <span>PAINS</span><span>PARÁ DE MINAS</span><span>PASSOS</span><span>PEDRA DO INDAIA</span>
+                                        <span>PERDIGÃO</span><span>PIMENTA</span><span>PITANGUI</span><span>PIUMHI</span>
+                                        <span>POMPEU</span><span>QUARTEL GERAL</span><span>SANTO ANTONIO DO MONTE</span><span>SÃO GONÇALO DO PARA</span>
+                                        <span>SÃO SEBASTIÃO DO OESTE</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cities-slide">
+                            <div class="cities-grid">
+                                <div class="cities-column">
+                                    <h3>Sul de Minas</h3>
+                                    <div class="cities-list">
+                                        <span>AREADO</span><span>ALFENAS</span><span>BOA ESPERANÇA</span><span>BOM SUCESSO</span>
+                                        <span>BORDA DA MATA</span><span>CAMPANHA</span><span>CAMPESTRE</span><span>CAMPO BELO</span>
+                                        <span>CAMPO VERDE</span><span>CANDEIAS</span><span>CARMO DA CACHOEIRA</span><span>CARMO DA MATA</span>
+                                        <span>CARMOPOLIS DE MINAS</span><span>CLAUDIO</span><span>COQUEIRAL</span><span>IGARAPE</span>
+                                        <span>IJACI</span><span>ITAGUARA</span><span>ITAU DE MINAS</span><span>ITATIAIUÇU</span>
+                                        <span>LAVRAS</span><span>MACHADO</span><span>MONSENHOR PAULO</span><span>NEPOMUCENO</span>
+                                        <span>OLIVEIRA</span><span>POÇOS DE CALDAS</span><span>PARAGUAÇU</span><span>PERDOES</span>
+                                        <span>PIRACEMA</span><span>POÇO FUNDO</span><span>POUSO ALEGRE</span><span>RIBEIRÃO VERMELHO</span>
+                                        <span>RIO MANSO</span><span>SANTA RITA DE CALDAS</span><span>SANTANA DO JACARÉ</span><span>SANTANA DA VARGEM</span>
+                                        <span>SÃO FRANCISCO PAULA</span><span>TRÊS CORAÇÕES</span><span>VARGINHA</span>
+                                    </div>
+                                </div>
+                                <div class="cities-column">
+                                    <h3>Zona da Mata</h3>
+                                    <div class="cities-list">
+                                        <span>ALFREDO VASCONCELOS</span><span>AMPARO DA SERRA</span><span>ASTOLFO DUTRA</span><span>BARBACENA</span>
+                                        <span>BARROSO</span><span>BICAS</span><span>CARANDAI</span><span>CARANGUAS</span>
+                                        <span>CARMÉSIA</span><span>CONGONHAS</span><span>CONSELHEIRO LAFAIETE</span><span>CORONEL PACHECO</span>
+                                        <span>CORONEL XAVIER</span><span>CRISTIANO OTONI</span><span>DESCOBERTO</span><span>DONA EUZEBIA</span>
+                                        <span>DORES DE CAMPO</span><span>ENTRE RIOS DE MINAS</span><span>EUGENIO DE CAMARÁ</span><span>GUARACIABA</span>
+                                        <span>GUARANI</span><span>ITABIRITO</span><span>ITAMARATI DE MINAS</span><span>JUIZ DE FORA</span>
+                                        <span>LAGOA DOURADA</span><span>LARANJAL</span><span>LEOPOLDINA</span><span>LIMA DUARTE</span>
+                                        <span>MARIANA</span><span>MURIAE</span><span>OURO BRANCO</span><span>OURO PRETO</span>
+                                        <span>PEDRO DO ANTA</span><span>PIRAUBA</span><span>PRADOS</span><span>QUELUZITA</span>
+                                        <span>RESSAQUINHA</span><span>RIO POMBA</span><span>SANTOS DUMONT</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="carousel-controls">
+                        <button class="carousel-btn prev-btn" id="prevBtn">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="carousel-dots">
+                            <span class="dot active" data-slide="0"></span>
+                            <span class="dot" data-slide="1"></span>
+                            <span class="dot" data-slide="2"></span>
+                            <span class="dot" data-slide="3"></span>
+                        </div>
+                        <button class="carousel-btn next-btn" id="nextBtn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="condicoes" style="background-color: var(--cor-secundaria);">
+            <div class="container">
+                <h2>Perguntas Frequentes</h2>
+                <div class="faq-container">
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual o valor mínimo para emissão de CTRC?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Não emitimos CTRC com valor inferior a 1% da nota fiscal, acrescenta-se pedágio + taxas se houver.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como funciona o Ad-valorem?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Ad-valorem: 0,40% sobre o valor da Nota Fiscal.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual a taxa GRIS?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>GRIS: 0,25% sobre o valor da Nota Fiscal, com mínimo de R$ 8,70.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como é cobrado o pedágio?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Pedágio: R$ 13,25 a cada fração de 100kgs.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Quando é cobrada a Taxa de Emissão CTRC?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Taxa Emissão CTRC: Acrescenta-se ao frete peso somente para frações acima de 100kgs.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual o valor do TDE para mercados?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>TDE (Mercados, etc): R$ 300,00 + frete.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual o valor do TDE para CD's de supermercados?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>TDE (CD'S Supermercados): R$ 450,00 + frete.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como funciona a paletização?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Paletização: R$ 40,00 por pallet.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>A carga é assegurada?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Sim, carga assegurada conforme apólice.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como é calculado o ICMS?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>ICMS de acordo com a legislação vigente.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Quais mercadorias não são indenizadas em caso de avaria?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Mercadorias devem estar devidamente embaladas. Não indenizamos avarias de vidros e similares.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Quem é responsável pelas informações da mercadoria?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Responsabilidade do remetente sobre as informações da mercadoria.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Os preços podem ser reajustados?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Preços sujeitos a reajuste conforme aumento de combustível.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Há taxa adicional para entregas em finais de semana?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Taxa para Entrega/coleta Sábado, Domingo e Feriado: 30% sobre o frete original.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual a cubagem utilizada?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Cubagem de 300 kgs/m³.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como funciona a reentrega?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Reentrega: 50% do frete original ou frete mínimo da praça.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual o valor da devolução?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Devolução: 100% do frete original.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como funciona a taxa de descarga?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Taxa de descarga: R$ 90,00 p/ nota + descarga + impostos, conforme procedimento de cada cliente.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Qual o prazo para solução de ocorrências?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Ocorrências: Prazo de 24 horas para solução, caso contrário será devolvido com cobrança de frete.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Como funciona o faturamento?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Faturamento Semanal com 7 dias. Desp. bancária R$ 3,50 para faturamento abaixo de R$ 500,00.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <h3>Há taxas de emplacamento?</h3>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Algumas cidades possuem taxas de emplacamento (consultar Relação de Cidades).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="filiais">
+            <div class="container">
+                <h2>Nossas Filiais</h2>
+                <div class="branches-grid">
+                    <div class="branch-card">
+                        <div class="branch-header">
+                            <i class="fas fa-building"></i>
+                            <h3>Matriz - Caxias do Sul</h3>
+                        </div>
+                        <div class="branch-info">
+                            <p><i class="fas fa-map-marker-alt"></i> Rua João Batista Montanari, 433, Sala 01</p>
+                            <p>Bairro São José, Caxias do Sul - RS</p>
+                            <p>CEP: 95.043-600</p>
+                            <p><i class="fas fa-phone"></i> (54) 9948-4342</p>
+                        </div>
+                    </div>
+                    <div class="branch-card">
+                        <div class="branch-header">
+                            <i class="fas fa-building"></i>
+                            <h3>São Paulo - SP</h3>
+                        </div>
+                        <div class="branch-info">
+                            <p><i class="fas fa-map-marker-alt"></i> Av. Patos, 133</p>
+                            <p>Cidade Industrial Satélite Cumbica, Guarulhos - SP</p>
+                            <p><i class="fas fa-envelope"></i> comercial@thiga.com.br</p>
+                        </div>
+                    </div>
+                    <div class="branch-card">
+                        <div class="branch-header">
+                            <i class="fas fa-building"></i>
+                            <h3>Minas Gerais - MG</h3>
+                        </div>
+                        <div class="branch-info">
+                            <p><i class="fas fa-map-marker-alt"></i> Rua BB, 181</p>
+                            <p>Bairro Arvoredo, Contagem - MG</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contato">
+            <div class="container">
+                <h2>Fale Conosco</h2>
+                <div class="contato-info">
+                    <p><i class="fas fa-map-marker-alt"></i> Rua João Batista Montanari, 433, CEP 95.043-600 - Caxias do Sul - RS</p>
+                    <p><i class="fab fa-whatsapp"></i> <a href="https://wa.me/555499484342" target="_blank">(54) 9948-4342</a></p>
+                    <p><i class="fas fa-envelope"></i> <a href="mailto:comercial@thiga.com.br">comercial@thiga.com.br</a></p>
+                    <p><i class="fas fa-envelope"></i> <a href="mailto:atendimento@thiga.com.br">atendimento@thiga.com.br</a></p>
+                </div>
+                
+                <div class="map-container">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3484.6098703399252!2d-51.194577300000006!3d-29.146695400000002!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x951ea2c7571496ab%3A0xe4ef0a3ebff5fb4a!2sR.%20Jo%C3%A3o%20Batista%20Montanari%2C%20433%20-%20S%C3%A3o%20Jos%C3%A9%2C%20Caxias%20do%20Sul%20-%20RS%2C%2095043-600!5e0!3m2!1spt-BR!2sbr!4v1756913232007!5m2!1spt-BR!2sbr" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container footer-content">
+            <a href="#" class="footer-logo">
+                <img src="LOGO.svg" alt="Thiga Transportes" class="footer-logo-svg">
+            </a>
+            <div>
+                <p>© <span id="ano-atual"></span> Thiga Transportes. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+     <script>
+        // Menu Mobile
+        const menuToggle = document.querySelector('.menu-toggle');
+        const navMenu = document.querySelector('nav ul');
+        
+        menuToggle.addEventListener('click', function() {
+            menuToggle.classList.toggle('active');
+            navMenu.classList.toggle('active');
+        });
+        
+        const navLinks = document.querySelectorAll('nav a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                menuToggle.classList.remove('active');
+                navMenu.classList.remove('active');
+            });
+        });
+        
+        // Ano automático no rodapé
+        document.getElementById('ano-atual').textContent = new Date().getFullYear();
+        
+        // --- INÍCIO DA LÓGICA DA CALCULADORA ATUALIZADA ---
+        const priceData = {
+            "Belo Horizonte":     { "30": 78.30, "50": 87.08, "70": 103.75, "100": 118.60, "over": 0.86, "ctrc": 60.45 },
+            "Grande BH":          { "30": 83.46, "50": 92.78, "70": 110.86, "100": 122.50, "over": 0.90, "ctrc": 60.45 },
+            "Sete Lagoas":        { "30": 86.05, "50": 95.35, "70": 114.75, "100": 126.35, "over": 1.00, "ctrc": 60.45 },
+            "Centro-Oeste MG":    { "30": 90.20, "50": 102.20, "70": 117.30, "100": 131.50, "over": 1.50, "ctrc": 60.45 },
+            "Juiz de Fora":       { "30": 96.65, "50": 105.70, "70": 118.60, "100": 134.10, "over": 1.60, "ctrc": 60.45 },
+            "Demais Cidades":     { "30": 99.90, "50": 108.30, "70": 123.80, "100": 136.70, "over": 1.85, "ctrc": 72.00 },
+            "Norte de Minas":     { "30": 107.60, "50": 115.85, "70": 126.40, "100": 149.30, "over": 1.95, "ctrc": 72.00 }
+        };
+
+        function calculateFreight() {
+            const destination = document.getElementById('destination').value;
+            const weight = parseFloat(document.getElementById('weight').value) || 0;
+            const cubagem = parseFloat(document.getElementById('cubagem').value) || 0;
+            const valorNF = parseFloat(document.getElementById('valor-nf').value) || 0;
+            const resultSection = document.getElementById('result-section');
+
+            if (!destination) {
+                alert("Por favor, selecione um destino.");
+                return;
+            }
+             if (weight <= 0 && cubagem <= 0) {
+                alert("Por favor, insira um Peso ou Cubagem válido.");
+                return;
+            }
+             if (valorNF <= 0) {
+                alert("Por favor, insira um Valor de Nota Fiscal válido.");
+                return;
+            }
+
+            const AD_VALOREM_RATE = 0.004;
+            const GRIS_RATE = 0.0030;
+            const GRIS_MIN = 8.70;
+            const PEDAGIO_PER_100KG = 12.95;
+            const CUBAGE_FACTOR = 300;
+            const MIN_FREIGHT_RATE_VS_NF = 0.01;
+
+            const volumetricWeight = cubagem * CUBAGE_FACTOR;
+            const chargeableWeight = Math.max(weight, volumetricWeight);
+
+            const rates = priceData[destination];
+            let fretePeso = 0;
+            let freteBaseDetalhe = "";
+
+            if (chargeableWeight <= 30) {
+                fretePeso = rates["30"];
+                freteBaseDetalhe = `(Tabela 0-30kg)`;
+            } else if (chargeableWeight <= 50) {
+                fretePeso = rates["50"];
+                freteBaseDetalhe = `(Tabela 31-50kg)`;
+            } else if (chargeableWeight <= 70) {
+                fretePeso = rates["70"];
+                freteBaseDetalhe = `(Tabela 51-70kg)`;
+            } else if (chargeableWeight <= 100) {
+                fretePeso = rates["100"];
+                freteBaseDetalhe = `(Tabela 71-100kg)`;
+            } else {
+                const base100kg = rates["100"];
+                const excessWeight = chargeableWeight - 100;
+                const excessCost = excessWeight * rates["over"];
+                const ctrcTax = rates["ctrc"];
+                fretePeso = base100kg + excessCost + ctrcTax;
+                freteBaseDetalhe = `(Base 100kg: R$ ${base100kg.toFixed(2).replace('.',',')} + Excesso: R$ ${excessCost.toFixed(2).replace('.',',')} + CTRC: R$ ${ctrcTax.toFixed(2).replace('.',',')})`;
+            }
+
+            const adValorem = valorNF * AD_VALOREM_RATE;
+            const gris = Math.max(valorNF * GRIS_RATE, GRIS_MIN);
+            const pedagio = (chargeableWeight / 100) * PEDAGIO_PER_100KG;
+
+            let totalFreight = fretePeso + adValorem + gris + pedagio;
+
+            const minFreightVsNf = valorNF * MIN_FREIGHT_RATE_VS_NF;
+            let appliedMinFreightNote = '';
+            if (totalFreight < minFreightVsNf) {
+                totalFreight = minFreightVsNf;
+                appliedMinFreightNote = `<br><em>* Aplicado frete mínimo de 1% do valor da NF (R$ ${minFreightVsNf.toFixed(2).replace('.', ',')})</em>`;
+            }
+
+            resultSection.innerHTML = `
+                <p>Valor Aproximado do Frete (com taxas):</p>
+                <p class="price-result">R$ ${totalFreight.toFixed(2).replace('.', ',')}</p>
+                <div style="font-size: 14px; text-align: left; margin-top: 15px; background-color: var(--cor-principal); padding: 10px; border-radius: 4px; border: 1px solid #444;">
+                    <strong>Detalhamento do Cálculo:</strong><br>
+                    - Peso Taxado: ${chargeableWeight.toFixed(2).replace('.', ',')} kg<br>
+                    - Frete Peso Base: R$ ${fretePeso.toFixed(2).replace('.', ',')} ${freteBaseDetalhe}<br>
+                    - Ad Valorem (0,40%): R$ ${adValorem.toFixed(2).replace('.', ',')}<br>
+                    - GRIS (0,30%, mín. R$ 8,70): R$ ${gris.toFixed(2).replace('.', ',')}<br>
+                    - Pedágio (R$ 12,95 x fração): R$ ${pedagio.toFixed(2).replace('.', ',')}
+                    ${appliedMinFreightNote}
+                </div>
+            `;
+            resultSection.style.display = 'block';
+        }
+
+        document.getElementById('calculate-btn').addEventListener('click', calculateFreight);
+        
+        // FAQ Accordion
+        const faqItems = document.querySelectorAll('.faq-item');
+        faqItems.forEach(item => {
+            const question = item.querySelector('.faq-question');
+            question.addEventListener('click', () => {
+                item.classList.toggle('active');
+            });
+        });
+        
+        // Busca de Cidades
+        const citySearch = document.getElementById('citySearch');
+        const clearSearch = document.getElementById('clearSearch');
+        const searchResults = document.getElementById('searchResults');
+        
+        const allCities = {
+            'Vale do Aço': ['ABRE CAMPO', 'ALPERCATA', 'BARÃO DE COCAIS', 'BELA VISTA DE MINAS', 'BOM JESUS DO AMPARO', 'CAETÉ', 'CARATINGA', 'CATAS ALTAS', 'CORONEL FABRICIANO', 'DOM CAVATI', 'ENGENHEIRO CALDAS', 'FERNANDES TOURINHO', 'INHAPIM', 'IPABA', 'IPATINGA', 'JAGUARAÇU', 'JOÃO MONLEVADE', 'MANHUAÇU', 'MANHUMIRIM', 'MATIPO', 'NAQUE', 'NOVA UNIÃO', 'PERIQUITO', 'PIEDADE DE CARATINGA', 'RIO CASCA', 'SANTA BÁRBARA', 'SANTANA DO PARAÍSO', 'SÃO DOMINGOS DO PRATA', 'SÃO GONÇALO DO RIO ABAIXO', 'SÃO JOSÉ DO GOIABAL', 'TIMÓTEO', 'UBAPORANGA'],
+            'Norte de Minas': ['ARAÇAÍ', 'AUGUSTO DE LIMA', 'BOCAIÚVA', 'BUENÓPOLIS', 'CAMPO DE PORTÕES', 'CORDISBURGO', 'CORINTO', 'CURVELO', 'ENGENHEIRO NAVARRO', 'INIMUTABA', 'JOAQUIM FELICIO', 'JEQUITIBÁ', 'LASSANCE', 'MONTES CLAROS', 'MORRO DA GARÇA', 'PIRAPORA', 'SANTO HIPÓLITO', 'VARZEA DA PALMA'],
+            'Central de Minas': ['ÁGUA BOA', 'ANGELÂNDIA', 'ARCÂNGELO', 'CAETANÓPOLIS', 'CANTAGALO', 'CAPELINHA', 'CARBONITA', 'CHAPADA DO NORTE', 'CORREGO DANTAS', 'COUTO MAGALHÃES', 'DIAMANTINA', 'DIVINOLÂNDIA DE MINAS', 'GOUVEIA', 'GUANHÃES', 'ITAMARANDIBA', 'JOSÉ RAYDAN', 'MINAS NOVA', 'PARAOPEBA', 'PEÇANHA', 'RESPLENDOR DE ÁGUA BOA', 'RIO VERMELHO', 'SABINÓPOLIS', 'SANTA MARIA DO SUAÇUÍ', 'SÃO JOSÉ DO JACURI', 'SÃO JOSÉ EVANGELISTA', 'SÃO PEDRO DO SUAÇUÍ', 'SERRO', 'SETE LAGOAS', 'TURMALINA', 'VEREDINHA', 'VIRGINÓPOLIS'],
+            'Rota BH': ['BELO HORIZONTE', 'CONTAGEM'],
+            'Grande BH': ['BETIM', 'CONTAGEM', 'IBIRITÉ', 'LAGOA SANTA', 'NOVA LIMA', 'RIBEIRÃO DAS NEVES', 'SANTA LUZIA'],
+            'Rota Grande BH 02': ['BALDIM', 'BELO VALE', 'CACHOEIRA DA PRATA', 'CAETÉ', 'CAPIM BRANCO', 'ESMERALDAS', 'IGARAPÉ', 'INHAÚMA', 'JABOTICATUBAS', 'JEQUITIBÁ', 'MARIANA', 'OURO BRANCO', 'OURO PRETO', 'SARZEDO', 'SETE LAGOAS'],
+            'Triângulo Mineiro': ['ARAGUARI', 'ARAPORÃ', 'ARAXÁ', 'CAMPOS ALTOS', 'CARMO DO PARANAIBA', 'COROMANDEL', 'IBIA', 'INDIANOPOLIS', 'IRAI DE MINAS', 'LAGOA FORMOSA', 'LUZ', 'NOVA PONTE', 'PATOS DE MINAS', 'PATROCINIO', 'PERDIZES', 'RIO PARANAIBA', 'ROMARIA', 'SANTA JULIANA', 'SÃO GOTARDO', 'UBERABA', 'UBERLANDIA'],
+            'Centro Oeste': ['ABAETE', 'ARAUJOS', 'ARCOS', 'CAMACHO', 'CONCEIÇÃO DO PARA', 'CORREGO FUNDO', 'DIVINOPOLIS', 'DORES DO INDAIA', 'FLORESTAL', 'FORMIGA', 'IGARATINGA', 'ITAPECERICA', 'ITAUNA', 'JAPARAIBA', 'JUATUBA', 'LAGOA DA PRATA', 'MARTINHO CAMPOS', 'MATEUS LEME', 'NOVA SERRANA', 'ONÇA DE PITANGUI', 'PAINS', 'PARÁ DE MINAS', 'PASSOS', 'PEDRA DO INDAIA', 'PERDIGÃO', 'PIMENTA', 'PITANGUI', 'PIUMHI', 'POMPEU', 'QUARTEL GERAL', 'SANTO ANTONIO DO MONTE', 'SÃO GONÇALO DO PARA', 'SÃO SEBASTIÃO DO OESTE'],
+            'Sul de Minas': ['AREADO', 'ALFENAS', 'BOA ESPERANÇA', 'BOM SUCESSO', 'BORDA DA MATA', 'CAMPANHA', 'CAMPESTRE', 'CAMPO BELO', 'CAMPO VERDE', 'CANDEIAS', 'CARMO DA CACHOEIRA', 'CARMO DA MATA', 'CARMOPOLIS DE MINAS', 'CLAUDIO', 'COQUEIRAL', 'IGARAPE', 'IJACI', 'ITAGUARA', 'ITAU DE MINAS', 'ITATIAIUÇU', 'LAVRAS', 'MACHADO', 'MONSENHOR PAULO', 'NEPOMUCENO', 'OLIVEIRA', 'POÇOS DE CALDAS', 'PARAGUAÇU', 'PERDOES', 'PIRACEMA', 'POÇO FUNDO', 'POUSO ALEGRE', 'RIBEIRÃO VERMELHO', 'RIO MANSO', 'SANTA RITA DE CALDAS', 'SANTANA DO JACARÉ', 'SANTANA DA VARGEM', 'SÃO FRANCISCO PAULA', 'TRÊS CORAÇÕES', 'VARGINHA'],
+            'Zona da Mata': ['ALFREDO VASCONCELOS', 'AMPARO DA SERRA', 'ASTOLFO DUTRA', 'BARBACENA', 'BARROSO', 'BICAS', 'CARANDAI', 'CARANGUAS', 'CARMÉSIA', 'CONGONHAS', 'CONSELHEiro LAFAIETE', 'CORONEL PACHECO', 'CORONEL XAVIER', 'CRISTIANO OTONI', 'DESCOBERTO', 'DONA EUZEBIA', 'DORES DE CAMPO', 'ENTRE RIOS DE MINAS', 'EUGENIO DE CAMARÁ', 'GUARACIABA', 'GUARANI', 'ITABIRITO', 'ITAMARATI DE MINAS', 'JUIZ DE FORA', 'LAGOA DOURADA', 'LARANJAL', 'LEOPOLDINA', 'LIMA DUARTE', 'MARIANA', 'MURIAE', 'OURO BRANCO', 'OURO PRETO', 'PEDRO DO ANTA', 'PIRAUBA', 'PRADOS', 'QUELUZITA', 'RESSAQUINHA', 'RIO POMBA', 'SANTOS DUMONT']
+        };
+
+        function searchCities(query) {
+            if (query.length < 2) {
+                searchResults.classList.remove('show');
+                return;
+            }
+            const results = [];
+            const searchTerm = query.toUpperCase();
+            Object.keys(allCities).forEach(region => {
+                allCities[region].forEach(city => {
+                    if (city.includes(searchTerm)) {
+                        results.push({ city, region });
+                    }
+                });
+            });
+            displaySearchResults(results);
+        }
+
+        function displaySearchResults(results) {
+            searchResults.innerHTML = '';
+            if (results.length === 0) {
+                searchResults.innerHTML = '<div class="search-result-item">Nenhuma cidade encontrada</div>';
+            } else {
+                results.slice(0, 10).forEach(result => {
+                    const item = document.createElement('div');
+                    item.className = 'search-result-item';
+                    item.innerHTML = `<strong>${result.city}</strong> - ${result.region}`;
+                    searchResults.appendChild(item);
+                });
+            }
+            searchResults.classList.add('show');
+        }
+
+        citySearch.addEventListener('input', (e) => searchCities(e.target.value));
+        clearSearch.addEventListener('click', () => {
+            citySearch.value = '';
+            searchResults.classList.remove('show');
+        });
+
+        // Carrossel de Cidades
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.cities-slide');
+        const dots = document.querySelectorAll('.dot');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const totalSlides = slides.length;
+
+        function showSlide(index) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+            slides[index].classList.add('active');
+            dots[index].classList.add('active');
+            prevBtn.disabled = index === 0;
+            nextBtn.disabled = index === totalSlides - 1;
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                showSlide(currentSlide);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        }
+
+        nextBtn.addEventListener('click', nextSlide);
+        prevBtn.addEventListener('click', prevSlide);
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                currentSlide = index;
+                showSlide(currentSlide);
+            });
+        });
+
+        setInterval(() => {
+            if (currentSlide < totalSlides - 1) {
+                nextSlide();
+            } else {
+                currentSlide = 0;
+                showSlide(currentSlide);
+            }
+        }, 8000);
+
+        showSlide(0);
+    </script>
+
+</body>
+</html>
