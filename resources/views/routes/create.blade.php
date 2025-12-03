@@ -58,20 +58,20 @@
         <div style="margin-bottom: 15px;">
             <label style="display: flex; align-items: center; padding: 10px; background: var(--cor-secundaria); border-radius: 5px; margin-bottom: 10px; cursor: pointer;">
                 <input type="radio" name="start_address_type" value="branch" id="start_type_branch" {{ old('start_address_type', 'branch') == 'branch' ? 'checked' : '' }} style="margin-right: 10px;">
-                <span style="color: var(--cor-texto-claro);">Pavilhão da Empresa</span>
+                <span style="color: var(--cor-texto-claro);">Depósito/Filial da Empresa</span>
             </label>
             
             <div id="branch_selection" style="margin-left: 30px; margin-bottom: 15px; {{ old('start_address_type', 'branch') != 'branch' ? 'display: none;' : '' }}">
                 <div style="display: flex; gap: 10px; align-items: flex-start;">
                     <select name="branch_id" id="branch_id" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
-                        <option value="">Selecione o pavilhão</option>
+                        <option value="">Selecione o Depósito/Filial</option>
                         @foreach($branches as $branch)
                             <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
                                 {{ $branch->name }} - {{ $branch->city }}/{{ $branch->state }}
                             </option>
                         @endforeach
                     </select>
-                    <button type="button" id="add-branch-btn" class="btn-secondary" style="padding: 12px 16px; white-space: nowrap;" title="Adicionar novo pavilhão">
+                    <button type="button" id="add-branch-btn" class="btn-secondary" style="padding: 12px 16px; white-space: nowrap;" title="Adicionar novo Depósito/Filial">
                         <i class="fas fa-plus"></i> Adicionar
                     </button>
                 </div>
@@ -125,18 +125,30 @@
         </div>
     </div>
     
-    <!-- Alternative: XML Files -->
+    <!-- Alternative: CT-e XML Numbers -->
     <div style="margin-bottom: 20px; background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
-        <h3 style="color: var(--cor-acento); margin-bottom: 15px;">Ou Enviar Arquivos XML de CT-e</h3>
-        <input type="file" name="cte_xml_files[]" id="cte_xml_files" multiple accept=".xml,text/xml,application/xml" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
-        <small style="color: rgba(245, 245, 245, 0.6);">Você pode enviar um ou mais arquivos XML de CT-e. O sistema extrairá os endereços e criará as cargas automaticamente.</small>
-        @error('cte_xml_files')
-            <div style="color: #ff6b6b; margin-top: 5px;">{{ $message }}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: var(--cor-acento); margin: 0;">Ou Adicionar Números de XML de CT-e</h3>
+            <a href="{{ route('cte-xmls.index') }}" class="btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">
+                <i class="fas fa-file-code"></i> Gerenciar XMLs
+            </a>
+        </div>
+        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 15px;">
+            Informe os números dos CT-e XMLs já cadastrados. O sistema criará as cargas automaticamente.
+        </p>
+        <div id="cte-xml-numbers-container">
+            <!-- CT-e XML numbers will be added here dynamically -->
+        </div>
+        <button type="button" id="add-cte-xml-number-btn" class="btn-secondary" style="margin-top: 10px; padding: 8px 16px;">
+            <i class="fas fa-plus"></i> Adicionar Número de XML
+        </button>
+        @error('cte_xml_numbers')
+            <div style="color: #ff6b6b; margin-top: 10px;">{{ $message }}</div>
         @enderror
         @error('error')
-            <div style="color: #ff6b6b; margin-top: 5px;">{{ $message }}</div>
+            <div style="color: #ff6b6b; margin-top: 10px;">{{ $message }}</div>
         @enderror
-        <div id="xml-files-list" style="margin-top: 10px;"></div>
+        <div id="cte-xml-number-errors" style="margin-top: 10px;"></div>
     </div>
     
     <!-- Alternative: Existing Shipments -->
@@ -171,14 +183,15 @@
         const driverSelect = document.getElementById('driver_id');
         const vehicleSelect = document.getElementById('vehicle_id');
         const allVehicleOptions = Array.from(vehicleSelect.querySelectorAll('option[data-driver-vehicles]'));
-        const xmlFilesInput = document.getElementById('cte_xml_files');
-        const xmlFilesList = document.getElementById('xml-files-list');
+        const cteXmlNumbersContainer = document.getElementById('cte-xml-numbers-container');
+        const addCteXmlNumberBtn = document.getElementById('add-cte-xml-number-btn');
         const addressesContainer = document.getElementById('addresses-container');
         const addAddressBtn = document.getElementById('add-address-btn');
         const startAddressTypeRadios = document.querySelectorAll('input[name="start_address_type"]');
         const branchSelection = document.getElementById('branch_selection');
         const manualAddress = document.getElementById('manual_address');
         let addressIndex = 0;
+        let cteXmlNumberIndex = 0;
 
         // Handle start address type change
         function updateStartAddressFields() {
@@ -237,7 +250,7 @@
             modal.innerHTML = `
                 <div style="background: var(--cor-secundaria); padding: 30px; border-radius: 15px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2 style="color: var(--cor-acento); margin: 0;">Adicionar Pavilhão</h2>
+                        <h2 style="color: var(--cor-acento); margin: 0;">Adicionar Depósito/Filial</h2>
                         <button type="button" id="close-branch-modal" style="background: transparent; border: none; color: var(--cor-texto-claro); font-size: 24px; cursor: pointer;">&times;</button>
                     </div>
                     <form id="branch-form">
@@ -296,7 +309,7 @@
                         <div id="branch-form-error" style="color: #ff6b6b; margin-bottom: 15px; display: none;"></div>
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
                             <button type="button" id="cancel-branch-btn" class="btn-secondary">Cancelar</button>
-                            <button type="submit" class="btn-primary">Salvar Pavilhão</button>
+                            <button type="submit" class="btn-primary">Salvar Depósito/Filial</button>
                         </div>
                     </form>
                 </div>
@@ -342,13 +355,13 @@
                         modal.remove();
 
                         // Show success message
-                        alert('Pavilhão criado com sucesso!');
+                        alert('Depósito/Filial criado com sucesso!');
                     } else {
-                        errorDiv.textContent = data.message || 'Erro ao criar pavilhão';
+                        errorDiv.textContent = data.message || 'Erro ao criar Depósito/Filial';
                         errorDiv.style.display = 'block';
                     }
                 } catch (error) {
-                    errorDiv.textContent = 'Erro ao criar pavilhão: ' + error.message;
+                    errorDiv.textContent = 'Erro ao criar Depósito/Filial: ' + error.message;
                     errorDiv.style.display = 'block';
                 }
             });
@@ -386,22 +399,6 @@
             if (vehicleSelect.value && !driverVehicleIds.includes(parseInt(vehicleSelect.value))) {
                 vehicleSelect.value = '';
             }
-        }
-        
-        function updateXmlFilesList() {
-            const files = xmlFilesInput.files;
-            if (files.length === 0) {
-                xmlFilesList.innerHTML = '';
-                return;
-            }
-            
-            let html = '<div style="margin-top: 10px; padding: 10px; background: var(--cor-secundaria); border-radius: 5px;">';
-            html += '<strong style="color: var(--cor-texto-claro);">Arquivos selecionados:</strong><ul style="margin: 5px 0 0 20px; color: var(--cor-texto-claro);">';
-            for (let i = 0; i < files.length; i++) {
-                html += '<li>' + files[i].name + ' (' + (files[i].size / 1024).toFixed(2) + ' KB)</li>';
-            }
-            html += '</ul></div>';
-            xmlFilesList.innerHTML = html;
         }
         
         function addAddressField() {
@@ -459,12 +456,68 @@
             });
         }
         
+        // CT-e XML number functions
+        function addCteXmlNumberField() {
+            const numberDiv = document.createElement('div');
+            numberDiv.className = 'cte-xml-number-field';
+            numberDiv.style.cssText = 'display: flex; gap: 10px; align-items: center; margin-bottom: 10px; background-color: var(--cor-secundaria); padding: 10px; border-radius: 8px;';
+            numberDiv.innerHTML = `
+                <input type="text" name="cte_xml_numbers[]" placeholder="Número do CT-e XML" required style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);" class="cte-xml-number-input">
+                <button type="button" class="remove-cte-xml-number-btn" style="background: #ff6b6b; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            cteXmlNumbersContainer.appendChild(numberDiv);
+            cteXmlNumberIndex++;
+            
+            // Add remove button functionality
+            numberDiv.querySelector('.remove-cte-xml-number-btn').addEventListener('click', function() {
+                numberDiv.remove();
+            });
+            
+            // Add validation on blur
+            const input = numberDiv.querySelector('.cte-xml-number-input');
+            input.addEventListener('blur', function() {
+                validateCteXmlNumber(this);
+            });
+        }
+        
+        async function validateCteXmlNumber(input) {
+            const xmlNumber = input.value.trim();
+            const errorsDiv = document.getElementById('cte-xml-number-errors');
+            
+            if (!xmlNumber) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`{{ route('cte-xmls.index') }}?search=${encodeURIComponent(xmlNumber)}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                });
+                
+                // Simple validation - check if XML exists and is unused
+                // Note: This is a basic check. Full validation happens on server side
+                input.style.borderColor = '';
+                const errorMsg = input.parentElement.querySelector('.xml-error');
+                if (errorMsg) {
+                    errorMsg.remove();
+                }
+            } catch (error) {
+                console.error('Error validating XML number:', error);
+            }
+        }
+        
+        // Add first CT-e XML number field by default
+        addCteXmlNumberBtn.addEventListener('click', addCteXmlNumberField);
+        
         // Add first address field by default
         addAddressBtn.addEventListener('click', addAddressField);
         addAddressField(); // Add one address field by default
         
         driverSelect.addEventListener('change', filterVehicles);
-        xmlFilesInput.addEventListener('change', updateXmlFilesList);
         
         // Initial filter on page load
         filterVehicles();

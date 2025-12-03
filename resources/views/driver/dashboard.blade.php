@@ -261,6 +261,112 @@
     </div>
     @endif
 
+    <!-- Route Timeline Section -->
+    @if($activeRoute && $shipments->count() > 0)
+    @php
+        // Get optimized order from settings
+        $optimizedOrder = $activeRoute->settings['sequential_optimized_order'] ?? null;
+        $orderedShipments = $shipments;
+        
+        // Order shipments according to optimized order
+        if ($optimizedOrder && is_array($optimizedOrder)) {
+            $shipmentsMap = $shipments->keyBy('id');
+            $orderedShipments = collect();
+            foreach ($optimizedOrder as $shipmentId) {
+                if ($shipmentsMap->has($shipmentId)) {
+                    $orderedShipments->push($shipmentsMap->get($shipmentId));
+                }
+            }
+            // Add any shipments not in optimized order at the end
+            foreach ($shipments as $shipment) {
+                if (!in_array($shipment->id, $optimizedOrder)) {
+                    $orderedShipments->push($shipment);
+                }
+            }
+        }
+    @endphp
+    
+    <div class="driver-card" style="margin-bottom: 20px;">
+        <div class="driver-card-header">
+            <div class="driver-card-title">
+                <i class="fas fa-route"></i> Timeline da Rota
+            </div>
+        </div>
+        
+        <div style="position: relative; padding-left: 25px; margin-top: 15px;">
+            <!-- Start Point: Depot/Branch -->
+            <div style="position: relative; padding-bottom: 20px; border-left: 3px solid var(--cor-acento);">
+                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: var(--cor-acento); border: 3px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-warehouse" style="color: white; font-size: 0.6em;"></i>
+                </div>
+                <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                        <h4 style="color: var(--cor-acento); margin: 0; font-size: 0.95em; font-weight: 600;">
+                            <i class="fas fa-play-circle"></i> Partida
+                        </h4>
+                        <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.8em; font-weight: 600;">INÍCIO</span>
+                    </div>
+                    @if($activeRoute->branch)
+                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;">{{ $activeRoute->branch->name }}</p>
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
+                            <i class="fas fa-map-marker-alt"></i> {{ $activeRoute->branch->city }}/{{ $activeRoute->branch->state }}
+                        </p>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Delivery Points -->
+            @foreach($orderedShipments as $index => $shipment)
+                @if($shipment->delivery_latitude && $shipment->delivery_longitude)
+                <div style="position: relative; padding-bottom: 20px; border-left: 3px solid rgba(255, 107, 53, 0.3);">
+                    <div style="position: absolute; left: -8px; top: 0; width: 16px; height: 16px; border-radius: 50%; background-color: rgba(255, 107, 53, 0.5); border: 3px solid var(--cor-secundaria);"></div>
+                    <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                            <h4 style="color: var(--cor-texto-claro); margin: 0; font-size: 0.9em;">
+                                <i class="fas fa-truck"></i> Entrega {{ $index + 1 }}
+                            </h4>
+                            <span class="status-badge {{ $shipment->status }}" style="font-size: 0.75em;">
+                                {{ ucfirst(str_replace('_', ' ', $shipment->status)) }}
+                            </span>
+                        </div>
+                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;">{{ $shipment->tracking_number }}</p>
+                        @if($shipment->receiverClient)
+                            <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.85em; margin: 2px 0;">
+                                <i class="fas fa-user"></i> {{ $shipment->receiverClient->name }}
+                            </p>
+                        @endif
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
+                            <i class="fas fa-map-marker-alt"></i> {{ $shipment->delivery_city }}/{{ $shipment->delivery_state }}
+                        </p>
+                    </div>
+                </div>
+                @endif
+            @endforeach
+
+            <!-- End Point: Return to Depot/Branch -->
+            <div style="position: relative; padding-bottom: 0;">
+                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: var(--cor-acento); border: 3px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-flag-checkered" style="color: white; font-size: 0.6em;"></i>
+                </div>
+                <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                        <h4 style="color: var(--cor-acento); margin: 0; font-size: 0.95em; font-weight: 600;">
+                            <i class="fas fa-check-circle"></i> Retorno
+                        </h4>
+                        <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.8em; font-weight: 600;">FIM</span>
+                    </div>
+                    @if($activeRoute->branch)
+                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;">{{ $activeRoute->branch->name }}</p>
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
+                            <i class="fas fa-map-marker-alt"></i> {{ $activeRoute->branch->city }}/{{ $activeRoute->branch->state }}
+                        </p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Shipments List -->
     <div id="shipments">
         <h2 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1.2em;">
@@ -310,6 +416,59 @@
         </div>
         @endforelse
     </div>
+    
+    <!-- Time Control for Driver -->
+    @if($activeRoute)
+    <div class="driver-card" style="margin-bottom: 20px;">
+        <div class="driver-card-header">
+            <div class="driver-card-title">
+                <i class="fas fa-clock"></i> Controle de Tempo
+            </div>
+        </div>
+        
+        <form action="{{ route('routes.update', $activeRoute) }}" method="POST" id="driver-times-form" style="margin-top: 15px;">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="update_type" value="actual_times">
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Data/Hora de Partida Real
+                    </label>
+                    <input type="datetime-local" 
+                           name="actual_departure_datetime" 
+                           value="{{ $activeRoute->actual_departure_datetime ? $activeRoute->actual_departure_datetime->format('Y-m-d\TH:i') : '' }}"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                    @if($activeRoute->planned_departure_datetime)
+                        <p style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 5px;">
+                            Planejado: {{ $activeRoute->planned_departure_datetime->format('d/m/Y H:i') }}
+                        </p>
+                    @endif
+                </div>
+                
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Data/Hora de Chegada Real
+                    </label>
+                    <input type="datetime-local" 
+                           name="actual_arrival_datetime" 
+                           value="{{ $activeRoute->actual_arrival_datetime ? $activeRoute->actual_arrival_datetime->format('Y-m-d\TH:i') : '' }}"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                    @if($activeRoute->planned_arrival_datetime)
+                        <p style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 5px;">
+                            Planejado: {{ $activeRoute->planned_arrival_datetime->format('d/m/Y H:i') }}
+                        </p>
+                    @endif
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">
+                <i class="fas fa-save"></i> Salvar Horários Reais
+            </button>
+        </form>
+    </div>
+    @endif
 @else
     <div class="empty-state">
         <i class="fas fa-route"></i>

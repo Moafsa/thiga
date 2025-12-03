@@ -174,6 +174,7 @@ class GoogleMapsService
      * @param float $destinationLat
      * @param float $destinationLng
      * @param array $waypoints Array of ['lat' => float, 'lng' => float]
+     * @param \App\Models\Vehicle|null $vehicle Vehicle to calculate toll prices
      * @return array Array of route options with distance, duration, tolls info
      */
     public function calculateMultipleRoutes(
@@ -181,16 +182,24 @@ class GoogleMapsService
         float $originLng,
         float $destinationLat,
         float $destinationLng,
-        array $waypoints = []
+        array $waypoints = [],
+        ?\App\Models\Vehicle $vehicle = null
     ): array {
         $routes = [];
 
         // Format waypoints for Google Maps API
+        // NOTE: We DON'T use optimizeWaypoints here because we've already optimized
+        // sequentially (each destination becomes origin for next nearest)
+        // Google Maps optimizeWaypoints optimizes all at once from origin, which is different
         $waypointsStr = '';
         if (!empty($waypoints)) {
-            $waypointsStr = implode('|', array_map(function($wp) {
+            // Use the pre-optimized order (sequential nearest neighbor)
+            $waypointsCoords = implode('|', array_map(function($wp) {
                 return "{$wp['lat']},{$wp['lng']}";
             }, $waypoints));
+            
+            // Don't use optimize:true because we've already optimized sequentially
+            $waypointsStr = $waypointsCoords;
         }
 
         // Route Option 1: Fastest route (default)
@@ -200,7 +209,8 @@ class GoogleMapsService
             $destinationLat,
             $destinationLng,
             $waypointsStr,
-            []
+            [],
+            $vehicle
         );
         if ($route1) {
             $routes[] = [
@@ -212,9 +222,15 @@ class GoogleMapsService
                 'duration' => $route1['duration'],
                 'duration_text' => $route1['duration_text'],
                 'has_tolls' => $route1['has_tolls'] ?? false,
+                'tolls' => $route1['tolls'] ?? [],
+                'total_toll_cost' => $route1['total_toll_cost'] ?? 0,
+                'fuel_cost' => $route1['fuel_cost'] ?? 0,
+                'fuel_cost_breakdown' => $route1['fuel_cost_breakdown'] ?? [],
                 'estimated_cost' => $route1['estimated_cost'] ?? null,
+                'cost_breakdown' => $route1['cost_breakdown'] ?? [],
                 'polyline' => $route1['polyline'] ?? null,
                 'bounds' => $route1['bounds'] ?? null,
+                'waypoint_order' => $route1['waypoint_order'] ?? null,
             ];
         }
 
@@ -225,7 +241,8 @@ class GoogleMapsService
             $destinationLat,
             $destinationLng,
             $waypointsStr,
-            ['avoid' => 'tolls']
+            ['avoid' => 'tolls'],
+            $vehicle
         );
         if ($route2) {
             $routes[] = [
@@ -237,9 +254,15 @@ class GoogleMapsService
                 'duration' => $route2['duration'],
                 'duration_text' => $route2['duration_text'],
                 'has_tolls' => false,
+                'tolls' => [],
+                'total_toll_cost' => 0,
+                'fuel_cost' => $route2['fuel_cost'] ?? 0,
+                'fuel_cost_breakdown' => $route2['fuel_cost_breakdown'] ?? [],
                 'estimated_cost' => $route2['estimated_cost'] ?? null,
+                'cost_breakdown' => $route2['cost_breakdown'] ?? [],
                 'polyline' => $route2['polyline'] ?? null,
                 'bounds' => $route2['bounds'] ?? null,
+                'waypoint_order' => $route2['waypoint_order'] ?? null,
             ];
         }
 
@@ -250,7 +273,8 @@ class GoogleMapsService
             $destinationLat,
             $destinationLng,
             $waypointsStr,
-            ['alternatives' => 'true']
+            ['alternatives' => 'true'],
+            $vehicle
         );
         if ($route3 && count($routes) < 3) {
             // Try to get an alternative route that's different from the first two
@@ -263,9 +287,15 @@ class GoogleMapsService
                 'duration' => $route3['duration'],
                 'duration_text' => $route3['duration_text'],
                 'has_tolls' => $route3['has_tolls'] ?? false,
+                'tolls' => $route3['tolls'] ?? [],
+                'total_toll_cost' => $route3['total_toll_cost'] ?? 0,
+                'fuel_cost' => $route3['fuel_cost'] ?? 0,
+                'fuel_cost_breakdown' => $route3['fuel_cost_breakdown'] ?? [],
                 'estimated_cost' => $route3['estimated_cost'] ?? null,
+                'cost_breakdown' => $route3['cost_breakdown'] ?? [],
                 'polyline' => $route3['polyline'] ?? null,
                 'bounds' => $route3['bounds'] ?? null,
+                'waypoint_order' => $route3['waypoint_order'] ?? null,
             ];
         }
 
@@ -282,6 +312,7 @@ class GoogleMapsService
      * @param float $destinationLng
      * @param string $waypoints
      * @param array $options Additional options like 'avoid', 'alternatives', etc.
+     * @param \App\Models\Vehicle|null $vehicle Vehicle to calculate toll prices
      * @return array|null
      */
     protected function getRouteWithOptions(
@@ -290,7 +321,8 @@ class GoogleMapsService
         float $destinationLat,
         float $destinationLng,
         string $waypoints = '',
-        array $options = []
+        array $options = [],
+        ?\App\Models\Vehicle $vehicle = null
     ): ?array {
         try {
             $params = [
@@ -316,33 +348,75 @@ class GoogleMapsService
                     $route = $data['routes'][0];
                     $legs = $route['legs'] ?? [];
                     
+                    // Get optimized waypoint order if available
+                    $waypointOrder = $route['waypoint_order'] ?? null;
+                    
                     $totalDistance = 0;
                     $totalDuration = 0;
                     $hasTolls = false;
+                    $allSteps = [];
                     
                     foreach ($legs as $leg) {
                         $totalDistance += $leg['distance']['value'];
                         $totalDuration += $leg['duration']['value'];
                         
-                        // Check for tolls in steps
+                        // Collect all steps for toll detection
                         if (isset($leg['steps'])) {
                             foreach ($leg['steps'] as $step) {
+                                $allSteps[] = $step;
+                                
                                 if (isset($step['html_instructions']) && 
                                     (stripos($step['html_instructions'], 'pedágio') !== false ||
                                      stripos($step['html_instructions'], 'toll') !== false)) {
                                     $hasTolls = true;
-                                    break 2;
                                 }
                             }
                         }
                     }
 
-                    // Estimate cost (rough calculation: R$ 0.50 per km + tolls)
-                    $estimatedCost = ($totalDistance / 1000) * 0.50; // R$ 0.50 per km
-                    if ($hasTolls) {
-                        // Add estimated toll cost (R$ 5-20 per toll, estimate 2 tolls average)
-                        $estimatedCost += 15;
+                    // Find tolls using TollService
+                    $tolls = [];
+                    $totalTollCost = 0;
+                    if ($hasTolls && !empty($allSteps)) {
+                        $tollService = app(\App\Services\TollService::class);
+                        
+                        // Extract waypoints from route for toll search
+                        $routeWaypoints = [];
+                        foreach ($legs as $leg) {
+                            if (isset($leg['start_location'])) {
+                                $routeWaypoints[] = [
+                                    'lat' => $leg['start_location']['lat'],
+                                    'lng' => $leg['start_location']['lng'],
+                                ];
+                            }
+                        }
+                        
+                        // Pass full route data in case Routes API provides toll info
+                        $tolls = $tollService->findTollsInRoute($allSteps, $vehicle, $routeWaypoints, $route);
+                        
+                        // Calculate total toll cost
+                        if (!empty($tolls)) {
+                            $tollCosts = $tollService->calculateTotalTollCost($tolls);
+                            $totalTollCost = $tollCosts['total'];
+                        }
                     }
+
+                    // Calculate real fuel cost using FuelCostService
+                    $fuelCostService = app(\App\Services\FuelCostService::class);
+                    $distanceKm = $totalDistance / 1000;
+                    
+                    // Get region from route or vehicle (if available)
+                    $region = null;
+                    if ($vehicle && $vehicle->tenant) {
+                        // Try to get region from tenant's address or first branch
+                        // This is a simplified approach - can be improved
+                    }
+                    
+                    $fuelCost = $fuelCostService->calculateFuelCost($distanceKm, $vehicle, $region);
+                    $totalFuelCost = $fuelCost['total_cost'];
+                    
+                    // Calculate total cost: fuel + tolls
+                    $estimatedCost = $totalFuelCost + $totalTollCost;
 
                     return [
                         'distance' => $totalDistance, // meters
@@ -350,9 +424,19 @@ class GoogleMapsService
                         'duration' => $totalDuration, // seconds
                         'duration_text' => $this->formatDuration($totalDuration),
                         'has_tolls' => $hasTolls,
+                        'tolls' => $tolls,
+                        'total_toll_cost' => round($totalTollCost, 2),
+                        'fuel_cost' => round($totalFuelCost, 2),
+                        'fuel_cost_breakdown' => $fuelCost,
                         'estimated_cost' => round($estimatedCost, 2),
+                        'cost_breakdown' => [
+                            'fuel' => round($totalFuelCost, 2),
+                            'tolls' => round($totalTollCost, 2),
+                            'total' => round($estimatedCost, 2),
+                        ],
                         'polyline' => $route['overview_polyline']['points'] ?? null,
                         'bounds' => $route['bounds'] ?? null,
+                        'waypoint_order' => $waypointOrder, // Optimized order from Google Maps
                     ];
                 }
             }

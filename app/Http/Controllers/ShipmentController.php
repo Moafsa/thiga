@@ -211,14 +211,210 @@ class ShipmentController extends Controller
     {
         $this->authorizeAccess($shipment);
 
-        if ($shipment->status === 'delivered' || $shipment->status === 'in_transit') {
-            return redirect()->route('shipments.show', $shipment)
-                ->with('error', 'Não é possível excluir uma carga entregue ou em trânsito.');
+        // Check if shipment can be deleted
+        $errors = [];
+
+        // Cannot delete if delivered or in transit
+        if (in_array($shipment->status, ['delivered', 'in_transit', 'picked_up'])) {
+            $errors[] = 'Não é possível excluir uma carga que já foi coletada, está em trânsito ou foi entregue.';
         }
 
+        // Cannot delete if has authorized CT-e
+        if ($shipment->hasAuthorizedCte()) {
+            $errors[] = 'Não é possível excluir uma carga com CT-e autorizado. Cancele o CT-e primeiro.';
+        }
+
+        // Cannot delete if route is active (in_progress)
+        if ($shipment->route && $shipment->route->status === 'in_progress') {
+            $errors[] = 'Não é possível excluir uma carga que está em uma rota em andamento.';
+        }
+
+        // Cannot delete if route is locked
+        if ($shipment->route && $shipment->route->is_route_locked) {
+            $errors[] = 'Não é possível excluir uma carga que está em uma rota bloqueada.';
+        }
+
+        if (!empty($errors)) {
+            $redirectRoute = request()->has('from') && request()->from === 'index' 
+                ? route('shipments.index')
+                : route('shipments.show', $shipment);
+            
+            return redirect($redirectRoute)
+                ->with('error', implode(' ', $errors));
+        }
+
+        // Log deletion
+        \Log::info('Shipment deleted', [
+            'shipment_id' => $shipment->id,
+            'tracking_number' => $shipment->tracking_number,
+            'status' => $shipment->status,
+            'route_id' => $shipment->route_id,
+        ]);
+
+        // Remove from route if assigned
+        if ($shipment->route_id) {
+            $shipment->update(['route_id' => null]);
+        }
+
+        // Delete the shipment
         $shipment->delete();
-        return redirect()->route('shipments.index')
+
+        $redirectRoute = request()->has('from') && request()->from === 'index' 
+            ? route('shipments.index')
+            : route('shipments.index');
+
+        return redirect($redirectRoute)
             ->with('success', 'Carga excluída com sucesso!');
+    }
+
+    /**
+     * Delete multiple shipments at once
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $tenant = Auth::user()->tenant;
+        
+        if (!$tenant) {
+            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
+        }
+
+        // Handle JSON string from form
+        $shipmentIds = $request->shipment_ids;
+        if (is_string($shipmentIds)) {
+            $shipmentIds = json_decode($shipmentIds, true);
+        }
+
+        if (empty($shipmentIds) || !is_array($shipmentIds)) {
+            return redirect()->route('shipments.index')
+                ->with('error', 'Nenhuma carga selecionada para exclusão.');
+        }
+
+        // Validate IDs
+        $validatedIds = array_filter($shipmentIds, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+
+        if (empty($validatedIds)) {
+            return redirect()->route('shipments.index')
+                ->with('error', 'IDs de cargas inválidos.');
+        }
+
+        // Get shipments that belong to tenant
+        $shipments = Shipment::where('tenant_id', $tenant->id)
+            ->whereIn('id', $validatedIds)
+            ->with(['route'])
+            ->get();
+
+        if ($shipments->isEmpty()) {
+            return redirect()->route('shipments.index')
+                ->with('error', 'Nenhuma carga válida encontrada para exclusão.');
+        }
+
+        $deletedCount = 0;
+        $skippedCount = 0;
+        $errors = [];
+
+        foreach ($shipments as $shipment) {
+            $canDelete = true;
+            $errorMessages = [];
+
+            // Check if shipment can be deleted
+            if (in_array($shipment->status, ['delivered', 'in_transit', 'picked_up'])) {
+                $canDelete = false;
+                $errorMessages[] = "Carga {$shipment->tracking_number}: já foi coletada, está em trânsito ou foi entregue.";
+            }
+
+            if ($shipment->hasAuthorizedCte()) {
+                $canDelete = false;
+                $errorMessages[] = "Carga {$shipment->tracking_number}: possui CT-e autorizado.";
+            }
+
+            if ($shipment->route && $shipment->route->status === 'in_progress') {
+                $canDelete = false;
+                $errorMessages[] = "Carga {$shipment->tracking_number}: está em rota em andamento.";
+            }
+
+            if ($shipment->route && $shipment->route->is_route_locked) {
+                $canDelete = false;
+                $errorMessages[] = "Carga {$shipment->tracking_number}: está em rota bloqueada.";
+            }
+
+            if ($canDelete) {
+                // Remove from route if assigned
+                if ($shipment->route_id) {
+                    $shipment->update(['route_id' => null]);
+                }
+
+                // Log deletion
+                \Log::info('Shipment deleted (bulk)', [
+                    'shipment_id' => $shipment->id,
+                    'tracking_number' => $shipment->tracking_number,
+                    'status' => $shipment->status,
+                ]);
+
+                $shipment->delete();
+                $deletedCount++;
+            } else {
+                $skippedCount++;
+                $errors = array_merge($errors, $errorMessages);
+            }
+        }
+
+        // Prepare response messages
+        $messages = [];
+        if ($deletedCount > 0) {
+            $messages[] = "{$deletedCount} " . ($deletedCount === 1 ? 'carga excluída' : 'cargas excluídas') . " com sucesso!";
+        }
+        if ($skippedCount > 0) {
+            $messages[] = "{$skippedCount} " . ($skippedCount === 1 ? 'carga não pôde ser excluída' : 'cargas não puderam ser excluídas') . " devido a restrições.";
+        }
+
+        $response = redirect()->route('shipments.index');
+
+        if ($deletedCount > 0) {
+            $response = $response->with('success', implode(' ', $messages));
+        }
+
+        if ($skippedCount > 0 && !empty($errors)) {
+            $response = $response->with('error', implode(' ', array_slice($errors, 0, 5)) . (count($errors) > 5 ? '...' : ''));
+        }
+
+        if ($deletedCount === 0) {
+            $response = $response->with('error', 'Nenhuma carga pôde ser excluída. Verifique as restrições.');
+        }
+
+        return $response;
+    }
+
+    /**
+     * Check if shipment can be deleted
+     */
+    protected function canDeleteShipment(Shipment $shipment): array
+    {
+        $canDelete = true;
+        $errors = [];
+
+        if (in_array($shipment->status, ['delivered', 'in_transit', 'picked_up'])) {
+            $canDelete = false;
+            $errors[] = 'Carga já foi coletada, está em trânsito ou foi entregue.';
+        }
+
+        if ($shipment->hasAuthorizedCte()) {
+            $canDelete = false;
+            $errors[] = 'Carga possui CT-e autorizado.';
+        }
+
+        if ($shipment->route && $shipment->route->status === 'in_progress') {
+            $canDelete = false;
+            $errors[] = 'Carga está em rota em andamento.';
+        }
+
+        if ($shipment->route && $shipment->route->is_route_locked) {
+            $canDelete = false;
+            $errors[] = 'Carga está em rota bloqueada.';
+        }
+
+        return ['can_delete' => $canDelete, 'errors' => $errors];
     }
 
     protected function authorizeAccess(Shipment $shipment)

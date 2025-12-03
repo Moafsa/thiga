@@ -373,6 +373,12 @@
             </div>
             
             <div class="sidebar-item">
+                <a href="{{ route('cte-xmls.index') }}" class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" data-tooltip="CT-e XMLs">
+                    <i class="fas fa-file-code"></i>
+                </a>
+            </div>
+            
+            <div class="sidebar-item">
                 <a href="{{ route('fiscal.ctes.index') }}" class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" data-tooltip="CT-es">
                     <i class="fas fa-file-invoice"></i>
                 </a>

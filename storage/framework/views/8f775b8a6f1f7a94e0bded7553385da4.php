@@ -79,8 +79,92 @@
             <span style="color: var(--cor-texto-claro); font-weight: 600;"><?php echo e(number_format($route->settings['estimated_fuel_consumption'], 2, ',', '.')); ?> L</span>
         </div>
         <?php endif; ?>
+        <?php if($route->settings && isset($route->settings['total_cte_value']) && $route->settings['total_cte_value'] > 0): ?>
+        <div>
+            <span style="color: rgba(245, 245, 245, 0.7);">Valor Total dos CT-es:</span>
+            <span style="color: var(--cor-acento); font-weight: 600; font-size: 1.1em;">R$ <?php echo e(number_format($route->settings['total_cte_value'], 2, ',', '.')); ?></span>
+        </div>
+        <?php endif; ?>
+        <?php if($route->branch): ?>
+        <div>
+            <span style="color: rgba(245, 245, 245, 0.7);">Ponto de Partida/Retorno:</span>
+            <span style="color: var(--cor-texto-claro); font-weight: 600;"><?php echo e($route->branch->name); ?> - <?php echo e($route->branch->city); ?>/<?php echo e($route->branch->state); ?></span>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
+
+<?php
+    $selectedRouteData = $route->getSelectedRouteOptionData();
+    $tolls = $selectedRouteData['tolls'] ?? [];
+    $totalTollCost = $selectedRouteData['total_toll_cost'] ?? 0;
+?>
+
+<?php if($route->is_route_locked && !empty($tolls)): ?>
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-road"></i> Pedágios na Rota
+    </h3>
+    <div style="margin-bottom: 15px;">
+        <span style="color: rgba(245, 245, 245, 0.7);">Total de Pedágios:</span>
+        <span style="color: var(--cor-texto-claro); font-weight: 600; margin-left: 10px;"><?php echo e(count($tolls)); ?></span>
+    </div>
+    <div style="margin-bottom: 20px;">
+        <span style="color: rgba(245, 245, 245, 0.7);">Custo Total de Pedágios:</span>
+        <span style="color: var(--cor-acento); font-weight: 600; font-size: 1.2em; margin-left: 10px;">R$ <?php echo e(number_format($totalTollCost, 2, ',', '.')); ?></span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <?php $__currentLoopData = $tolls; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $toll): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <div style="background-color: var(--cor-principal); padding: 15px; border-radius: 8px; border-left: 4px solid var(--cor-acento);">
+                <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 15px;">
+                    <div style="flex: 1;">
+                        <div style="color: var(--cor-texto-claro); font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">
+                            <?php echo e($toll['name'] ?? 'Pedágio ' . ($index + 1)); ?>
+
+                        </div>
+                        <?php if(isset($toll['highway']) && $toll['highway']): ?>
+                            <div style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 3px;">
+                                <i class="fas fa-route"></i> <?php echo e($toll['highway']); ?>
+
+                            </div>
+                        <?php endif; ?>
+                        <?php if(isset($toll['city']) && $toll['city']): ?>
+                            <div style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
+                                <i class="fas fa-map-marker-alt"></i> <?php echo e($toll['city']); ?>
+
+                                <?php if(isset($toll['state']) && $toll['state']): ?>
+                                    - <?php echo e($toll['state']); ?>
+
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if(isset($toll['vehicle_type']) && $toll['vehicle_type']): ?>
+                            <div style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin-top: 5px;">
+                                <i class="fas fa-car"></i> Veículo: <?php echo e(ucfirst($toll['vehicle_type'])); ?>
+
+                                <?php if(isset($toll['axles']) && $toll['axles']): ?>
+                                    (<?php echo e($toll['axles']); ?> eixos)
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if(isset($toll['estimated']) && $toll['estimated']): ?>
+                            <div style="color: rgba(255, 152, 0, 0.8); font-size: 0.85em; margin-top: 5px;">
+                                <i class="fas fa-info-circle"></i> Valor estimado
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: var(--cor-acento); font-weight: 600; font-size: 1.3em;">
+                            R$ <?php echo e(number_format($toll['price'], 2, ',', '.')); ?>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Route Map -->
 <?php if($route->shipments->isNotEmpty()): ?>
@@ -255,6 +339,413 @@
 </div>
 
 <?php if($route->shipments->count() > 0): ?>
+<!-- Route Timeline Section -->
+<?php
+    // Get optimized order from settings
+    $settings = $route->settings ?? [];
+    $optimizedOrder = $settings['sequential_optimized_order'] ?? null;
+    $shipments = $route->shipments;
+    
+    // Order shipments according to optimized order
+    if ($optimizedOrder && is_array($optimizedOrder) && !empty($optimizedOrder)) {
+        $shipmentsMap = $shipments->keyBy('id');
+        $orderedShipments = collect();
+        foreach ($optimizedOrder as $shipmentId) {
+            if ($shipmentsMap->has($shipmentId)) {
+                $orderedShipments->push($shipmentsMap->get($shipmentId));
+            }
+        }
+        // Add any shipments not in optimized order at the end
+        foreach ($shipments as $shipment) {
+            if (!in_array($shipment->id, $optimizedOrder)) {
+                $orderedShipments->push($shipment);
+            }
+        }
+        $shipments = $orderedShipments;
+    }
+?>
+
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-route"></i> Timeline da Rota
+    </h3>
+    
+    <div style="position: relative; padding-left: 30px;">
+        <!-- Start Point: Depot/Branch -->
+        <div style="position: relative; padding-bottom: 25px; border-left: 3px solid var(--cor-acento);">
+            <div style="position: absolute; left: -12px; top: 0; width: 24px; height: 24px; border-radius: 50%; background-color: var(--cor-acento); border: 4px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-warehouse" style="color: white; font-size: 0.7em;"></i>
+            </div>
+            <div style="background-color: var(--cor-principal); padding: 15px; border-radius: 8px; margin-left: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <h4 style="color: var(--cor-acento); margin: 0; font-size: 1em; font-weight: 600;">
+                        <i class="fas fa-play-circle"></i> Ponto de Partida
+                    </h4>
+                    <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.85em; font-weight: 600;">INÍCIO</span>
+                </div>
+                <?php if($route->branch): ?>
+                    <p style="color: var(--cor-texto-claro); margin: 5px 0; font-weight: 600;"><?php echo e($route->branch->name); ?></p>
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 3px 0;">
+                        <i class="fas fa-map-marker-alt"></i> <?php echo e($route->branch->address); ?>, <?php echo e($route->branch->city); ?>/<?php echo e($route->branch->state); ?>
+
+                    </p>
+                <?php elseif($route->start_latitude && $route->start_longitude): ?>
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 3px 0;">
+                        <i class="fas fa-map-marker-alt"></i> Depósito/Filial
+                    </p>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Delivery Points -->
+        <?php $__currentLoopData = $shipments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $shipment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
+            <div style="position: relative; padding-bottom: 25px; border-left: 3px solid rgba(255, 107, 53, 0.3);">
+                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: rgba(255, 107, 53, 0.5); border: 3px solid var(--cor-secundaria);"></div>
+                <div style="background-color: var(--cor-principal); padding: 15px; border-radius: 8px; margin-left: 25px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <h4 style="color: var(--cor-texto-claro); margin: 0; font-size: 1em;">
+                            <i class="fas fa-truck"></i> Entrega <?php echo e($index + 1); ?>
+
+                        </h4>
+                        <span class="status-badge" style="background-color: rgba(255, 107, 53, 0.2); color: var(--cor-acento); font-size: 0.85em;">
+                            <?php echo e(ucfirst(str_replace('_', ' ', $shipment->status))); ?>
+
+                        </span>
+                    </div>
+                    <p style="color: var(--cor-texto-claro); margin: 5px 0; font-weight: 600;"><?php echo e($shipment->tracking_number); ?></p>
+                    <?php if($shipment->receiverClient): ?>
+                        <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.9em; margin: 3px 0;">
+                            <i class="fas fa-user"></i> <?php echo e($shipment->receiverClient->name); ?>
+
+                        </p>
+                    <?php endif; ?>
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 3px 0;">
+                        <i class="fas fa-map-marker-alt"></i> <?php echo e($shipment->delivery_address); ?>, <?php echo e($shipment->delivery_city); ?>/<?php echo e($shipment->delivery_state); ?>
+
+                    </p>
+                    <?php if($shipment->fiscalDocuments->where('document_type', 'cte')->first()): ?>
+                        <?php $cte = $shipment->fiscalDocuments->where('document_type', 'cte')->first(); ?>
+                        <p style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin: 3px 0;">
+                            <i class="fas fa-file-invoice"></i> CT-e <?php echo e($cte->mitt_number ?? 'N/A'); ?>
+
+                            <?php if($shipment->value): ?>
+                                <span style="color: var(--cor-acento); font-weight: 600;"> - R$ <?php echo e(number_format($shipment->value, 2, ',', '.')); ?></span>
+                            <?php endif; ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+
+        <!-- End Point: Return to Depot/Branch -->
+        <div style="position: relative; padding-bottom: 0;">
+            <div style="position: absolute; left: -12px; top: 0; width: 24px; height: 24px; border-radius: 50%; background-color: var(--cor-acento); border: 4px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-flag-checkered" style="color: white; font-size: 0.7em;"></i>
+            </div>
+            <div style="background-color: var(--cor-principal); padding: 15px; border-radius: 8px; margin-left: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <h4 style="color: var(--cor-acento); margin: 0; font-size: 1em; font-weight: 600;">
+                        <i class="fas fa-check-circle"></i> Retorno ao Depósito
+                    </h4>
+                    <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.85em; font-weight: 600;">FIM</span>
+                </div>
+                <?php if($route->branch): ?>
+                    <p style="color: var(--cor-texto-claro); margin: 5px 0; font-weight: 600;"><?php echo e($route->branch->name); ?></p>
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 3px 0;">
+                        <i class="fas fa-map-marker-alt"></i> <?php echo e($route->branch->address); ?>, <?php echo e($route->branch->city); ?>/<?php echo e($route->branch->state); ?>
+
+                    </p>
+                <?php elseif($route->end_latitude && $route->end_longitude): ?>
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 3px 0;">
+                        <i class="fas fa-map-marker-alt"></i> Depósito/Filial
+                    </p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Revenue Report -->
+    <?php
+        $totalRevenue = $route->total_revenue ?? ($route->settings['total_cte_value'] ?? 0);
+        $totalShipmentsValue = $route->shipments->sum('value') ?? 0;
+        if ($totalRevenue == 0 && $totalShipmentsValue > 0) {
+            $totalRevenue = $totalShipmentsValue;
+        }
+    ?>
+    <?php if($totalRevenue > 0): ?>
+    <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.1) 100%); border-radius: 10px; border-left: 4px solid #4caf50;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h4 style="color: #4caf50; margin: 0 0 5px 0; font-size: 1.1em;">
+                    <i class="fas fa-dollar-sign"></i> Receita Total da Viagem
+                </h4>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">
+                    Soma dos valores de todos os CT-es da rota
+                </p>
+            </div>
+            <div style="text-align: right;">
+                <p style="color: #4caf50; font-size: 2em; font-weight: 700; margin: 0; line-height: 1;">
+                    R$ <?php echo e(number_format($totalRevenue, 2, ',', '.')); ?>
+
+                </p>
+                <p style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin: 5px 0 0 0;">
+                    <?php echo e($route->shipments->count()); ?> <?php echo e($route->shipments->count() == 1 ? 'CT-e' : 'CT-es'); ?>
+
+                </p>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+
+<!-- Financial and Time Control Section -->
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-clock"></i> Controle de Tempo e Financeiro
+    </h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        <!-- Planned Times (Router) -->
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+            <h4 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1em;">
+                <i class="fas fa-calendar-alt"></i> Planejado pelo Roteirista
+            </h4>
+            <form action="<?php echo e(route('routes.update', $route)); ?>" method="POST" id="planned-times-form">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
+                <input type="hidden" name="update_type" value="planned_times">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Data/Hora de Partida Planejada
+                    </label>
+                    <input type="datetime-local" 
+                           name="planned_departure_datetime" 
+                           value="<?php echo e($route->planned_departure_datetime ? $route->planned_departure_datetime->format('Y-m-d\TH:i') : ''); ?>"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Data/Hora de Chegada Planejada
+                    </label>
+                    <input type="datetime-local" 
+                           name="planned_arrival_datetime" 
+                           value="<?php echo e($route->planned_arrival_datetime ? $route->planned_arrival_datetime->format('Y-m-d\TH:i') : ''); ?>"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    <i class="fas fa-save"></i> Salvar Horários Planejados
+                </button>
+            </form>
+        </div>
+        
+        <!-- Actual Times (Driver) -->
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+            <h4 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1em;">
+                <i class="fas fa-user-clock"></i> Real pelo Motorista
+            </h4>
+            <form action="<?php echo e(route('routes.update', $route)); ?>" method="POST" id="actual-times-form">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
+                <input type="hidden" name="update_type" value="actual_times">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Data/Hora de Partida Real
+                    </label>
+                    <input type="datetime-local" 
+                           name="actual_departure_datetime" 
+                           value="<?php echo e($route->actual_departure_datetime ? $route->actual_departure_datetime->format('Y-m-d\TH:i') : ''); ?>"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Data/Hora de Chegada Real
+                    </label>
+                    <input type="datetime-local" 
+                           name="actual_arrival_datetime" 
+                           value="<?php echo e($route->actual_arrival_datetime ? $route->actual_arrival_datetime->format('Y-m-d\TH:i') : ''); ?>"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    <i class="fas fa-save"></i> Salvar Horários Reais
+                </button>
+            </form>
+        </div>
+        
+        <!-- Driver Per Diem Control -->
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+            <h4 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1em;">
+                <i class="fas fa-money-bill-wave"></i> Controle de Diárias
+            </h4>
+            <form action="<?php echo e(route('routes.update', $route)); ?>" method="POST" id="diarias-form">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
+                <input type="hidden" name="update_type" value="diarias">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Quantidade de Diárias
+                    </label>
+                    <input type="number" 
+                           name="driver_diarias_count" 
+                           value="<?php echo e($route->driver_diarias_count ?? 0); ?>"
+                           min="0"
+                           step="1"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Valor de Cada Diária (R$)
+                    </label>
+                    <input type="number" 
+                           name="driver_diaria_value" 
+                           value="<?php echo e($route->driver_diaria_value ?? 0); ?>"
+                           min="0"
+                           step="0.01"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <?php if($route->driver_diarias_count && $route->driver_diaria_value): ?>
+                    <div style="padding: 10px; background-color: rgba(76, 175, 80, 0.2); border-radius: 5px; margin-bottom: 15px;">
+                        <p style="color: #4caf50; margin: 0; font-weight: 600;">
+                            Total de Diárias: R$ <?php echo e(number_format($route->driver_diarias_count * $route->driver_diaria_value, 2, ',', '.')); ?>
+
+                        </p>
+                    </div>
+                <?php endif; ?>
+                
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    <i class="fas fa-save"></i> Salvar Diárias
+                </button>
+            </form>
+        </div>
+        
+        <!-- Deposit Control -->
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+            <h4 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1em;">
+                <i class="fas fa-wallet"></i> Controle de Depósitos
+            </h4>
+            <form action="<?php echo e(route('routes.update', $route)); ?>" method="POST" id="deposits-form">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
+                <input type="hidden" name="update_type" value="deposits">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Depósito para Pedágio (R$)
+                    </label>
+                    <input type="number" 
+                           name="deposit_toll" 
+                           value="<?php echo e($route->deposit_toll ?? 0); ?>"
+                           min="0"
+                           step="0.01"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Depósito para Despesas (R$)
+                    </label>
+                    <input type="number" 
+                           name="deposit_expenses" 
+                           value="<?php echo e($route->deposit_expenses ?? 0); ?>"
+                           min="0"
+                           step="0.01"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
+                        Depósito para Combustível (R$)
+                    </label>
+                    <input type="number" 
+                           name="deposit_fuel" 
+                           value="<?php echo e($route->deposit_fuel ?? 0); ?>"
+                           min="0"
+                           step="0.01"
+                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                </div>
+                
+                <?php
+                    $totalDeposits = ($route->deposit_toll ?? 0) + ($route->deposit_expenses ?? 0) + ($route->deposit_fuel ?? 0);
+                ?>
+                <?php if($totalDeposits > 0): ?>
+                    <div style="padding: 10px; background-color: rgba(255, 193, 7, 0.2); border-radius: 5px; margin-bottom: 15px;">
+                        <p style="color: #ffc107; margin: 0; font-weight: 600;">
+                            Total de Depósitos: R$ <?php echo e(number_format($totalDeposits, 2, ',', '.')); ?>
+
+                        </p>
+                    </div>
+                <?php endif; ?>
+                
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    <i class="fas fa-save"></i> Salvar Depósitos
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Financial Summary -->
+    <?php
+        $totalDiarias = ($route->driver_diarias_count ?? 0) * ($route->driver_diaria_value ?? 0);
+        $totalDeposits = ($route->deposit_toll ?? 0) + ($route->deposit_expenses ?? 0) + ($route->deposit_fuel ?? 0);
+        $totalCosts = $totalDiarias + $totalDeposits;
+        $netProfit = $totalRevenue - $totalCosts;
+    ?>
+    <?php if($totalRevenue > 0 || $totalCosts > 0): ?>
+    <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(33, 150, 243, 0.1) 100%); border-radius: 10px; border-left: 4px solid #2196F3;">
+        <h4 style="color: #2196F3; margin-bottom: 15px; font-size: 1.1em;">
+            <i class="fas fa-calculator"></i> Resumo Financeiro da Viagem
+        </h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Receita Total</p>
+                <p style="color: #4caf50; font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ <?php echo e(number_format($totalRevenue, 2, ',', '.')); ?>
+
+                </p>
+            </div>
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Total de Diárias</p>
+                <p style="color: var(--cor-texto-claro); font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ <?php echo e(number_format($totalDiarias, 2, ',', '.')); ?>
+
+                </p>
+            </div>
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Total de Depósitos</p>
+                <p style="color: var(--cor-texto-claro); font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ <?php echo e(number_format($totalDeposits, 2, ',', '.')); ?>
+
+                </p>
+            </div>
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Custos Totais</p>
+                <p style="color: #f44336; font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ <?php echo e(number_format($totalCosts, 2, ',', '.')); ?>
+
+                </p>
+            </div>
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Lucro Líquido</p>
+                <p style="color: <?php echo e($netProfit >= 0 ? '#4caf50' : '#f44336'); ?>; font-size: 1.5em; font-weight: 700; margin: 5px 0 0 0;">
+                    R$ <?php echo e(number_format($netProfit, 2, ',', '.')); ?>
+
+                </p>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
     <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Cargas (<?php echo e($route->shipments->count()); ?>)</h3>
     <div style="display: grid; gap: 15px;">
@@ -555,9 +1046,74 @@
 
         const bounds = new google.maps.LatLngBounds();
         const waypoints = [];
+        
+        // CRITICAL: Add departure point (depot/branch) as origin - MUST be first
+        // The route starts from depot/branch, goes to nearest destination, then that destination becomes origin for next
+        <?php if($route->start_latitude && $route->start_longitude): ?>
+            const originPos = { lat: <?php echo e($route->start_latitude); ?>, lng: <?php echo e($route->start_longitude); ?> };
+            const originMarker = new google.maps.Marker({
+                position: originPos,
+                map: routeMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: routeStyles[currentMapStyle].markerScale * 1.2,
+                    fillColor: '#FF6B35', // Orange color for depot/branch
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: routeStyles[currentMapStyle].markerStrokeWeight + 1,
+                    zIndex: 2000
+                },
+                title: 'Ponto de Partida: <?php echo e($route->branch->name ?? "Depósito/Filial"); ?>'
+            });
+            
+            const originInfo = new google.maps.InfoWindow({
+                content: `<div style="padding: 10px; min-width: 200px;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--cor-acento);">Ponto de Partida</h4>
+                    <p style="margin: 5px 0; color: #666;"><?php echo e($route->branch->name ?? "Depósito/Filial"); ?></p>
+                    <?php if($route->branch): ?>
+                        <p style="margin: 5px 0; color: #666;"><?php echo e($route->branch->city); ?>, <?php echo e($route->branch->state); ?></p>
+                    <?php endif; ?>
+                </div>`
+            });
+            
+            originMarker.addListener('click', () => {
+                originInfo.open(routeMap, originMarker);
+            });
+            
+            originMarker.markerType = 'origin';
+            routeMarkers.push(originMarker);
+            bounds.extend(originPos);
+            // Add origin as first waypoint (will be used as origin in route calculation)
+            waypoints.push(originPos);
+        <?php endif; ?>
 
         // Add markers for each shipment
-        <?php $__currentLoopData = $route->shipments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $shipment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        // IMPORTANT: Pickups (remetentes) are shown as markers but NOT added to waypoints
+        // Only delivery addresses (destinatários) are waypoints
+        // Order shipments by sequential optimization order if available
+        <?php
+            $shipments = $route->shipments;
+            $optimizedOrder = $route->settings['sequential_optimized_order'] ?? null;
+            if ($optimizedOrder && is_array($optimizedOrder)) {
+                // Create a map of shipment_id => shipment for quick lookup
+                $shipmentsMap = $shipments->keyBy('id');
+                // Reorder shipments according to optimized order
+                $orderedShipments = collect();
+                foreach ($optimizedOrder as $shipmentId) {
+                    if ($shipmentsMap->has($shipmentId)) {
+                        $orderedShipments->push($shipmentsMap->get($shipmentId));
+                    }
+                }
+                // Add any shipments not in optimized order at the end
+                foreach ($shipments as $shipment) {
+                    if (!in_array($shipment->id, $optimizedOrder)) {
+                        $orderedShipments->push($shipment);
+                    }
+                }
+                $shipments = $orderedShipments;
+            }
+        ?>
+        <?php $__currentLoopData = $shipments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $shipment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <?php if($shipment->pickup_latitude && $shipment->pickup_longitude): ?>
                 const pickupPos<?php echo e($shipment->id); ?> = { lat: <?php echo e($shipment->pickup_latitude); ?>, lng: <?php echo e($shipment->pickup_longitude); ?> };
                 const pickupMarker<?php echo e($shipment->id); ?> = new google.maps.Marker({
@@ -591,7 +1147,8 @@
                 pickupMarker<?php echo e($shipment->id); ?>.markerType = 'pickup';
                 routeMarkers.push(pickupMarker<?php echo e($shipment->id); ?>);
                 bounds.extend(pickupPos<?php echo e($shipment->id); ?>);
-                waypoints.push(pickupPos<?php echo e($shipment->id); ?>);
+                // NOTE: Pickups are NOT added to waypoints - they are only visual markers
+                // The route goes: Depot → Nearest Destinatário → Next Nearest Destinatário → ...
             <?php endif; ?>
 
             <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
@@ -627,6 +1184,8 @@
                 deliveryMarker<?php echo e($shipment->id); ?>.markerType = 'delivery';
                 routeMarkers.push(deliveryMarker<?php echo e($shipment->id); ?>);
                 bounds.extend(deliveryPos<?php echo e($shipment->id); ?>);
+                // Add delivery address as waypoint (destinatário)
+                // Each destinatário becomes a point of departure for the next nearest destinatário
                 waypoints.push(deliveryPos<?php echo e($shipment->id); ?>);
             <?php endif; ?>
         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
@@ -641,6 +1200,7 @@
             });
             
             // Calculate route using Directions API to follow roads
+            // waypoints[0] is the origin (depot/branch), rest are destinations
             if (waypoints.length > 1) {
                 calculateRouteWithDirections(waypoints);
             }
@@ -648,6 +1208,9 @@
     }
 
     // Calculate route using Google Directions API with multiple alternatives
+    // CRITICAL: waypoints[0] is the origin (depot/branch), rest are delivery destinations
+    // The route MUST return to depot/branch (waypoints[0]) after all deliveries
+    // Route flow: Depot → Destinatário 1 → Destinatário 2 → ... → Depot (return)
     function calculateRouteWithDirections(waypoints) {
         if (waypoints.length < 2) return;
 
@@ -665,18 +1228,28 @@
             }
         });
 
-        // Build waypoints array (excluding origin and destination)
-        const waypointsArray = waypoints.slice(1, -1).map(wp => ({
-            location: { lat: wp.lat, lng: wp.lng },
-            stopover: true
-        }));
+        // CRITICAL: waypoints[0] is the origin (depot/branch)
+        // waypoints[1] to waypoints[n] are delivery destinations
+        // Destination MUST ALWAYS be depot/branch (waypoints[0]) - return to origin
+        // Build waypoints array (all delivery destinations, excluding origin)
+        const waypointsArray = waypoints.length > 1 
+            ? waypoints.slice(1).map(wp => ({
+                location: { lat: wp.lat, lng: wp.lng },
+                stopover: true
+            }))
+            : [];
+
+        // Origin is ALWAYS the depot/branch (waypoints[0])
+        const origin = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+        // Destination is ALWAYS the depot/branch (return to origin)
+        const destination = { lat: waypoints[0].lat, lng: waypoints[0].lng };
 
         const request = {
-            origin: { lat: waypoints[0].lat, lng: waypoints[0].lng },
-            destination: { lat: waypoints[waypoints.length - 1].lat, lng: waypoints[waypoints.length - 1].lng },
+            origin: origin,
+            destination: destination,
             waypoints: waypointsArray.length > 0 ? waypointsArray : undefined,
             provideRouteAlternatives: true, // Request alternative routes
-            optimizeWaypoints: false, // Keep original order
+            optimizeWaypoints: false, // Keep original order (already optimized sequentially)
             travelMode: google.maps.TravelMode.DRIVING,
             unitSystem: google.maps.UnitSystem.METRIC,
             language: 'pt-BR',

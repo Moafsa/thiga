@@ -57,6 +57,8 @@ class CompanyController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Company::class);
+        
         $request->validate([
             'name' => 'required|string|max:255',
             'trade_name' => 'nullable|string|max:255',
@@ -80,7 +82,13 @@ class CompanyController extends Controller
 
         $data = $request->all();
         $data['tenant_id'] = Auth::user()->tenant_id;
-        $data['is_matrix'] = true; // First company is always matrix
+        
+        // Check if tenant already has a matrix company
+        $hasMatrixCompany = Company::where('tenant_id', Auth::user()->tenant_id)
+            ->where('is_matrix', true)
+            ->exists();
+        
+        $data['is_matrix'] = !$hasMatrixCompany; // First company is always matrix
 
         // Handle logo upload
         if ($request->hasFile('logo')) {

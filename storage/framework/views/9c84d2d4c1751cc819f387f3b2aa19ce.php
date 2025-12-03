@@ -20,6 +20,18 @@
             <i class="fas fa-arrow-left"></i>
             Back
         </a>
+        <?php if(!in_array($shipment->status, ['delivered', 'in_transit', 'picked_up']) && !$shipment->hasAuthorizedCte() && (!$shipment->route || ($shipment->route->status !== 'in_progress' && !$shipment->route->is_route_locked))): ?>
+        <form action="<?php echo e(route('shipments.destroy', $shipment)); ?>" method="POST" style="display: inline;" 
+              onsubmit="return confirm('Tem certeza que deseja excluir esta carga? Esta ação não pode ser desfeita.');">
+            <?php echo csrf_field(); ?>
+            <?php echo method_field('DELETE'); ?>
+            <button type="submit" class="btn-secondary" 
+                    style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.3);">
+                <i class="fas fa-trash"></i>
+                Excluir
+            </button>
+        </form>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -37,10 +49,15 @@
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div>
-            <h4 style="color: var(--cor-acento); margin-bottom: 10px;">Sender</h4>
+            <h4 style="color: var(--cor-acento); margin-bottom: 10px;">
+                Sender <small style="color: rgba(245, 245, 245, 0.5); font-size: 0.7em; font-weight: normal;">(Remetente do CT-e)</small>
+            </h4>
             <p style="color: var(--cor-texto-claro); margin-bottom: 5px;"><strong><?php echo e($shipment->senderClient->name ?? 'N/A'); ?></strong></p>
             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;"><?php echo e($shipment->pickup_address); ?></p>
             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;"><?php echo e($shipment->pickup_city); ?>/<?php echo e($shipment->pickup_state); ?> - <?php echo e($shipment->pickup_zip_code); ?></p>
+            <p style="color: rgba(255, 107, 53, 0.7); font-size: 0.75em; margin-top: 5px; font-style: italic;">
+                <i class="fas fa-info-circle"></i> Este é o remetente do CT-e, não o ponto de partida da rota
+            </p>
         </div>
 
         <div>
@@ -67,6 +84,16 @@
             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Delivery: <strong style="color: var(--cor-texto-claro);"><?php echo e($shipment->delivery_date->format('d/m/Y')); ?> <?php echo e($shipment->delivery_time); ?></strong></p>
             <?php if($shipment->route): ?>
                 <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Route: <strong style="color: var(--cor-texto-claro);"><?php echo e($shipment->route->name); ?></strong></p>
+                <?php if($shipment->route->branch): ?>
+                    <p style="color: rgba(255, 107, 53, 0.8); font-size: 0.85em; margin-top: 5px;">
+                        <i class="fas fa-truck"></i> <strong>Ponto de Partida:</strong> <?php echo e($shipment->route->branch->name); ?> - <?php echo e($shipment->route->branch->city); ?>/<?php echo e($shipment->route->branch->state); ?>
+
+                    </p>
+                <?php elseif($shipment->route->start_latitude && $shipment->route->start_longitude): ?>
+                    <p style="color: rgba(255, 107, 53, 0.8); font-size: 0.85em; margin-top: 5px;">
+                        <i class="fas fa-truck"></i> <strong>Ponto de Partida:</strong> Definido (coordenadas: <?php echo e(number_format($shipment->route->start_latitude, 6)); ?>, <?php echo e(number_format($shipment->route->start_longitude, 6)); ?>)
+                    </p>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

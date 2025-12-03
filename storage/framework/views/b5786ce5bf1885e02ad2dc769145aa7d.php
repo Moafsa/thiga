@@ -22,15 +22,26 @@
         font-weight: 600;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
         transition: background-color 0.3s ease;
         border: none;
         cursor: pointer;
         font-size: 1em;
+        font-family: inherit;
     }
 
     .btn-primary:hover {
         background-color: #FF885A;
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    form .btn-primary {
+        width: auto;
     }
 
     .btn-secondary {
@@ -171,6 +182,55 @@
     .filter-group input:focus {
         outline: none;
         border-color: var(--cor-acento);
+    }
+
+    /* Form inputs styling */
+    .form-input,
+    input[type="datetime-local"],
+    input[type="date"],
+    input[type="time"],
+    input[type="number"],
+    input[type="text"],
+    input[type="email"],
+    textarea,
+    select {
+        width: 100% !important;
+        padding: 10px 15px !important;
+        background-color: var(--cor-secundaria) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 5px !important;
+        color: var(--cor-texto-claro) !important;
+        font-size: 0.95em !important;
+        font-family: inherit !important;
+        transition: border-color 0.3s ease !important;
+        box-sizing: border-box !important;
+    }
+
+    .form-input:focus,
+    input[type="datetime-local"]:focus,
+    input[type="date"]:focus,
+    input[type="time"]:focus,
+    input[type="number"]:focus,
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    textarea:focus,
+    select:focus {
+        outline: none !important;
+        border-color: var(--cor-acento) !important;
+    }
+
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+    }
+
+    label {
+        display: block;
+        color: rgba(245, 245, 245, 0.7);
+        font-size: 0.9em;
+        font-weight: 600;
+        margin-bottom: 5px;
     }
 
     .alert {

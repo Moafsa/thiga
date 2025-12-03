@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\ShipmentController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\ShipmentController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\ShipmentController::class, 'store'])->name('store');
+        Route::post('/bulk-delete', [App\Http\Controllers\ShipmentController::class, 'bulkDestroy'])->name('bulk-destroy');
         Route::get('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'show'])->name('show');
         Route::get('/{shipment}/edit', [App\Http\Controllers\ShipmentController::class, 'edit'])->name('edit');
         Route::put('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'update'])->name('update');
@@ -168,6 +169,16 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{vehicle}', [App\Http\Controllers\VehicleController::class, 'destroy'])->name('destroy');
         Route::post('/{vehicle}/assign-drivers', [App\Http\Controllers\VehicleController::class, 'assignDrivers'])->name('assign-drivers');
         Route::post('/{vehicle}/unassign-driver/{driver}', [App\Http\Controllers\VehicleController::class, 'unassignDriver'])->name('unassign-driver');
+    });
+    
+    // CT-e XMLs routes
+    Route::prefix('cte-xmls')->name('cte-xmls.')->group(function () {
+        Route::get('/', [App\Http\Controllers\CteXmlController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\CteXmlController::class, 'store'])->name('store');
+        Route::get('/export', [App\Http\Controllers\CteXmlController::class, 'export'])->name('export');
+        Route::delete('/{cteXml}', [App\Http\Controllers\CteXmlController::class, 'destroy'])->name('destroy');
+        Route::post('/delete-multiple', [App\Http\Controllers\CteXmlController::class, 'destroyMultiple'])->name('destroy-multiple');
+        Route::get('/{cteXml}/download', [App\Http\Controllers\CteXmlController::class, 'download'])->name('download');
     });
     
     // Routes routes

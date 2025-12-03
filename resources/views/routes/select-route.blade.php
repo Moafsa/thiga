@@ -21,7 +21,7 @@
         <p style="color: rgba(245, 245, 245, 0.7);">
             <strong>Local de Partida:</strong>
             @if($route->branch)
-                Pavilhão - {{ $route->branch->name }} - {{ $route->branch->full_address }}
+                Depósito/Filial - {{ $route->branch->name }} - {{ $route->branch->full_address }}
             @elseif($route->start_address_type == 'current_location' && $route->driver)
                 Localização Atual do Motorista ({{ $route->driver->name }})
             @elseif($route->start_address_type == 'manual')
@@ -68,7 +68,7 @@
                                     </div>
                                 </div>
                                 
-                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
                                     @if($option['has_tolls'])
                                         <span style="background-color: #ff9800; color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">
                                             <i class="fas fa-road"></i> Com Pedágios
@@ -79,12 +79,45 @@
                                         </span>
                                     @endif
                                     
+                                    @if(isset($option['total_toll_cost']) && $option['total_toll_cost'] > 0)
+                                        <span style="background-color: #ff9800; color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">
+                                            <i class="fas fa-toll"></i> Pedágios: R$ {{ number_format($option['total_toll_cost'], 2, ',', '.') }}
+                                        </span>
+                                    @endif
+                                    
                                     @if(isset($option['estimated_cost']))
                                         <span style="background-color: var(--cor-acento); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">
-                                            <i class="fas fa-dollar-sign"></i> R$ {{ number_format($option['estimated_cost'], 2, ',', '.') }}
+                                            <i class="fas fa-dollar-sign"></i> Custo Total: R$ {{ number_format($option['estimated_cost'], 2, ',', '.') }}
                                         </span>
                                     @endif
                                 </div>
+                                
+                                @if(isset($option['tolls']) && count($option['tolls']) > 0)
+                                    <div style="background-color: rgba(255, 152, 0, 0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                                        <strong style="color: var(--cor-texto-claro); display: block; margin-bottom: 10px;">
+                                            <i class="fas fa-list"></i> Pedágios na Rota ({{ count($option['tolls']) }}):
+                                        </strong>
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                            @foreach($option['tolls'] as $toll)
+                                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: rgba(255, 255, 255, 0.05); border-radius: 5px;">
+                                                    <div>
+                                                        <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ $toll['name'] ?? 'Pedágio' }}</span>
+                                                        @if(isset($toll['highway']) && $toll['highway'])
+                                                            <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;"> - {{ $toll['highway'] }}</span>
+                                                        @endif
+                                                        @if(isset($toll['city']) && $toll['city'])
+                                                            <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">, {{ $toll['city'] }}</span>
+                                                        @endif
+                                                        @if(isset($toll['estimated']) && $toll['estimated'])
+                                                            <span style="color: rgba(255, 152, 0, 0.8); font-size: 0.85em; margin-left: 5px;">(estimado)</span>
+                                                        @endif
+                                                    </div>
+                                                    <span style="color: var(--cor-acento); font-weight: 600;">R$ {{ number_format($toll['price'], 2, ',', '.') }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </label>
                     </div>

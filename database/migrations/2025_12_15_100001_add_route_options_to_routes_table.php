@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('routes', function (Blueprint $table) {
-            // Branch (pavilhão) de partida
+            // Branch (Depósito/Filial) de partida
             $table->foreignId('branch_id')->nullable()->after('tenant_id')->constrained()->onDelete('set null');
             
             // Opções de rotas alternativas (até 3)

@@ -41,6 +41,20 @@ class Route extends Model
         'selected_route_option',
         'is_route_locked',
         'notes',
+        // Time control
+        'planned_departure_datetime',
+        'planned_arrival_datetime',
+        'actual_departure_datetime',
+        'actual_arrival_datetime',
+        // Driver per diem
+        'driver_diarias_count',
+        'driver_diaria_value',
+        // Deposits
+        'deposit_toll',
+        'deposit_expenses',
+        'deposit_fuel',
+        // Revenue
+        'total_revenue',
     ];
 
     protected $casts = [
@@ -49,11 +63,21 @@ class Route extends Model
         'end_time' => 'datetime:H:i',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'planned_departure_datetime' => 'datetime',
+        'planned_arrival_datetime' => 'datetime',
+        'actual_departure_datetime' => 'datetime',
+        'actual_arrival_datetime' => 'datetime',
         'start_latitude' => 'decimal:8',
         'start_longitude' => 'decimal:8',
         'end_latitude' => 'decimal:8',
         'end_longitude' => 'decimal:8',
         'estimated_distance' => 'decimal:2',
+        'driver_diarias_count' => 'integer',
+        'driver_diaria_value' => 'decimal:2',
+        'deposit_toll' => 'decimal:2',
+        'deposit_expenses' => 'decimal:2',
+        'deposit_fuel' => 'decimal:2',
+        'total_revenue' => 'decimal:2',
         'settings' => 'array',
         'route_options' => 'array',
         'is_route_locked' => 'boolean',
@@ -192,5 +216,39 @@ class Route extends Model
 
         $index = $this->selected_route_option - 1; // Convert to 0-based index
         return $this->route_options[$index] ?? null;
+    }
+
+    /**
+     * Get ordered shipments by sequential optimization
+     */
+    public function getOrderedShipmentsBySequentialOptimization(): \Illuminate\Support\Collection
+    {
+        $optimizedOrder = $this->settings['sequential_optimized_order'] ?? [];
+
+        if (empty($optimizedOrder)) {
+            return $this->shipments()->orderBy('id')->get();
+        }
+
+        // Create a map of shipment ID to shipment object
+        $shipmentsMap = $this->shipments->keyBy('id');
+
+        // Reorder shipments based on the optimized order
+        $ordered = collect();
+        foreach ($optimizedOrder as $shipmentId) {
+            if (isset($shipmentsMap[$shipmentId])) {
+                $ordered->push($shipmentsMap[$shipmentId]);
+            }
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * Calculate and update total revenue from shipments
+     */
+    public function calculateTotalRevenue(): void
+    {
+        $totalRevenue = $this->shipments()->sum('value') ?? 0;
+        $this->update(['total_revenue' => $totalRevenue]);
     }
 }

@@ -37,6 +37,9 @@ class Vehicle extends Model
         'last_maintenance_date',
         'maintenance_interval_km',
         'maintenance_interval_days',
+        'fuel_consumption_per_km',
+        'tank_capacity',
+        'average_fuel_consumption',
         'notes',
         'metadata',
     ];
@@ -52,6 +55,9 @@ class Vehicle extends Model
         'last_maintenance_date' => 'date',
         'maintenance_interval_km' => 'integer',
         'maintenance_interval_days' => 'integer',
+        'fuel_consumption_per_km' => 'decimal:4',
+        'tank_capacity' => 'decimal:2',
+        'average_fuel_consumption' => 'decimal:4',
         'is_active' => 'boolean',
         'metadata' => 'array',
     ];
@@ -256,6 +262,46 @@ class Vehicle extends Model
     public function scopeByStatus($query, string $status)
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Get fuel consumption per km (uses specific or average)
+     */
+    public function getFuelConsumptionPerKm(): float
+    {
+        if ($this->fuel_consumption_per_km) {
+            return (float) $this->fuel_consumption_per_km;
+        }
+
+        // Fallback to average or default based on vehicle type
+        if ($this->average_fuel_consumption) {
+            return (float) $this->average_fuel_consumption;
+        }
+
+        // Default consumption by vehicle type (liters per km)
+        return match($this->vehicle_type) {
+            'truck' => 0.35,  // 35L per 100km = 0.35L/km
+            'van' => 0.12,    // 12L per 100km = 0.12L/km
+            'car' => 0.10,    // 10L per 100km = 0.10L/km
+            default => 0.20,  // Default: 20L per 100km = 0.20L/km
+        };
+    }
+
+    /**
+     * Get fuel type (defaults to diesel for trucks, gasoline for cars)
+     */
+    public function getFuelType(): string
+    {
+        if ($this->fuel_type) {
+            return $this->fuel_type;
+        }
+
+        // Default fuel type by vehicle type
+        return match($this->vehicle_type) {
+            'truck', 'van', 'bus' => 'diesel',
+            'car' => 'gasoline',
+            default => 'diesel',
+        };
     }
 }
 

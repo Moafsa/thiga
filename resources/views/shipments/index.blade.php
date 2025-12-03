@@ -170,11 +170,24 @@
         transition: opacity 0.3s ease;
         text-decoration: none;
         font-size: 1.1em;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
     }
 
     .action-btn:hover {
         opacity: 1;
         color: var(--cor-acento);
+    }
+
+    .action-btn.delete-btn {
+        color: #f44336;
+    }
+
+    .action-btn.delete-btn:hover {
+        opacity: 1;
+        color: #d32f2f;
     }
 
     .empty-state {
@@ -296,24 +309,56 @@
     </form>
 </div>
 
+<!-- Bulk Actions -->
+<div id="bulk-actions" style="display: none; background-color: var(--cor-secundaria); padding: 15px 25px; border-radius: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="color: var(--cor-texto-claro);">
+        <span id="selected-count">0</span> carga(s) selecionada(s)
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button type="button" onclick="clearSelection()" class="btn-secondary">
+            <i class="fas fa-times"></i> Limpar Seleção
+        </button>
+        <form id="bulk-delete-form" action="{{ route('shipments.bulk-destroy') }}" method="POST" style="display: inline;" onsubmit="return submitBulkDelete(event);">
+            @csrf
+            <button type="submit" class="btn-secondary" style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.3);">
+                <i class="fas fa-trash"></i> Excluir Selecionadas
+            </button>
+        </form>
+    </div>
+</div>
+
 <!-- Shipments Table -->
 <div class="table-card">
     <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>Rastreamento</th>
-                    <th>Título</th>
-                    <th>Remetente</th>
-                    <th>Destinatário</th>
-                    <th>Data Coleta</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
+        <form id="shipments-form">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">
+                            <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th>Rastreamento</th>
+                        <th>Título</th>
+                        <th>Remetente</th>
+                        <th>Destinatário</th>
+                        <th>Data Coleta</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
             <tbody>
                 @forelse($shipments as $shipment)
+                    @php
+                        $canDelete = !in_array($shipment->status, ['delivered', 'in_transit', 'picked_up']) 
+                            && !$shipment->hasAuthorizedCte() 
+                            && (!$shipment->route || ($shipment->route->status !== 'in_progress' && !$shipment->route->is_route_locked));
+                    @endphp
                     <tr>
+                        <td>
+                            @if($canDelete)
+                                <input type="checkbox" class="shipment-checkbox" value="{{ $shipment->id }}" onchange="updateBulkActions()">
+                            @endif
+                        </td>
                         <td>
                             <div style="font-weight: 600;">{{ $shipment->tracking_number }}</div>
                         </td>
@@ -359,12 +404,23 @@
                                 <a href="{{ route('shipments.edit', $shipment) }}" class="action-btn" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                @if(!in_array($shipment->status, ['delivered', 'in_transit', 'picked_up']) && !$shipment->hasAuthorizedCte() && (!$shipment->route || ($shipment->route->status !== 'in_progress' && !$shipment->route->is_route_locked)))
+                                <form action="{{ route('shipments.destroy', $shipment) }}" method="POST" style="display: inline;" 
+                                      onsubmit="return confirm('Tem certeza que deseja excluir esta carga? Esta ação não pode ser desfeita.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <input type="hidden" name="from" value="index">
+                                    <button type="submit" class="action-btn delete-btn" title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                @endif
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="empty-state">
+                        <td colspan="8" class="empty-state">
                             <i class="fas fa-box"></i>
                             <h3>Nenhuma carga encontrada</h3>
                             <p>Comece criando sua primeira carga</p>
@@ -377,6 +433,7 @@
                 @endforelse
             </tbody>
         </table>
+        </form>
     </div>
 </div>
 
@@ -407,6 +464,84 @@
         const messages = document.querySelectorAll('.alert');
         messages.forEach(msg => msg.remove());
     }, 5000);
+
+    // Bulk selection functions
+    function toggleSelectAll(checkbox) {
+        const checkboxes = document.querySelectorAll('.shipment-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+        });
+        updateBulkActions();
+    }
+
+    function updateBulkActions() {
+        const checkboxes = document.querySelectorAll('.shipment-checkbox:checked');
+        const selectedCount = checkboxes.length;
+        const bulkActions = document.getElementById('bulk-actions');
+        const selectedCountSpan = document.getElementById('selected-count');
+        const selectAllCheckbox = document.getElementById('select-all');
+
+        // Update selected count
+        selectedCountSpan.textContent = selectedCount;
+
+        // Show/hide bulk actions
+        if (selectedCount > 0) {
+            bulkActions.style.display = 'flex';
+        } else {
+            bulkActions.style.display = 'none';
+        }
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.shipment-checkbox');
+        if (allCheckboxes.length > 0) {
+            selectAllCheckbox.checked = selectedCount === allCheckboxes.length;
+            selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < allCheckboxes.length;
+        }
+    }
+
+    function submitBulkDelete(event) {
+        event.preventDefault();
+        
+        const checkboxes = document.querySelectorAll('.shipment-checkbox:checked');
+        const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+
+        if (selectedIds.length === 0) {
+            alert('Por favor, selecione pelo menos uma carga para excluir.');
+            return false;
+        }
+
+        if (!confirm(`Tem certeza que deseja excluir ${selectedIds.length} carga(s) selecionada(s)? Esta ação não pode ser desfeita.`)) {
+            return false;
+        }
+
+        // Create hidden inputs for each selected ID
+        const form = document.getElementById('bulk-delete-form');
+        selectedIds.forEach(id => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'shipment_ids[]';
+            input.value = id;
+            form.appendChild(input);
+        });
+
+        // Submit form
+        form.submit();
+        return true;
+    }
+
+    function clearSelection() {
+        const checkboxes = document.querySelectorAll('.shipment-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        document.getElementById('select-all').checked = false;
+        updateBulkActions();
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateBulkActions();
+    });
 </script>
 @endpush
 @endsection

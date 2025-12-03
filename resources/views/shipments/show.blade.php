@@ -22,6 +22,18 @@
             <i class="fas fa-arrow-left"></i>
             Back
         </a>
+        @if(!in_array($shipment->status, ['delivered', 'in_transit', 'picked_up']) && !$shipment->hasAuthorizedCte() && (!$shipment->route || ($shipment->route->status !== 'in_progress' && !$shipment->route->is_route_locked)))
+        <form action="{{ route('shipments.destroy', $shipment) }}" method="POST" style="display: inline;" 
+              onsubmit="return confirm('Tem certeza que deseja excluir esta carga? Esta ação não pode ser desfeita.');">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn-secondary" 
+                    style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.3);">
+                <i class="fas fa-trash"></i>
+                Excluir
+            </button>
+        </form>
+        @endif
     </div>
 </div>
 
@@ -38,10 +50,15 @@
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div>
-            <h4 style="color: var(--cor-acento); margin-bottom: 10px;">Sender</h4>
+            <h4 style="color: var(--cor-acento); margin-bottom: 10px;">
+                Sender <small style="color: rgba(245, 245, 245, 0.5); font-size: 0.7em; font-weight: normal;">(Remetente do CT-e)</small>
+            </h4>
             <p style="color: var(--cor-texto-claro); margin-bottom: 5px;"><strong>{{ $shipment->senderClient->name ?? 'N/A' }}</strong></p>
             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">{{ $shipment->pickup_address }}</p>
             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">{{ $shipment->pickup_city }}/{{ $shipment->pickup_state }} - {{ $shipment->pickup_zip_code }}</p>
+            <p style="color: rgba(255, 107, 53, 0.7); font-size: 0.75em; margin-top: 5px; font-style: italic;">
+                <i class="fas fa-info-circle"></i> Este é o remetente do CT-e, não o ponto de partida da rota
+            </p>
         </div>
 
         <div>
@@ -68,6 +85,15 @@
             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Delivery: <strong style="color: var(--cor-texto-claro);">{{ $shipment->delivery_date->format('d/m/Y') }} {{ $shipment->delivery_time }}</strong></p>
             @if($shipment->route)
                 <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Route: <strong style="color: var(--cor-texto-claro);">{{ $shipment->route->name }}</strong></p>
+                @if($shipment->route->branch)
+                    <p style="color: rgba(255, 107, 53, 0.8); font-size: 0.85em; margin-top: 5px;">
+                        <i class="fas fa-truck"></i> <strong>Ponto de Partida:</strong> {{ $shipment->route->branch->name }} - {{ $shipment->route->branch->city }}/{{ $shipment->route->branch->state }}
+                    </p>
+                @elseif($shipment->route->start_latitude && $shipment->route->start_longitude)
+                    <p style="color: rgba(255, 107, 53, 0.8); font-size: 0.85em; margin-top: 5px;">
+                        <i class="fas fa-truck"></i> <strong>Ponto de Partida:</strong> Definido (coordenadas: {{ number_format($shipment->route->start_latitude, 6) }}, {{ number_format($shipment->route->start_longitude, 6) }})
+                    </p>
+                @endif
             @endif
         </div>
     </div>

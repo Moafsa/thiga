@@ -38,10 +38,15 @@ class DriverDashboardController extends Controller
                 ->with('error', 'You are not registered as a driver.');
         }
 
-        // Get active route
+        // Get active route with all necessary relationships for timeline
         $activeRoute = Route::where('driver_id', $driver->id)
             ->whereIn('status', ['scheduled', 'in_progress'])
-            ->with(['shipments.senderClient', 'shipments.receiverClient'])
+            ->with([
+                'branch',
+                'shipments.senderClient', 
+                'shipments.receiverClient',
+                'shipments.fiscalDocuments'
+            ])
             ->orderBy('scheduled_date', 'desc')
             ->first();
 
@@ -155,10 +160,11 @@ class DriverDashboardController extends Controller
             return response()->json(['error' => 'Route can only be started if it is scheduled.'], 400);
         }
 
-        // Update route status
+        // Update route status and actual departure time
         $route->update([
             'status' => 'in_progress',
             'started_at' => now(),
+            'actual_departure_datetime' => now(), // Register actual departure time
         ]);
 
         // Update vehicle status if vehicle is assigned
@@ -221,10 +227,11 @@ class DriverDashboardController extends Controller
             ], 400);
         }
 
-        // Update route status
+        // Update route status and actual arrival time
         $route->update([
             'status' => 'completed',
             'completed_at' => now(),
+            'actual_arrival_datetime' => now(), // Register actual arrival time
         ]);
 
         // Free vehicle if vehicle is assigned
