@@ -38,11 +38,30 @@ class WebhookController extends Controller
     {
         try {
             $data = $request->all();
+            
+            // WuzAPI sends events in different formats:
+            // 1. Direct: {"event": "Message", "data": {...}, "token": "..."}
+            // 2. Wrapped: {"jsonData": "{\"type\":\"LoggedOut\",\"event\":{...}}", "token": "..."}
+            // Parse jsonData if it exists
+            if (isset($data['jsonData']) && is_string($data['jsonData'])) {
+                $decoded = json_decode($data['jsonData'], true);
+                if (is_array($decoded)) {
+                    // Merge decoded data into main data array
+                    $data = array_merge($data, $decoded);
+                    // Keep token from original request
+                    if (isset($data['token'])) {
+                        $data['token'] = $request->input('token') ?? $data['token'];
+                    }
+                }
+            }
 
             $token = $this->extractIntegrationToken($request);
 
             if (!$token) {
-                Log::warning('WhatsApp webhook sem token identificado', ['payload' => $data]);
+                Log::warning('WhatsApp webhook sem token identificado', [
+                    'payload_keys' => array_keys($data),
+                    'headers' => $request->headers->all(),
+                ]);
                 return response()->json(['status' => 'ignored', 'reason' => 'missing_token'], 202);
             }
 
@@ -55,13 +74,17 @@ class WebhookController extends Controller
                 return response()->json(['status' => 'ignored', 'reason' => 'unknown_token'], 202);
             }
 
+            $eventType = $data['event'] ?? $data['type'] ?? 'none';
             Log::info('WhatsApp webhook recebido', [
                 'integration_id' => $integration->id,
-                'event' => $data['event'] ?? 'none',
+                'event' => $eventType,
+                'has_jsonData' => isset($data['jsonData']),
             ]);
 
             // Handle different event types
-            switch ($data['event'] ?? '') {
+            $eventType = $data['event'] ?? $data['type'] ?? '';
+            
+            switch ($eventType) {
                 case 'Message':
                     $this->handleMessage($data, $integration);
                     break;
@@ -71,14 +94,49 @@ class WebhookController extends Controller
                 case 'Presence':
                     $this->handlePresence($data, $integration);
                     break;
+                case 'LoggedIn':
+                case 'Connected':
+                    $this->handleConnectionEvent($data, $integration, 'connected');
+                    break;
+                case 'LoggedOut':
+                case 'Disconnected':
+                    $this->handleConnectionEvent($data, $integration, 'disconnected');
+                    break;
+                case 'QrCode':
+                    $this->handleQrCodeEvent($data, $integration);
+                    break;
                 default:
-                    Log::info('Unknown WhatsApp event type: ' . ($data['event'] ?? 'none'));
+                    // Check if it's a connection-related event in jsonData
+                    $jsonData = $data['jsonData'] ?? null;
+                    if ($jsonData && is_string($jsonData)) {
+                        $decoded = json_decode($jsonData, true);
+                        if (is_array($decoded)) {
+                            $innerType = $decoded['type'] ?? '';
+                            if (in_array($innerType, ['LoggedIn', 'LoggedOut', 'Connected', 'Disconnected', 'QrCode'])) {
+                                $this->handleConnectionEvent($decoded, $integration, strtolower($innerType));
+                            }
+                        }
+                    } else {
+                        Log::info('Unknown WhatsApp event type: ' . $eventType, [
+                            'integration_id' => $integration->id,
+                            'payload_keys' => array_keys($data),
+                        ]);
+                    }
             }
 
-            return response()->json(['status' => 'success']);
+            // Return success response immediately to avoid timeout issues
+            // Process heavy operations asynchronously if needed
+            return response()->json(['status' => 'success'], 200, [], JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
-            Log::error('WhatsApp webhook error: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            Log::error('WhatsApp webhook error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Still return 200 to prevent WuzAPI from retrying
+            // The error is logged, but we don't want to break the webhook flow
+            return response()->json(['status' => 'error', 'message' => 'Internal error (logged)'], 200);
         }
     }
 
@@ -216,6 +274,161 @@ class WebhookController extends Controller
             'payload' => $data,
         ]);
         // Implement presence handling if needed
+    }
+
+    /**
+     * Handle connection events (LoggedIn, LoggedOut, Connected, Disconnected)
+     */
+    protected function handleConnectionEvent(array $data, WhatsAppIntegration $integration, string $eventType): void
+    {
+        try {
+            Log::info('WhatsApp connection event received', [
+                'integration_id' => $integration->id,
+                'event_type' => $eventType,
+                'payload' => $data,
+            ]);
+
+            // Extract event data
+            $eventData = $data['event'] ?? $data['data'] ?? [];
+            $jsonData = $data['jsonData'] ?? null;
+            
+            if ($jsonData && is_string($jsonData)) {
+                $decoded = json_decode($jsonData, true);
+                if (is_array($decoded)) {
+                    $eventData = array_merge($eventData, $decoded['event'] ?? []);
+                }
+            }
+
+            // For connection events, always sync with WuzAPI to get the real status
+            // This prevents false positives from webhook events
+            if ($eventType === 'connected' || $eventType === 'loggedin') {
+                // Wait a bit before syncing to allow WuzAPI to fully establish connection
+                // This prevents race conditions where we check status too early
+                sleep(2);
+                
+                // Sync with WuzAPI to verify actual connection status
+                try {
+                    $this->whatsAppIntegrationManager->syncSession($integration);
+                    Log::info('WhatsApp integration status synced after connection event', [
+                        'integration_id' => $integration->id,
+                        'new_status' => $integration->fresh()->status,
+                    ]);
+                } catch (\Exception $syncException) {
+                    // If sync fails, still try to update status based on event
+                    Log::warning('Failed to sync status after connection event, using event-based update', [
+                        'integration_id' => $integration->id,
+                        'error' => $syncException->getMessage(),
+                    ]);
+                    $this->whatsAppIntegrationManager->updateStatus($integration, WhatsAppIntegration::STATUS_CONNECTED);
+                }
+            } elseif ($eventType === 'disconnected' || $eventType === 'loggedout') {
+                $reason = $eventData['Reason'] ?? $eventData['reason'] ?? null;
+                
+                // Check if we were recently connected - if so, wait and verify before marking as disconnected
+                // This prevents false disconnections right after QR scan
+                $recentlyConnected = $integration->connected_at && 
+                                    $integration->connected_at->isAfter(now()->subSeconds(30));
+                
+                if ($recentlyConnected) {
+                    Log::warning('Disconnection event received shortly after connection - verifying status', [
+                        'integration_id' => $integration->id,
+                        'connected_at' => $integration->connected_at,
+                        'reason' => $reason,
+                    ]);
+                    
+                    // Wait a bit to see if it's a temporary disconnection
+                    sleep(3);
+                }
+                
+                Log::warning('WhatsApp integration disconnected via webhook', [
+                    'integration_id' => $integration->id,
+                    'reason' => $reason,
+                    'recently_connected' => $recentlyConnected,
+                ]);
+                
+                // If reason is 401 (unauthorized), it means authentication failed
+                // This could happen if QR code expired or was rejected
+                if ($reason === 401) {
+                    Log::error('WhatsApp authentication failed (401)', [
+                        'integration_id' => $integration->id,
+                        'message' => 'QR code may have expired or authentication was rejected',
+                    ]);
+                }
+                
+                // Always sync with WuzAPI to verify actual status before marking as disconnected
+                // This is critical to prevent false disconnections
+                try {
+                    $this->whatsAppIntegrationManager->syncSession($integration);
+                    $actualStatus = $integration->fresh()->status;
+                    
+                    Log::info('WhatsApp integration status synced after disconnection event', [
+                        'integration_id' => $integration->id,
+                        'new_status' => $actualStatus,
+                        'was_recently_connected' => $recentlyConnected,
+                    ]);
+                    
+                    // If we were recently connected and status is still connected, log warning
+                    if ($recentlyConnected && $actualStatus === WhatsAppIntegration::STATUS_CONNECTED) {
+                        Log::warning('Disconnection event received but status is still connected - ignoring event', [
+                            'integration_id' => $integration->id,
+                            'reason' => 'Possible false disconnection event after QR scan',
+                        ]);
+                        return; // Don't update status if it's still connected
+                    }
+                } catch (\Exception $syncException) {
+                    // If sync fails and we were recently connected, be more cautious
+                    if ($recentlyConnected) {
+                        Log::warning('Failed to sync status after disconnection event (recently connected) - not updating status', [
+                            'integration_id' => $integration->id,
+                            'error' => $syncException->getMessage(),
+                        ]);
+                        return; // Don't mark as disconnected if we can't verify and were recently connected
+                    }
+                    
+                    // If sync fails and not recently connected, update based on event
+                    Log::warning('Failed to sync status after disconnection event, using event-based update', [
+                        'integration_id' => $integration->id,
+                        'error' => $syncException->getMessage(),
+                    ]);
+                    $this->whatsAppIntegrationManager->updateStatus($integration, WhatsAppIntegration::STATUS_DISCONNECTED);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to handle connection event', [
+                'integration_id' => $integration->id,
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Handle QR code events
+     */
+    protected function handleQrCodeEvent(array $data, WhatsAppIntegration $integration): void
+    {
+        Log::info('WhatsApp QR code event received', [
+            'integration_id' => $integration->id,
+            'payload' => $data,
+        ]);
+        
+        // QR code events typically mean the session is pending connection
+        // Sync with WuzAPI to get the actual status instead of just setting to pending
+        try {
+            $this->whatsAppIntegrationManager->syncSession($integration);
+            Log::info('WhatsApp integration status synced after QR code event', [
+                'integration_id' => $integration->id,
+                'new_status' => $integration->fresh()->status,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to sync status for QR code event, using pending status', [
+                'integration_id' => $integration->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Fallback to pending if sync fails
+            $this->whatsAppIntegrationManager->updateStatus($integration, WhatsAppIntegration::STATUS_PENDING);
+        }
     }
 
     /**

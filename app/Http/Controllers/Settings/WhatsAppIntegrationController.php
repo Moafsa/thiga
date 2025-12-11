@@ -124,11 +124,171 @@ class WhatsAppIntegrationController extends Controller
             Log::error('Falha ao gerar QR Code do WhatsApp', [
                 'integration_id' => $whatsappIntegration->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
+            $message = $e->getMessage();
+            
+            // Provide more specific error messages
+            if (str_contains($message, 'já está conectado') || str_contains($message, 'Already Loggedin')) {
+                $userMessage = 'O WhatsApp já está conectado. Faça logout primeiro para gerar um novo QR Code.';
+            } elseif (str_contains($message, 'No session') || str_contains($message, 'Not connected')) {
+                $userMessage = 'Não foi possível conectar a sessão do WhatsApp. Tente sincronizar a integração primeiro.';
+            } else {
+                $userMessage = $message ?: 'Não foi possível gerar o QR Code. Tente novamente ou verifique a conexão com o WuzAPI.';
+            }
+
             return response()->json([
-                'message' => 'Não foi possível gerar o QR Code. Tente novamente ou verifique a conexão com o WuzAPI.',
+                'message' => $userMessage,
+                'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Get integration status (for polling after QR scan).
+     */
+    public function status(WhatsAppIntegration $whatsappIntegration): JsonResponse
+    {
+        $this->authorizeTenantAccess();
+        $this->authorizeIntegration($whatsappIntegration);
+
+        try {
+            // Get raw status from WuzAPI without updating database
+            // This prevents false positives from updating status incorrectly
+            $token = $whatsappIntegration->getUserToken();
+            if (!$token) {
+                return response()->json([
+                    'status' => $whatsappIntegration->status,
+                    'connected' => false,
+                    'isLoggedIn' => false,
+                    'isConnected' => false,
+                    'error' => 'Token not available',
+                ], 200); // Return 200 to prevent "Failed to fetch"
+            }
+
+            $wuzApiService = app(\App\Services\WuzApiService::class);
+            
+            // Try to get status, but handle "No session" gracefully
+            try {
+                $rawStatus = $wuzApiService->getSessionStatus($token);
+            } catch (Exception $statusException) {
+                // If "No session", it's normal - session might not be created yet
+                if (str_contains($statusException->getMessage(), 'No session')) {
+                    $whatsappIntegration->refresh();
+                    return response()->json([
+                        'status' => $whatsappIntegration->status,
+                        'connected' => false,
+                        'isLoggedIn' => false,
+                        'isConnected' => false,
+                    ], 200);
+                }
+                // Re-throw other exceptions
+                throw $statusException;
+            }
+            
+            // Extract actual connection state from WuzAPI response
+            $data = $rawStatus['data'] ?? $rawStatus;
+            $isLoggedIn = (bool) ($data['LoggedIn'] ?? $data['loggedIn'] ?? false);
+            $isConnected = (bool) ($data['Connected'] ?? $data['connected'] ?? false);
+            $hasJid = !empty($data['jid'] ?? $data['Jid'] ?? null);
+            $jid = $data['jid'] ?? $data['Jid'] ?? null;
+            
+            // Only consider truly connected if BOTH LoggedIn AND Connected are true
+            // This prevents false positives when only websocket is connected but QR wasn't scanned
+            $actuallyConnected = $isLoggedIn && $isConnected;
+            
+            Log::info('WhatsApp status check', [
+                'integration_id' => $whatsappIntegration->id,
+                'isLoggedIn' => $isLoggedIn,
+                'isConnected' => $isConnected,
+                'hasJid' => $hasJid,
+                'jid' => $jid ? (substr($jid, 0, 20) . '...') : null,
+                'actuallyConnected' => $actuallyConnected,
+                'current_db_status' => $whatsappIntegration->status,
+                'raw_status_keys' => array_keys($data),
+            ]);
+            
+            // Only update database status if it's actually different to avoid false updates
+            // Also check if we were recently connected to prevent false disconnections
+            $recentlyConnected = $whatsappIntegration->connected_at && 
+                                $whatsappIntegration->connected_at->isAfter(now()->subSeconds(60));
+            
+            if ($actuallyConnected && $whatsappIntegration->status !== WhatsAppIntegration::STATUS_CONNECTED) {
+                // Definitely connected - update status
+                $this->integrationManager->syncSession($whatsappIntegration);
+                $whatsappIntegration->refresh();
+            } elseif (!$actuallyConnected && $whatsappIntegration->status === WhatsAppIntegration::STATUS_CONNECTED) {
+                // If we think it's connected but WuzAPI says it's not, be cautious if recently connected
+                if ($recentlyConnected) {
+                    Log::warning('Status check: WuzAPI says not connected but was recently connected - waiting before updating', [
+                        'integration_id' => $whatsappIntegration->id,
+                        'connected_at' => $whatsappIntegration->connected_at,
+                        'isLoggedIn' => $isLoggedIn,
+                        'isConnected' => $isConnected,
+                    ]);
+                    // Don't update immediately - might be a temporary disconnection
+                    // Return current status instead
+                } else {
+                    // Not recently connected, safe to update
+                    $this->integrationManager->syncSession($whatsappIntegration);
+                    $whatsappIntegration->refresh();
+                }
+            }
+
+            return response()->json([
+                'status' => $whatsappIntegration->status,
+                'connected' => $actuallyConnected, // Use actual connection state, not database status
+                'isLoggedIn' => $isLoggedIn,
+                'isConnected' => $isConnected,
+                'last_synced_at' => $whatsappIntegration->last_synced_at?->toIso8601String(),
+            ]);
+        } catch (Exception $e) {
+            Log::error('Falha ao obter status da integração WhatsApp', [
+                'integration_id' => $whatsappIntegration->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Return current database status, but mark as not connected
+            // Don't return 500 - return 200 with error info to prevent frontend "Failed to fetch"
+            $whatsappIntegration->refresh();
+            
+            // Check if error is "No session" - this is normal when session hasn't been created yet
+            $isNoSessionError = str_contains($e->getMessage(), 'No session');
+            
+            return response()->json([
+                'status' => $whatsappIntegration->status,
+                'connected' => false,
+                'isLoggedIn' => false,
+                'isConnected' => false,
+                'error' => $isNoSessionError ? null : $e->getMessage(), // Don't show "No session" as error
+            ], 200); // Return 200 instead of 500 to prevent "Failed to fetch"
+        }
+    }
+
+    /**
+     * Logout WhatsApp session (force logout to allow new QR generation).
+     */
+    public function logout(WhatsAppIntegration $whatsappIntegration): RedirectResponse
+    {
+        $this->authorizeTenantAccess();
+        $this->authorizeIntegration($whatsappIntegration);
+
+        try {
+            $this->integrationManager->logout($whatsappIntegration);
+
+            return redirect()
+                ->route('settings.integrations.whatsapp.index')
+                ->with('status', 'Sessão do WhatsApp desconectada. Você pode gerar um novo QR Code agora.');
+        } catch (Exception $e) {
+            Log::error('Falha ao fazer logout da integração WhatsApp', [
+                'integration_id' => $whatsappIntegration->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('settings.integrations.whatsapp.index')
+                ->with('error', 'Não foi possível desconectar a sessão. Tente novamente.');
         }
     }
 
@@ -141,11 +301,8 @@ class WhatsAppIntegrationController extends Controller
         $this->authorizeIntegration($whatsappIntegration);
 
         try {
-            if ($whatsappIntegration->isConnected()) {
-                $this->integrationManager->disconnect($whatsappIntegration);
-            }
-
-            $whatsappIntegration->delete();
+            // Delete from WuzAPI and database
+            $this->integrationManager->deleteIntegration($whatsappIntegration);
 
             return redirect()
                 ->route('settings.integrations.whatsapp.index')

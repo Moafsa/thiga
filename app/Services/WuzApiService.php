@@ -58,12 +58,31 @@ class WuzApiService
                 ->get("{$this->baseUrl}/session/status");
 
             if ($response->failed()) {
-                throw new Exception('Failed to fetch session status: ' . $response->body());
+                $body = $response->body();
+                $decoded = json_decode($body, true);
+                
+                // "No session" is a normal state when session hasn't been created yet
+                // Return a normalized response instead of throwing exception
+                if (isset($decoded['error']) && str_contains(strtolower($decoded['error']), 'no session')) {
+                    return [
+                        'code' => 200,
+                        'success' => true,
+                        'data' => [
+                            'Connected' => false,
+                            'LoggedIn' => false,
+                        ],
+                    ];
+                }
+                
+                throw new Exception('Failed to fetch session status: ' . $body);
             }
 
             return $response->json();
         } catch (Exception $e) {
-            Log::error('WuzAPI session status error: ' . $e->getMessage());
+            // Only log as error if it's not a "No session" case
+            if (!str_contains($e->getMessage(), 'No session')) {
+                Log::error('WuzAPI session status error: ' . $e->getMessage());
+            }
             throw $e;
         }
     }
@@ -239,9 +258,9 @@ class WuzApiService
         try {
             $response = Http::withHeaders($this->userHeaders($userToken, [
                 'Content-Type' => 'application/json',
-            ]))->post("{$this->baseUrl}/webhook/set", [
+            ]))->post("{$this->baseUrl}/webhook", [
                 'webhook' => $webhookUrl,
-                'events' => implode(',', $events),
+                'events' => $events,
             ]);
 
             if ($response->successful()) {
@@ -256,7 +275,7 @@ class WuzApiService
     }
 
     /**
-     * Disconnect session
+     * Disconnect session (keeps session active, no QR needed on reconnect)
      */
     public function disconnect(string $userToken): array
     {
@@ -267,6 +286,113 @@ class WuzApiService
             return $response->json();
         } catch (Exception $e) {
             Log::error('WuzAPI disconnect error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Logout session (terminates session, requires QR scan on reconnect)
+     */
+    public function logout(string $userToken): array
+    {
+        try {
+            $response = Http::withHeaders($this->userHeaders($userToken))
+                ->post("{$this->baseUrl}/session/logout");
+
+            Log::info('WuzAPI logout successful', [
+                'response' => $response->json(),
+            ]);
+
+            return $response->json();
+        } catch (Exception $e) {
+            Log::error('WuzAPI logout error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * List all users (admin only)
+     */
+    public function listUsers(): array
+    {
+        try {
+            if (!$this->adminToken) {
+                throw new Exception('WuzAPI admin token not configured');
+            }
+
+            $response = Http::withHeaders([
+                'Authorization' => $this->adminToken,
+                'Content-Type' => 'application/json',
+            ])->get("{$this->baseUrl}/admin/users");
+
+            if ($response->failed()) {
+                throw new Exception('Failed to list users: ' . $response->body());
+            }
+
+            return $response->json();
+        } catch (Exception $e) {
+            Log::error('WuzAPI list users error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Find user ID by token
+     */
+    public function findUserIdByToken(string $userToken): ?int
+    {
+        try {
+            $response = $this->listUsers();
+            
+            // Response format: {"instances": [...]} or direct array
+            $users = $response['instances'] ?? $response;
+            
+            if (!is_array($users)) {
+                Log::warning('WuzAPI listUsers returned unexpected format', [
+                    'response' => $response,
+                ]);
+                return null;
+            }
+            
+            foreach ($users as $user) {
+                if (isset($user['token']) && $user['token'] === $userToken) {
+                    return (int) ($user['id'] ?? null);
+                }
+            }
+
+            return null;
+        } catch (Exception $e) {
+            Log::error('WuzAPI find user ID error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Delete user from WuzAPI (admin only)
+     */
+    public function deleteUser(int $userId): array
+    {
+        try {
+            if (!$this->adminToken) {
+                throw new Exception('WuzAPI admin token not configured');
+            }
+
+            $response = Http::withHeaders([
+                'Authorization' => $this->adminToken,
+                'Content-Type' => 'application/json',
+            ])->delete("{$this->baseUrl}/admin/users/{$userId}");
+
+            if ($response->failed()) {
+                throw new Exception('Failed to delete user: ' . $response->body());
+            }
+
+            Log::info('WuzAPI user deleted successfully', [
+                'user_id' => $userId,
+            ]);
+
+            return $response->json();
+        } catch (Exception $e) {
+            Log::error('WuzAPI delete user error: ' . $e->getMessage());
             throw $e;
         }
     }
