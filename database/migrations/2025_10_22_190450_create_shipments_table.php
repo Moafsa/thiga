@@ -23,14 +23,30 @@ return new class extends Migration
             $table->foreignId('sender_client_id')->constrained('clients')->onDelete('cascade');
             $table->foreignId('receiver_client_id')->constrained('clients')->onDelete('cascade');
             
+            // Recipient information
+            $table->string('recipient_name')->nullable();
+            $table->string('recipient_address')->nullable();
+            $table->string('recipient_city')->nullable();
+            $table->string('recipient_state')->nullable();
+            $table->string('recipient_zip_code')->nullable();
+            $table->string('recipient_phone')->nullable();
+            
+            // CT-e information
+            $table->string('cte_number')->nullable()->index();
+            $table->string('cte_status')->nullable();
+            
             // Dados da carga
             $table->string('tracking_number')->unique();
+            $table->string('tracking_code')->nullable();
             $table->string('title');
             $table->text('description')->nullable();
             $table->decimal('weight', 8, 2)->nullable(); // Peso em kg
             $table->decimal('volume', 8, 2)->nullable(); // Volume em m³
             $table->integer('quantity')->default(1);
             $table->decimal('value', 10, 2)->nullable(); // Valor declarado
+            $table->decimal('goods_value', 10, 2)->nullable(); // Valor da mercadoria
+            $table->decimal('freight_value', 10, 2)->nullable(); // Valor do frete
+            $table->json('dimensions')->nullable(); // Dimensões (altura, largura, comprimento)
             
             // Endereços
             $table->string('pickup_address');
@@ -64,7 +80,12 @@ return new class extends Migration
             
             // Observações
             $table->text('notes')->nullable();
+            $table->text('delivery_notes')->nullable();
             $table->json('metadata')->nullable();
+            
+            // Invoice information
+            $table->string('invoice_number')->nullable();
+            $table->json('invoice_details')->nullable();
             
             $table->timestamps();
             

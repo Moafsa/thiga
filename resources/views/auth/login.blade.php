@@ -214,6 +214,11 @@
 
         <div class="links">
             <p>Não tem uma conta? <a href="{{ route('register') }}">Cadastre-se aqui</a></p>
+            <p style="margin-top: 15px;">
+                <a href="{{ route('driver.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-truck"></i> Sou motorista - Entrar por telefone
+                </a>
+            </p>
         </div>
     </div>
 </body>

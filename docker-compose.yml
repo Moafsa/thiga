@@ -94,6 +94,8 @@ services:
       - wuzapi_sessions:/app/sessions
     networks:
       - tms_network
+    depends_on:
+      - pgsql
 
 networks:
   tms_network:

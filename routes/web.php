@@ -17,6 +17,14 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+// Driver login routes
+Route::prefix('driver/login')->name('driver.login.')->group(function () {
+    Route::get('/phone', [App\Http\Controllers\Auth\DriverLoginController::class, 'showPhoneForm'])->name('phone');
+    Route::post('/request-code', [App\Http\Controllers\Auth\DriverLoginController::class, 'requestCode'])->name('request-code');
+    Route::get('/code', [App\Http\Controllers\Auth\DriverLoginController::class, 'showCodeForm'])->name('code');
+    Route::post('/verify-code', [App\Http\Controllers\Auth\DriverLoginController::class, 'verifyCode'])->name('verify-code');
+});
+
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
 Route::post('/register', [RegisterController::class, 'register']);
 
@@ -263,9 +271,16 @@ Route::middleware('auth')->group(function () {
         Route::prefix('integrations')->name('integrations.')->group(function () {
             Route::get('/whatsapp', [WhatsAppIntegrationController::class, 'index'])->name('whatsapp.index');
             Route::post('/whatsapp', [WhatsAppIntegrationController::class, 'store'])->name('whatsapp.store');
+            // Specific routes must come before the generic {whatsappIntegration} route
             Route::post('/whatsapp/{whatsappIntegration}/sync', [WhatsAppIntegrationController::class, 'sync'])->name('whatsapp.sync');
+            Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::get('/whatsapp/{whatsappIntegration}/qr', [WhatsAppIntegrationController::class, 'qr'])->name('whatsapp.qr');
+            Route::get('/whatsapp/{whatsappIntegration}/status', [WhatsAppIntegrationController::class, 'status'])->name('whatsapp.status');
             Route::delete('/whatsapp/{whatsappIntegration}', [WhatsAppIntegrationController::class, 'destroy'])->name('whatsapp.destroy');
+            // Redirect any direct access to integration ID to index page (must be last)
+            Route::get('/whatsapp/{whatsappIntegration}', function (WhatsAppIntegration $whatsappIntegration) {
+                return redirect()->route('settings.integrations.whatsapp.index');
+            })->name('whatsapp.show');
         });
     });
 });
