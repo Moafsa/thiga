@@ -67,6 +67,11 @@ class DriverController extends Controller
     {
         $tenant = Auth::user()->tenant;
 
+        if (!$tenant) {
+            return redirect()->route('drivers.index')
+                ->with('error', 'User does not have an associated tenant.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',

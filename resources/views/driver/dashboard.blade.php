@@ -445,7 +445,7 @@
 
     function startRoute(routeId) {
         if (confirm('Deseja iniciar esta rota?')) {
-            fetch(`/api/driver/routes/${routeId}/start`, {
+            fetch(`/driver/routes/${routeId}/start`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -469,7 +469,7 @@
 
     function finishRoute(routeId) {
         if (confirm('Deseja finalizar esta rota? Todas as entregas devem estar concluídas.')) {
-            fetch(`/api/driver/routes/${routeId}/finish`, {
+            fetch(`/driver/routes/${routeId}/finish`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
