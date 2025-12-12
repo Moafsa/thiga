@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Proposal;
 use App\Models\Client;
 use App\Models\Salesperson;
+use App\Models\FreightTable;
+use App\Services\FreightCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -59,11 +61,12 @@ class ProposalController extends Controller
         $tenant = Auth::user()->tenant;
         $clients = Client::where('tenant_id', $tenant->id)->active()->get();
         $salespeople = Salesperson::where('tenant_id', $tenant->id)->active()->get();
+        $freightTables = FreightTable::where('tenant_id', $tenant->id)->active()->get();
         
         $selectedClient = $request->get('client_id') ? 
             Client::find($request->get('client_id')) : null;
         
-        return view('proposals.create', compact('clients', 'salespeople', 'selectedClient'));
+        return view('proposals.create', compact('clients', 'salespeople', 'selectedClient', 'freightTables', 'tenant'));
     }
 
     /**
@@ -255,6 +258,43 @@ class ProposalController extends Controller
 
         return redirect()->route('proposals.index')
             ->with('success', 'Proposta excluída com sucesso!');
+    }
+
+    /**
+     * Calculate freight
+     */
+    public function calculateFreight(Request $request)
+    {
+        $request->validate([
+            'destination' => 'required|string',
+            'weight' => 'required|numeric|min:0',
+            'cubage' => 'nullable|numeric|min:0',
+            'invoice_value' => 'required|numeric|min:0',
+        ]);
+
+        $tenant = Auth::user()->tenant;
+        $freightService = app(FreightCalculationService::class);
+
+        try {
+            $result = $freightService->calculate(
+                $tenant,
+                $request->destination,
+                (float) $request->weight,
+                (float) ($request->cubage ?? 0),
+                (float) $request->invoice_value,
+                []
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**

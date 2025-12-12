@@ -1,5 +1,3 @@
-
-
 <?php $__env->startSection('title', 'CT-e XMLs - TMS SaaS'); ?>
 <?php $__env->startSection('page-title', 'CT-e XMLs'); ?>
 

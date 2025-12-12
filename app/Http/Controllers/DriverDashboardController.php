@@ -6,8 +6,10 @@ use App\Models\Route;
 use App\Models\Driver;
 use App\Models\Vehicle;
 use App\Models\LocationTracking;
+use App\Notifications\DriverPaymentReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DriverDashboardController extends Controller
 {
@@ -60,7 +62,46 @@ class DriverDashboardController extends Controller
         // Get all shipments for active route
         $shipments = $activeRoute ? $activeRoute->shipments : collect();
 
-        return view('driver.dashboard', compact('driver', 'activeRoute', 'shipments', 'recentLocations'));
+        // Get date filters from request
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        $period = $request->get('period', '30days'); // 7days, 30days, 90days, custom
+
+        // Apply period filter
+        if ($period !== 'custom') {
+            $days = match($period) {
+                '7days' => 7,
+                '30days' => 30,
+                '90days' => 90,
+                'month' => now()->daysInMonth,
+                'year' => 365,
+                default => 30,
+            };
+            $startDate = now()->subDays($days)->format('Y-m-d');
+            $endDate = now()->format('Y-m-d');
+        }
+
+        // Get driver financial data (with cache)
+        $walletBalance = $driver->getWalletBalance();
+        $totalPayments = $driver->getTotalPayments();
+        $totalExpenses = $driver->getTotalExpenses();
+        
+        // Get paginated financial history
+        $financialHistory = $driver->getFinancialHistory($startDate, $endDate, 15);
+
+        return view('driver.dashboard', compact(
+            'driver', 
+            'activeRoute', 
+            'shipments', 
+            'recentLocations',
+            'walletBalance',
+            'totalPayments',
+            'totalExpenses',
+            'financialHistory',
+            'startDate',
+            'endDate',
+            'period'
+        ));
     }
 
     /**
@@ -227,12 +268,26 @@ class DriverDashboardController extends Controller
             ], 400);
         }
 
+        // Calculate payment amount before updating
+        $paymentAmount = 0;
+        if ($route->driver_diaria_value && $route->driver_diarias_count) {
+            $paymentAmount = $route->driver_diaria_value * $route->driver_diarias_count;
+        }
+
         // Update route status and actual arrival time
         $route->update([
             'status' => 'completed',
             'completed_at' => now(),
             'actual_arrival_datetime' => now(), // Register actual arrival time
         ]);
+
+        // Clear driver financial cache since balance changed
+        $driver->clearFinancialCache();
+
+        // Send notification to driver about payment if amount > 0
+        if ($paymentAmount > 0 && $driver->user) {
+            $driver->user->notify(new DriverPaymentReceived($route, $paymentAmount));
+        }
 
         // Free vehicle if vehicle is assigned
         if ($route->vehicle_id) {

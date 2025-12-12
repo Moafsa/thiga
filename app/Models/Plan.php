@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasActiveScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Plan extends Model
 {
-    use HasFactory;
+    use HasFactory, HasActiveScope;
 
     protected $fillable = [
         'name',
@@ -64,13 +65,6 @@ class Plan extends Model
         return 'R$ ' . number_format($this->price, 2, ',', '.');
     }
 
-    /**
-     * Scope for active plans.
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
 
     /**
      * Scope for popular plans.

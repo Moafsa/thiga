@@ -145,20 +145,42 @@ class WuzApiService
     public function sendTextMessage(string $userToken, string $phone, string $message): array
     {
         try {
+            Log::debug('WuzAPI sending text message', [
+                'base_url' => $this->baseUrl,
+                'endpoint' => '/chat/send/text',
+                'phone' => $phone,
+                'message_length' => strlen($message),
+                'token_preview' => substr($userToken, 0, 20) . '...',
+            ]);
+
             $response = Http::withHeaders($this->userHeaders($userToken, [
                 'Content-Type' => 'application/json',
-            ]))->post("{$this->baseUrl}/message/text", [
+            ]))->post("{$this->baseUrl}/chat/send/text", [
                 'phone' => $phone,
-                'message' => $message,
+                'body' => $message,
+            ]);
+
+            Log::debug('WuzAPI send message response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
             ]);
 
             if ($response->successful()) {
-                return $response->json();
+                $result = $response->json();
+                Log::info('WuzAPI message sent successfully', [
+                    'phone' => $phone,
+                    'message_id' => $result['data']['Id'] ?? 'N/A',
+                    'details' => $result['data']['Details'] ?? 'N/A',
+                ]);
+                return $result;
             }
 
             throw new Exception('Failed to send message: ' . $response->body());
         } catch (Exception $e) {
-            Log::error('WuzAPI send message error: ' . $e->getMessage());
+            Log::error('WuzAPI send message error: ' . $e->getMessage(), [
+                'phone' => $phone,
+                'base_url' => $this->baseUrl,
+            ]);
             throw $e;
         }
     }

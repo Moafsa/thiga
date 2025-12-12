@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\DriverAuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class DriverLoginController extends Controller
@@ -33,14 +34,28 @@ class DriverLoginController extends Controller
         ]);
 
         try {
-            $loginCode = $this->driverAuthService->requestLoginCode($validated['phone']);
+            $loginCode = $this->driverAuthService->requestLoginCode(
+                $validated['phone'],
+                $request->header('X-Device-ID')
+            );
 
+            // Store phone in session to retrieve on code verification page
             $request->session()->put('driver_login_phone', $validated['phone']);
 
             return redirect()->route('driver.login.code')
-                ->with('success', 'Código enviado pelo WhatsApp. Verifique suas mensagens.');
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
+                ->with('success', 'Código enviado pelo WhatsApp. Verifique suas mensagens.')
+                ->with('code_sent', true)
+                ->with('phone', $validated['phone']);
+        } catch (\Exception $e) {
+            Log::error('Driver login code request failed', [
+                'phone' => $validated['phone'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withErrors([
+                'phone' => $e->getMessage() ?: 'Não foi possível enviar o código. Verifique o número e tente novamente.',
+            ])->withInput();
         }
     }
 
@@ -52,8 +67,9 @@ class DriverLoginController extends Controller
         $phone = $request->session()->get('driver_login_phone');
 
         if (!$phone) {
+            // If phone is not in session, redirect back to phone input
             return redirect()->route('driver.login.phone')
-                ->with('error', 'Por favor, solicite um código primeiro.');
+                ->withErrors(['phone' => __('Por favor, insira seu telefone novamente.')]);
         }
 
         return view('auth.driver-login-code', compact('phone'));
@@ -72,7 +88,8 @@ class DriverLoginController extends Controller
         try {
             $driver = $this->driverAuthService->verifyLoginCode(
                 $validated['phone'],
-                $validated['code']
+                $validated['code'],
+                $request->header('X-Device-ID')
             );
 
             if (!$driver->user) {
@@ -81,16 +98,23 @@ class DriverLoginController extends Controller
                 ]);
             }
 
-            // Login the user using session
-            Auth::login($driver->user);
+            auth()->login($driver->user);
 
-            $request->session()->regenerate();
+            // Clear phone from session after successful login
             $request->session()->forget('driver_login_phone');
 
-            return redirect()->route('driver.dashboard')
-                ->with('success', 'Login realizado com sucesso!');
+            return redirect()->route('driver.dashboard')->with('success', 'Login realizado com sucesso!');
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Driver login code verification failed', [
+                'phone' => $validated['phone'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'code' => 'Código inválido ou expirado. Tente novamente.',
+            ])->withInput();
         }
     }
 }

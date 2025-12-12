@@ -424,7 +424,7 @@
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('salesperson.dashboard') }}" class="sidebar-link {{ request()->routeIs('salesperson.*') ? 'active' : '' }}" data-tooltip="Painel do Vendedor">
+                <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tooltip="Relatórios e Gráficos">
                     <i class="fas fa-chart-line"></i>
                 </a>
             </div>
@@ -450,18 +450,6 @@
             <div class="sidebar-item">
                 <a href="{{ route('cash-flow.index') }}" class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" data-tooltip="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
-                </a>
-            </div>
-            
-            <div class="sidebar-item">
-                <a href="{{ route('fiscal.ctes.index') }}" class="sidebar-link {{ request()->routeIs('fiscal.*') ? 'active' : '' }}" data-tooltip="Documentos Fiscais">
-                    <i class="fas fa-file-invoice"></i>
-                </a>
-            </div>
-            
-            <div class="sidebar-item">
-                <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tooltip="Relatórios">
-                    <i class="fas fa-file-alt"></i>
                 </a>
             </div>
             

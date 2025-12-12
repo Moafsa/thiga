@@ -78,6 +78,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{proposal}/accept', [App\Http\Controllers\ProposalController::class, 'accept'])->name('accept');
         Route::post('/{proposal}/reject', [App\Http\Controllers\ProposalController::class, 'reject'])->name('reject');
         Route::post('/calculate-discount', [App\Http\Controllers\ProposalController::class, 'calculateDiscount'])->name('calculateDiscount');
+        Route::post('/calculate-freight', [App\Http\Controllers\ProposalController::class, 'calculateFreight'])->name('calculateFreight');
     });
     
     // Freight Tables routes (per tenant)

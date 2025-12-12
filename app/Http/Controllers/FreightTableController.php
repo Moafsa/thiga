@@ -49,13 +49,20 @@ class FreightTableController extends Controller
             'name' => 'required|string|max:255',
             'destination_name' => 'required|string|max:255',
             'destination_state' => 'nullable|string|max:2',
-            'weight_0_30' => 'nullable|numeric|min:0',
-            'weight_31_50' => 'nullable|numeric|min:0',
-            'weight_51_70' => 'nullable|numeric|min:0',
-            'weight_71_100' => 'nullable|numeric|min:0',
-            'weight_over_100_rate' => 'nullable|numeric|min:0',
-            'ctrc_tax' => 'nullable|numeric|min:0',
+            'weight_0_30' => 'required|numeric|min:0',
+            'weight_31_50' => 'required|numeric|min:0',
+            'weight_51_70' => 'required|numeric|min:0',
+            'weight_71_100' => 'required|numeric|min:0',
+            'weight_over_100_rate' => 'required|numeric|min:0',
+            'ctrc_tax' => 'required|numeric|min:0',
             'is_default' => 'nullable|boolean',
+        ], [
+            'weight_0_30.required' => 'O valor para 0 a 30 kg é obrigatório.',
+            'weight_31_50.required' => 'O valor para 31 a 50 kg é obrigatório.',
+            'weight_51_70.required' => 'O valor para 51 a 70 kg é obrigatório.',
+            'weight_71_100.required' => 'O valor para 71 a 100 kg é obrigatório.',
+            'weight_over_100_rate.required' => 'A taxa por kg acima de 100kg é obrigatória.',
+            'ctrc_tax.required' => 'A taxa CTRC é obrigatória.',
         ]);
 
         $tenant = Auth::user()->tenant;

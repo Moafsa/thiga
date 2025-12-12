@@ -224,3 +224,4 @@ Se funciona em produção mas não localmente, compare:
 ⚠️ **Não modifique o código do WuzAPI** - ele funciona corretamente. O problema é sempre de configuração de ambiente/rede local.
 
 
+

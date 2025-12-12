@@ -101,3 +101,4 @@ Write-Host ""
 Write-Host "Para mais detalhes, consulte: docs/TROUBLESHOOTING_QR_CONNECTION.md" -ForegroundColor Cyan
 
 
+

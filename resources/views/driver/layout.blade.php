@@ -281,9 +281,12 @@
             <button class="header-btn" onclick="window.location.reload()" title="Atualizar">
                 <i class="fas fa-sync-alt"></i>
             </button>
-            <button class="header-btn" onclick="window.location.href='{{ route('logout') }}'" title="Sair">
-                <i class="fas fa-sign-out-alt"></i>
-            </button>
+            <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                @csrf
+                <button type="submit" class="header-btn" title="Sair">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </form>
         </div>
     </header>
 

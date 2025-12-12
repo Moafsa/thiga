@@ -27,12 +27,28 @@
             <input type="text" name="document" value="{{ old('document') }}" placeholder="000.000.000-00" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
         </div>
         <div>
-            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Email</label>
-            <input type="email" name="email" value="{{ old('email') }}" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Telefone *</label>
+            <input type="text" name="phone" value="{{ old('phone') }}" required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <small style="color: var(--cor-texto-claro); opacity: 0.7; display: block; margin-top: 4px;">Usado para login via WhatsApp</small>
+            @error('phone')
+                <span style="color: #ff6b6b; font-size: 0.875em; display: block; margin-top: 4px;">{{ $message }}</span>
+            @enderror
         </div>
         <div>
-            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Telefone</label>
-            <input type="text" name="phone" value="{{ old('phone') }}" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Email</label>
+            <input type="email" name="email" value="{{ old('email') }}" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <small style="color: var(--cor-texto-claro); opacity: 0.7; display: block; margin-top: 4px;">Opcional - será gerado automaticamente se não informado</small>
+            @error('email')
+                <span style="color: #ff6b6b; font-size: 0.875em; display: block; margin-top: 4px;">{{ $message }}</span>
+            @enderror
+        </div>
+        <div>
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Senha</label>
+            <input type="password" name="password" value="{{ old('password') }}" minlength="8" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <small style="color: var(--cor-texto-claro); opacity: 0.7; display: block; margin-top: 4px;">Opcional - será gerada automaticamente se não informada</small>
+            @error('password')
+                <span style="color: #ff6b6b; font-size: 0.875em; display: block; margin-top: 4px;">{{ $message }}</span>
+            @enderror
         </div>
         <div>
             <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Número da CNH</label>

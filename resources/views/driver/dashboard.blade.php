@@ -221,10 +221,200 @@
         border-color: var(--cor-acento);
         background-color: rgba(255, 107, 53, 0.1);
     }
+
+    .wallet-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .wallet-card {
+        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(30, 30, 30, 0.95) 100%);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .wallet-card.balance {
+        background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+        color: white;
+    }
+
+    .wallet-card.payments {
+        background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+        color: white;
+    }
+
+    .wallet-card.expenses {
+        background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+        color: white;
+    }
+
+    .wallet-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .wallet-card-title {
+        font-size: 0.9em;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+
+    .wallet-card-icon {
+        font-size: 1.5em;
+        opacity: 0.8;
+    }
+
+    .wallet-card-amount {
+        font-size: 1.8em;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .wallet-card-detail {
+        font-size: 0.85em;
+        opacity: 0.8;
+    }
+
+    .financial-history {
+        margin-top: 20px;
+    }
+
+    .history-item {
+        background-color: var(--cor-principal);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 4px solid var(--cor-acento);
+    }
+
+    .history-item.payment {
+        border-left-color: #2196F3;
+    }
+
+    .history-item.expense {
+        border-left-color: #f44336;
+    }
+
+    .history-item-info {
+        flex: 1;
+    }
+
+    .history-item-title {
+        font-weight: 600;
+        color: var(--cor-texto-claro);
+        margin-bottom: 5px;
+    }
+
+    .history-item-meta {
+        font-size: 0.85em;
+        color: rgba(245, 245, 245, 0.6);
+    }
+
+    .history-item-amount {
+        font-size: 1.2em;
+        font-weight: 700;
+    }
+
+    .history-item-amount.positive {
+        color: #4caf50;
+    }
+
+    .history-item-amount.negative {
+        color: #f44336;
+    }
 </style>
 @endpush
 
 @section('content')
+<!-- Driver Wallet Section -->
+<div class="wallet-section">
+    <div class="wallet-card balance">
+        <div class="wallet-card-header">
+            <div class="wallet-card-title">Saldo da Carteira</div>
+            <div class="wallet-card-icon"><i class="fas fa-wallet"></i></div>
+        </div>
+        <div class="wallet-card-amount">R$ {{ number_format($walletBalance, 2, ',', '.') }}</div>
+        <div class="wallet-card-detail">Total disponível</div>
+    </div>
+
+    <div class="wallet-card payments">
+        <div class="wallet-card-header">
+            <div class="wallet-card-title">Total Recebido</div>
+            <div class="wallet-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+        </div>
+        <div class="wallet-card-amount">R$ {{ number_format($totalPayments, 2, ',', '.') }}</div>
+        <div class="wallet-card-detail">Pagamentos de rotas completadas</div>
+    </div>
+
+    <div class="wallet-card expenses">
+        <div class="wallet-card-header">
+            <div class="wallet-card-title">Total de Despesas</div>
+            <div class="wallet-card-icon"><i class="fas fa-receipt"></i></div>
+        </div>
+        <div class="wallet-card-amount">R$ {{ number_format($totalExpenses, 2, ',', '.') }}</div>
+        <div class="wallet-card-detail">Despesas das rotas</div>
+    </div>
+</div>
+
+<!-- Financial History -->
+@if($recentPayments->count() > 0 || $recentExpenses->count() > 0)
+<div class="driver-card financial-history">
+    <div class="driver-card-header">
+        <div class="driver-card-title">
+            <i class="fas fa-history"></i> Histórico Financeiro (Últimos 30 dias)
+        </div>
+    </div>
+
+    @foreach($recentPayments as $payment)
+    <div class="history-item payment">
+        <div class="history-item-info">
+            <div class="history-item-title">
+                <i class="fas fa-arrow-down"></i> Pagamento - {{ $payment['route_name'] }}
+            </div>
+            <div class="history-item-meta">
+                {{ $payment['diarias_count'] }} diária(s) × R$ {{ number_format($payment['diaria_value'], 2, ',', '.') }} | 
+                {{ $payment['date']->format('d/m/Y') }}
+            </div>
+        </div>
+        <div class="history-item-amount positive">
+            + R$ {{ number_format($payment['amount'], 2, ',', '.') }}
+        </div>
+    </div>
+    @endforeach
+
+    @foreach($recentExpenses as $expense)
+    <div class="history-item expense">
+        <div class="history-item-info">
+            <div class="history-item-title">
+                <i class="fas fa-arrow-up"></i> {{ $expense['description'] }}
+            </div>
+            <div class="history-item-meta">
+                @if($expense['route_name'])
+                    Rota: {{ $expense['route_name'] }} | 
+                @endif
+                @if($expense['category'])
+                    {{ $expense['category'] }} | 
+                @endif
+                {{ $expense['date']->format('d/m/Y') }}
+            </div>
+        </div>
+        <div class="history-item-amount negative">
+            - R$ {{ number_format($expense['amount'], 2, ',', '.') }}
+        </div>
+    </div>
+    @endforeach
+</div>
+@endif
+
 @if($activeRoute)
     <!-- Route Status Card -->
     <div class="route-status-card">

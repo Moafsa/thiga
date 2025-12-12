@@ -425,7 +425,7 @@
             </div>
             
             <div class="sidebar-item">
-                <a href="<?php echo e(route('salesperson.dashboard')); ?>" class="sidebar-link <?php echo e(request()->routeIs('salesperson.*') ? 'active' : ''); ?>" data-tooltip="Painel do Vendedor">
+                <a href="<?php echo e(route('reports.index')); ?>" class="sidebar-link <?php echo e(request()->routeIs('reports.*') ? 'active' : ''); ?>" data-tooltip="Relatórios e Gráficos">
                     <i class="fas fa-chart-line"></i>
                 </a>
             </div>
@@ -451,18 +451,6 @@
             <div class="sidebar-item">
                 <a href="<?php echo e(route('cash-flow.index')); ?>" class="sidebar-link <?php echo e(request()->routeIs('cash-flow.*') ? 'active' : ''); ?>" data-tooltip="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
-                </a>
-            </div>
-            
-            <div class="sidebar-item">
-                <a href="<?php echo e(route('fiscal.ctes.index')); ?>" class="sidebar-link <?php echo e(request()->routeIs('fiscal.*') ? 'active' : ''); ?>" data-tooltip="Documentos Fiscais">
-                    <i class="fas fa-file-invoice"></i>
-                </a>
-            </div>
-            
-            <div class="sidebar-item">
-                <a href="<?php echo e(route('reports.index')); ?>" class="sidebar-link <?php echo e(request()->routeIs('reports.*') ? 'active' : ''); ?>" data-tooltip="Relatórios">
-                    <i class="fas fa-file-alt"></i>
                 </a>
             </div>
             

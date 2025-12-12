@@ -155,3 +155,4 @@ Write-Host "3. Verifique os logs em tempo real: docker logs -f tms_saas_wuzapi" 
 Write-Host ""
 
 
+

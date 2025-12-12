@@ -221,6 +221,29 @@
             </p>
         </div>
     </div>
+
+    <script>
+        // Basic service worker registration to enable PWA install prompt on login screen
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    // Unregister all service workers to force update
+                    for(let registration of registrations) {
+                        registration.unregister();
+                    }
+                    // Clear all caches
+                    caches.keys().then(function(names) {
+                        for (let name of names) {
+                            caches.delete(name);
+                        }
+                    });
+                    navigator.serviceWorker.register('/sw.js?v=' + Date.now()).catch((error) => {
+                        console.error('Service worker registration failed on login page', error);
+                    });
+                });
+            });
+        }
+    </script>
 </body>
 </html>
 

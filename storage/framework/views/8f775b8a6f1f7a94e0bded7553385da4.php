@@ -524,7 +524,7 @@
                     <input type="datetime-local" 
                            name="planned_departure_datetime" 
                            value="<?php echo e($route->planned_departure_datetime ? $route->planned_departure_datetime->format('Y-m-d\TH:i') : ''); ?>"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <div style="margin-bottom: 15px;">
@@ -534,10 +534,10 @@
                     <input type="datetime-local" 
                            name="planned_arrival_datetime" 
                            value="<?php echo e($route->planned_arrival_datetime ? $route->planned_arrival_datetime->format('Y-m-d\TH:i') : ''); ?>"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
-                <button type="submit" class="btn-primary" style="width: 100%;">
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">
                     <i class="fas fa-save"></i> Salvar Horários Planejados
                 </button>
             </form>
@@ -560,7 +560,7 @@
                     <input type="datetime-local" 
                            name="actual_departure_datetime" 
                            value="<?php echo e($route->actual_departure_datetime ? $route->actual_departure_datetime->format('Y-m-d\TH:i') : ''); ?>"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <div style="margin-bottom: 15px;">
@@ -570,10 +570,10 @@
                     <input type="datetime-local" 
                            name="actual_arrival_datetime" 
                            value="<?php echo e($route->actual_arrival_datetime ? $route->actual_arrival_datetime->format('Y-m-d\TH:i') : ''); ?>"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
-                <button type="submit" class="btn-primary" style="width: 100%;">
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">
                     <i class="fas fa-save"></i> Salvar Horários Reais
                 </button>
             </form>
@@ -598,7 +598,7 @@
                            value="<?php echo e($route->driver_diarias_count ?? 0); ?>"
                            min="0"
                            step="1"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <div style="margin-bottom: 15px;">
@@ -610,7 +610,7 @@
                            value="<?php echo e($route->driver_diaria_value ?? 0); ?>"
                            min="0"
                            step="0.01"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <?php if($route->driver_diarias_count && $route->driver_diaria_value): ?>
@@ -622,7 +622,7 @@
                     </div>
                 <?php endif; ?>
                 
-                <button type="submit" class="btn-primary" style="width: 100%;">
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">
                     <i class="fas fa-save"></i> Salvar Diárias
                 </button>
             </form>
@@ -647,7 +647,7 @@
                            value="<?php echo e($route->deposit_toll ?? 0); ?>"
                            min="0"
                            step="0.01"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <div style="margin-bottom: 15px;">
@@ -659,7 +659,7 @@
                            value="<?php echo e($route->deposit_expenses ?? 0); ?>"
                            min="0"
                            step="0.01"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <div style="margin-bottom: 15px;">
@@ -671,7 +671,7 @@
                            value="<?php echo e($route->deposit_fuel ?? 0); ?>"
                            min="0"
                            step="0.01"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                           class="form-input">
                 </div>
                 
                 <?php
@@ -686,7 +686,7 @@
                     </div>
                 <?php endif; ?>
                 
-                <button type="submit" class="btn-primary" style="width: 100%;">
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">
                     <i class="fas fa-save"></i> Salvar Depósitos
                 </button>
             </form>

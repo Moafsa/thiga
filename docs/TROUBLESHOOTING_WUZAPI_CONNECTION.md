@@ -203,3 +203,4 @@ docker logs -f tms_saas_wuzapi
 - [Documentação WuzAPI](./integracoes/wuzapi.md)
 
 
+
