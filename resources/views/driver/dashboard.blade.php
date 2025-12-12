@@ -221,200 +221,10 @@
         border-color: var(--cor-acento);
         background-color: rgba(255, 107, 53, 0.1);
     }
-
-    .wallet-section {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
-    }
-
-    .wallet-card {
-        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(30, 30, 30, 0.95) 100%);
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .wallet-card.balance {
-        background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
-        color: white;
-    }
-
-    .wallet-card.payments {
-        background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
-        color: white;
-    }
-
-    .wallet-card.expenses {
-        background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
-        color: white;
-    }
-
-    .wallet-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-
-    .wallet-card-title {
-        font-size: 0.9em;
-        opacity: 0.9;
-        font-weight: 500;
-    }
-
-    .wallet-card-icon {
-        font-size: 1.5em;
-        opacity: 0.8;
-    }
-
-    .wallet-card-amount {
-        font-size: 1.8em;
-        font-weight: 700;
-        margin-bottom: 5px;
-    }
-
-    .wallet-card-detail {
-        font-size: 0.85em;
-        opacity: 0.8;
-    }
-
-    .financial-history {
-        margin-top: 20px;
-    }
-
-    .history-item {
-        background-color: var(--cor-principal);
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-left: 4px solid var(--cor-acento);
-    }
-
-    .history-item.payment {
-        border-left-color: #2196F3;
-    }
-
-    .history-item.expense {
-        border-left-color: #f44336;
-    }
-
-    .history-item-info {
-        flex: 1;
-    }
-
-    .history-item-title {
-        font-weight: 600;
-        color: var(--cor-texto-claro);
-        margin-bottom: 5px;
-    }
-
-    .history-item-meta {
-        font-size: 0.85em;
-        color: rgba(245, 245, 245, 0.6);
-    }
-
-    .history-item-amount {
-        font-size: 1.2em;
-        font-weight: 700;
-    }
-
-    .history-item-amount.positive {
-        color: #4caf50;
-    }
-
-    .history-item-amount.negative {
-        color: #f44336;
-    }
 </style>
 @endpush
 
 @section('content')
-<!-- Driver Wallet Section -->
-<div class="wallet-section">
-    <div class="wallet-card balance">
-        <div class="wallet-card-header">
-            <div class="wallet-card-title">Saldo da Carteira</div>
-            <div class="wallet-card-icon"><i class="fas fa-wallet"></i></div>
-        </div>
-        <div class="wallet-card-amount">R$ {{ number_format($walletBalance, 2, ',', '.') }}</div>
-        <div class="wallet-card-detail">Total disponível</div>
-    </div>
-
-    <div class="wallet-card payments">
-        <div class="wallet-card-header">
-            <div class="wallet-card-title">Total Recebido</div>
-            <div class="wallet-card-icon"><i class="fas fa-money-bill-wave"></i></div>
-        </div>
-        <div class="wallet-card-amount">R$ {{ number_format($totalPayments, 2, ',', '.') }}</div>
-        <div class="wallet-card-detail">Pagamentos de rotas completadas</div>
-    </div>
-
-    <div class="wallet-card expenses">
-        <div class="wallet-card-header">
-            <div class="wallet-card-title">Total de Despesas</div>
-            <div class="wallet-card-icon"><i class="fas fa-receipt"></i></div>
-        </div>
-        <div class="wallet-card-amount">R$ {{ number_format($totalExpenses, 2, ',', '.') }}</div>
-        <div class="wallet-card-detail">Despesas das rotas</div>
-    </div>
-</div>
-
-<!-- Financial History -->
-@if($recentPayments->count() > 0 || $recentExpenses->count() > 0)
-<div class="driver-card financial-history">
-    <div class="driver-card-header">
-        <div class="driver-card-title">
-            <i class="fas fa-history"></i> Histórico Financeiro (Últimos 30 dias)
-        </div>
-    </div>
-
-    @foreach($recentPayments as $payment)
-    <div class="history-item payment">
-        <div class="history-item-info">
-            <div class="history-item-title">
-                <i class="fas fa-arrow-down"></i> Pagamento - {{ $payment['route_name'] }}
-            </div>
-            <div class="history-item-meta">
-                {{ $payment['diarias_count'] }} diária(s) × R$ {{ number_format($payment['diaria_value'], 2, ',', '.') }} | 
-                {{ $payment['date']->format('d/m/Y') }}
-            </div>
-        </div>
-        <div class="history-item-amount positive">
-            + R$ {{ number_format($payment['amount'], 2, ',', '.') }}
-        </div>
-    </div>
-    @endforeach
-
-    @foreach($recentExpenses as $expense)
-    <div class="history-item expense">
-        <div class="history-item-info">
-            <div class="history-item-title">
-                <i class="fas fa-arrow-up"></i> {{ $expense['description'] }}
-            </div>
-            <div class="history-item-meta">
-                @if($expense['route_name'])
-                    Rota: {{ $expense['route_name'] }} | 
-                @endif
-                @if($expense['category'])
-                    {{ $expense['category'] }} | 
-                @endif
-                {{ $expense['date']->format('d/m/Y') }}
-            </div>
-        </div>
-        <div class="history-item-amount negative">
-            - R$ {{ number_format($expense['amount'], 2, ',', '.') }}
-        </div>
-    </div>
-    @endforeach
-</div>
-@endif
-
 @if($activeRoute)
     <!-- Route Status Card -->
     <div class="route-status-card">
@@ -448,112 +258,6 @@
         <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
             Última atualização: {{ $driver->last_location_update ? $driver->last_location_update->diffForHumans() : 'Nunca' }}
         </p>
-    </div>
-    @endif
-
-    <!-- Route Timeline Section -->
-    @if($activeRoute && $shipments->count() > 0)
-    @php
-        // Get optimized order from settings
-        $optimizedOrder = $activeRoute->settings['sequential_optimized_order'] ?? null;
-        $orderedShipments = $shipments;
-        
-        // Order shipments according to optimized order
-        if ($optimizedOrder && is_array($optimizedOrder)) {
-            $shipmentsMap = $shipments->keyBy('id');
-            $orderedShipments = collect();
-            foreach ($optimizedOrder as $shipmentId) {
-                if ($shipmentsMap->has($shipmentId)) {
-                    $orderedShipments->push($shipmentsMap->get($shipmentId));
-                }
-            }
-            // Add any shipments not in optimized order at the end
-            foreach ($shipments as $shipment) {
-                if (!in_array($shipment->id, $optimizedOrder)) {
-                    $orderedShipments->push($shipment);
-                }
-            }
-        }
-    @endphp
-    
-    <div class="driver-card" style="margin-bottom: 20px;">
-        <div class="driver-card-header">
-            <div class="driver-card-title">
-                <i class="fas fa-route"></i> Timeline da Rota
-            </div>
-        </div>
-        
-        <div style="position: relative; padding-left: 25px; margin-top: 15px;">
-            <!-- Start Point: Depot/Branch -->
-            <div style="position: relative; padding-bottom: 20px; border-left: 3px solid var(--cor-acento);">
-                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: var(--cor-acento); border: 3px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-warehouse" style="color: white; font-size: 0.6em;"></i>
-                </div>
-                <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                        <h4 style="color: var(--cor-acento); margin: 0; font-size: 0.95em; font-weight: 600;">
-                            <i class="fas fa-play-circle"></i> Partida
-                        </h4>
-                        <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.8em; font-weight: 600;">INÍCIO</span>
-                    </div>
-                    @if($activeRoute->branch)
-                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;">{{ $activeRoute->branch->name }}</p>
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
-                            <i class="fas fa-map-marker-alt"></i> {{ $activeRoute->branch->city }}/{{ $activeRoute->branch->state }}
-                        </p>
-                    @endif
-                </div>
-            </div>
-
-            <!-- Delivery Points -->
-            @foreach($orderedShipments as $index => $shipment)
-                @if($shipment->delivery_latitude && $shipment->delivery_longitude)
-                <div style="position: relative; padding-bottom: 20px; border-left: 3px solid rgba(255, 107, 53, 0.3);">
-                    <div style="position: absolute; left: -8px; top: 0; width: 16px; height: 16px; border-radius: 50%; background-color: rgba(255, 107, 53, 0.5); border: 3px solid var(--cor-secundaria);"></div>
-                    <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                            <h4 style="color: var(--cor-texto-claro); margin: 0; font-size: 0.9em;">
-                                <i class="fas fa-truck"></i> Entrega {{ $index + 1 }}
-                            </h4>
-                            <span class="status-badge {{ $shipment->status }}" style="font-size: 0.75em;">
-                                {{ ucfirst(str_replace('_', ' ', $shipment->status)) }}
-                            </span>
-                        </div>
-                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;">{{ $shipment->tracking_number }}</p>
-                        @if($shipment->receiverClient)
-                            <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.85em; margin: 2px 0;">
-                                <i class="fas fa-user"></i> {{ $shipment->receiverClient->name }}
-                            </p>
-                        @endif
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
-                            <i class="fas fa-map-marker-alt"></i> {{ $shipment->delivery_city }}/{{ $shipment->delivery_state }}
-                        </p>
-                    </div>
-                </div>
-                @endif
-            @endforeach
-
-            <!-- End Point: Return to Depot/Branch -->
-            <div style="position: relative; padding-bottom: 0;">
-                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: var(--cor-acento); border: 3px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-flag-checkered" style="color: white; font-size: 0.6em;"></i>
-                </div>
-                <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                        <h4 style="color: var(--cor-acento); margin: 0; font-size: 0.95em; font-weight: 600;">
-                            <i class="fas fa-check-circle"></i> Retorno
-                        </h4>
-                        <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.8em; font-weight: 600;">FIM</span>
-                    </div>
-                    @if($activeRoute->branch)
-                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;">{{ $activeRoute->branch->name }}</p>
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
-                            <i class="fas fa-map-marker-alt"></i> {{ $activeRoute->branch->city }}/{{ $activeRoute->branch->state }}
-                        </p>
-                    @endif
-                </div>
-            </div>
-        </div>
     </div>
     @endif
 
@@ -606,59 +310,6 @@
         </div>
         @endforelse
     </div>
-    
-    <!-- Time Control for Driver -->
-    @if($activeRoute)
-    <div class="driver-card" style="margin-bottom: 20px;">
-        <div class="driver-card-header">
-            <div class="driver-card-title">
-                <i class="fas fa-clock"></i> Controle de Tempo
-            </div>
-        </div>
-        
-        <form action="{{ route('routes.update', $activeRoute) }}" method="POST" id="driver-times-form" style="margin-top: 15px;">
-            @csrf
-            @method('PUT')
-            <input type="hidden" name="update_type" value="actual_times">
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                <div>
-                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
-                        Data/Hora de Partida Real
-                    </label>
-                    <input type="datetime-local" 
-                           name="actual_departure_datetime" 
-                           value="{{ $activeRoute->actual_departure_datetime ? $activeRoute->actual_departure_datetime->format('Y-m-d\TH:i') : '' }}"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
-                    @if($activeRoute->planned_departure_datetime)
-                        <p style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 5px;">
-                            Planejado: {{ $activeRoute->planned_departure_datetime->format('d/m/Y H:i') }}
-                        </p>
-                    @endif
-                </div>
-                
-                <div>
-                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
-                        Data/Hora de Chegada Real
-                    </label>
-                    <input type="datetime-local" 
-                           name="actual_arrival_datetime" 
-                           value="{{ $activeRoute->actual_arrival_datetime ? $activeRoute->actual_arrival_datetime->format('Y-m-d\TH:i') : '' }}"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
-                    @if($activeRoute->planned_arrival_datetime)
-                        <p style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 5px;">
-                            Planejado: {{ $activeRoute->planned_arrival_datetime->format('d/m/Y H:i') }}
-                        </p>
-                    @endif
-                </div>
-            </div>
-            
-            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">
-                <i class="fas fa-save"></i> Salvar Horários Reais
-            </button>
-        </form>
-    </div>
-    @endif
 @else
     <div class="empty-state">
         <i class="fas fa-route"></i>
@@ -794,7 +445,7 @@
 
     function startRoute(routeId) {
         if (confirm('Deseja iniciar esta rota?')) {
-            fetch(`/driver/routes/${routeId}/start`, {
+            fetch(`/api/driver/routes/${routeId}/start`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -818,7 +469,7 @@
 
     function finishRoute(routeId) {
         if (confirm('Deseja finalizar esta rota? Todas as entregas devem estar concluídas.')) {
-            fetch(`/driver/routes/${routeId}/finish`, {
+            fetch(`/api/driver/routes/${routeId}/finish`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

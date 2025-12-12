@@ -102,6 +102,9 @@ class RegisterController extends Controller
 
         Auth::login($user);
 
+        // Regenerate session ID to prevent session fixation attacks
+        $request->session()->regenerate();
+
         return redirect('/dashboard');
     }
 
