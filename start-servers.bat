@@ -83,6 +83,20 @@ docker exec tms_saas_app php artisan cache:clear >nul 2>&1
 docker exec tms_saas_app php artisan route:clear >nul 2>&1
 docker exec tms_saas_app php artisan view:clear >nul 2>&1
 
+echo   - Optimizing application...
+docker exec tms_saas_app php artisan config:cache >nul 2>&1
+docker exec tms_saas_app php artisan route:cache >nul 2>&1
+docker exec tms_saas_app php artisan view:cache >nul 2>&1
+docker exec tms_saas_app php artisan optimize >nul 2>&1
+
+echo   - Setting up scheduled tasks...
+docker exec tms_saas_app php artisan schedule:list >nul 2>&1
+if errorlevel 1 (
+    echo [WARNING] Scheduled tasks may not be configured correctly
+) else (
+    echo [OK] Scheduled tasks configured
+)
+
 echo.
 echo [8/9] Starting WuzAPI for WhatsApp integration...
 docker-compose up -d wuzapi
@@ -91,12 +105,28 @@ if errorlevel 1 (
 )
 
 echo.
-echo [9/9] Verifying all migrations are applied...
+echo [9/11] Verifying all migrations are applied...
 docker exec tms_saas_app php artisan migrate:status | findstr "Pending" >nul 2>&1
 if errorlevel 1 (
     echo [OK] All migrations are applied
 ) else (
     echo [WARNING] Some migrations may be pending. Run 'docker exec tms_saas_app php artisan migrate' to apply them.
+)
+
+echo.
+echo [10/11] Creating storage directories...
+docker exec tms_saas_app mkdir -p storage/app/public/cache/photos >nul 2>&1
+docker exec tms_saas_app chmod -R 775 storage >nul 2>&1
+docker exec tms_saas_app chmod -R 775 bootstrap/cache >nul 2>&1
+echo [OK] Storage directories created
+
+echo.
+echo [11/11] Testing new features...
+docker exec tms_saas_app php artisan cache:clean-old --days=7 --force >nul 2>&1
+if errorlevel 1 (
+    echo [WARNING] Cache cleanup command test failed
+) else (
+    echo [OK] Cache cleanup command working
 )
 
 echo.

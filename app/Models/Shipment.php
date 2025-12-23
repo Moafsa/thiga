@@ -30,9 +30,9 @@ class Shipment extends Model
         'weight',
         'volume',
         'quantity',
-        'value',
-        'goods_value',
-        'freight_value',
+        'value',              // Total invoice/goods value (used for route revenue calculation)
+        'goods_value',        // Value of goods (synonym of 'value', kept for compatibility)
+        'freight_value',      // Freight/shipping cost (may differ from 'value')
         'pickup_address',
         'pickup_city',
         'pickup_state',

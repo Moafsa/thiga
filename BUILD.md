@@ -110,3 +110,13 @@ Após executar o build, as seguintes otimizações estarão ativas:
 - Em produção, sempre execute o build completo para melhor performance.
 
 
+
+
+
+
+
+
+
+
+
+

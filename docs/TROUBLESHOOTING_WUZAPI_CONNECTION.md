@@ -204,3 +204,13 @@ docker logs -f tms_saas_wuzapi
 
 
 
+
+
+
+
+
+
+
+
+
+

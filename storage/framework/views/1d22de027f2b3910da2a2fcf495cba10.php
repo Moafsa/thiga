@@ -21,6 +21,37 @@
     .driver-card:hover {
         transform: translateY(-5px);
     }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        color: var(--cor-texto-claro);
+        opacity: 0.7;
+        transition: opacity 0.3s ease;
+        text-decoration: none;
+        font-size: 1.1em;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .action-btn:hover {
+        opacity: 1;
+        color: var(--cor-acento);
+    }
+
+    .action-btn.delete-btn {
+        color: #f44336;
+    }
+
+    .action-btn.delete-btn:hover {
+        opacity: 1;
+        color: #d32f2f;
+    }
 </style>
 <?php $__env->stopPush(); ?>
 
@@ -46,13 +77,21 @@
                         <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Veículo: <?php echo e($driver->vehicle_plate); ?></p>
                     <?php endif; ?>
                 </div>
-                <div style="display: flex; gap: 10px;">
+                <div class="action-buttons">
                     <a href="<?php echo e(route('drivers.show', $driver)); ?>" class="action-btn" title="Ver">
                         <i class="fas fa-eye"></i>
                     </a>
                     <a href="<?php echo e(route('drivers.edit', $driver)); ?>" class="action-btn" title="Editar">
                         <i class="fas fa-edit"></i>
                     </a>
+                    <form action="<?php echo e(route('drivers.destroy', $driver)); ?>" method="POST" style="display: inline;" 
+                          onsubmit="return confirm('Tem certeza que deseja excluir o motorista <?php echo e($driver->name); ?>? Esta ação não pode ser desfeita.');">
+                        <?php echo csrf_field(); ?>
+                        <?php echo method_field('DELETE'); ?>
+                        <button type="submit" class="action-btn delete-btn" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);">

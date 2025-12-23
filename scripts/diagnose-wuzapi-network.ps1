@@ -102,3 +102,13 @@ Write-Host "Para mais detalhes, consulte: docs/TROUBLESHOOTING_QR_CONNECTION.md"
 
 
 
+
+
+
+
+
+
+
+
+
+

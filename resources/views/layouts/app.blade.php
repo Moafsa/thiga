@@ -448,6 +448,12 @@
             </div>
             
             <div class="sidebar-item">
+                <a href="{{ route('driver-expenses.index') }}" class="sidebar-link {{ request()->routeIs('driver-expenses.*') ? 'active' : '' }}" data-tooltip="Gastos dos Motoristas">
+                    <i class="fas fa-receipt"></i>
+                </a>
+            </div>
+            
+            <div class="sidebar-item">
                 <a href="{{ route('cash-flow.index') }}" class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" data-tooltip="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
                 </a>

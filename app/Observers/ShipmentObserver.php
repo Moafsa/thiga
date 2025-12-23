@@ -42,6 +42,9 @@ class ShipmentObserver
                 'error' => $e->getMessage(),
             ]);
         }
+
+        // Update route total revenue if shipment has a route
+        $this->updateRouteRevenue($shipment);
     }
 
     /**
@@ -86,6 +89,19 @@ class ShipmentObserver
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        // Update route total revenue if value or route_id changed
+        if ($shipment->wasChanged('value') || $shipment->wasChanged('route_id')) {
+            // Update old route if route_id changed
+            if ($shipment->wasChanged('route_id')) {
+                $oldRouteId = $shipment->getOriginal('route_id');
+                if ($oldRouteId) {
+                    $this->updateRouteRevenueById($oldRouteId);
+                }
+            }
+            // Update current route
+            $this->updateRouteRevenue($shipment);
         }
     }
 
@@ -135,6 +151,76 @@ class ShipmentObserver
             'delivered', 'out_for_delivery' => "{$shipment->delivery_city}/{$shipment->delivery_state}",
             default => null,
         };
+    }
+
+    /**
+     * Handle the Shipment "deleted" event.
+     */
+    public function deleted(Shipment $shipment): void
+    {
+        // Update route total revenue when shipment is deleted
+        if ($shipment->route_id) {
+            $this->updateRouteRevenueById($shipment->route_id);
+        }
+    }
+
+    /**
+     * Update route total revenue from shipments
+     */
+    protected function updateRouteRevenue(Shipment $shipment): void
+    {
+        if (!$shipment->route_id) {
+            return;
+        }
+
+        try {
+            $route = $shipment->route;
+            if ($route) {
+                // Calculate total revenue from all shipments
+                $totalRevenue = $route->shipments()->sum('value') ?? 0;
+                
+                // Update both total_revenue and total_cte_value in settings in one query
+                $route->update([
+                    'total_revenue' => $totalRevenue,
+                    'settings' => array_merge($route->settings ?? [], [
+                        'total_cte_value' => $totalRevenue,
+                    ]),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to update route revenue', [
+                'shipment_id' => $shipment->id,
+                'route_id' => $shipment->route_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Update route total revenue by route ID
+     */
+    protected function updateRouteRevenueById(int $routeId): void
+    {
+        try {
+            $route = \App\Models\Route::find($routeId);
+            if ($route) {
+                // Calculate total revenue from all shipments
+                $totalRevenue = $route->shipments()->sum('value') ?? 0;
+                
+                // Update both total_revenue and total_cte_value in settings in one query
+                $route->update([
+                    'total_revenue' => $totalRevenue,
+                    'settings' => array_merge($route->settings ?? [], [
+                        'total_cte_value' => $totalRevenue,
+                    ]),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to update route revenue by ID', [
+                'route_id' => $routeId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

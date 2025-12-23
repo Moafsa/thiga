@@ -16,3 +16,13 @@ trait HasActiveScope
     }
 }
 
+
+
+
+
+
+
+
+
+
+

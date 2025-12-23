@@ -156,7 +156,7 @@ class DriverController extends Controller
         if ($request->hasFile('photo')) {
             try {
                 $photo = $request->file('photo');
-                $photoPath = $photo->store("tenants/{$shipment->tenant_id}/delivery_proofs/{$shipment->id}", 'minio');
+                $photoPath = $photo->store("delivery_proofs/{$shipment->tenant_id}/{$shipment->id}", 'public');
             } catch (\Exception $e) {
                 Log::error('Error uploading delivery proof photo', [
                     'shipment_id' => $shipmentId,
@@ -207,7 +207,7 @@ class DriverController extends Controller
             }
 
             if ($photoPath) {
-                $proofData['photos'] = [Storage::disk('minio')->url($photoPath)];
+                $proofData['photos'] = [Storage::url($photoPath)];
             }
 
             DeliveryProof::create($proofData);

@@ -144,6 +144,46 @@ O sistema inclui integração completa com WhatsApp usando WuzAPI:
 - App do motorista
 - Rastreamento em tempo real
 
+## 🔄 Atualização do Sistema
+
+Após atualizar o código, execute o script de atualização:
+
+**Windows:**
+```batch
+update-system.bat
+```
+
+**Linux/Mac:**
+```bash
+chmod +x update-system.sh
+./update-system.sh
+```
+
+Este script:
+- Instala/atualiza dependências
+- Executa migrações
+- Limpa e otimiza caches
+- Cria diretórios necessários
+- Verifica tarefas agendadas
+
+Para mais detalhes, consulte [DEPLOY.md](DEPLOY.md).
+
+## ⏰ Funcionalidades Automatizadas
+
+O sistema possui jobs agendados que executam automaticamente:
+
+1. **Limpeza de Cache** - Diariamente às 02:00
+   - Remove arquivos de cache antigos
+   - Limpa entradas de cache expiradas
+   - Libera espaço em disco
+
+2. **Verificação de CNH** - Diariamente às 08:00
+   - Verifica CNH expirando em até 30 dias
+   - Envia notificações aos administradores
+   - Alerta sobre CNH já expiradas
+
+**Importante:** Configure o cron ou supervisor para executar `php artisan schedule:run` a cada minuto. Veja [DEPLOY.md](DEPLOY.md) para instruções detalhadas.
+
 ## 🔧 Comandos Úteis
 
 ```bash
@@ -156,9 +196,22 @@ docker-compose down
 # Reiniciar serviços
 docker-compose restart
 
+# Atualizar sistema (após git pull)
+# Windows: update-system.bat
+# Linux/Mac: ./update-system.sh
+
 # Executar comandos Laravel
 docker-compose exec app php artisan migrate
 docker-compose exec app php artisan db:seed
+
+# Limpar cache antigo manualmente
+docker exec tms_saas_app php artisan cache:clean-old --days=7
+
+# Verificar tarefas agendadas
+docker exec tms_saas_app php artisan schedule:list
+
+# Executar tarefas agendadas manualmente (para testes)
+docker exec tms_saas_app php artisan schedule:run
 
 # Acessar container
 docker-compose exec app bash
@@ -198,13 +251,28 @@ POST /api/webhooks/mitt
 
 ### Desenvolvimento
 ```bash
+# Windows
+start-servers.bat
+
+# Linux/Mac
 docker-compose up -d
+docker exec tms_saas_app php artisan migrate --force
+docker exec tms_saas_app php artisan optimize
 ```
 
 ### Produção
 ```bash
+# Usar script de deploy
+chmod +x deploy-production.sh
+./deploy-production.sh
+
+# Ou manualmente
 docker-compose -f docker-compose.prod.yml up -d
+docker exec tms_saas_app_prod php artisan migrate --force
+docker exec tms_saas_app_prod php artisan optimize
 ```
+
+**Importante:** Consulte [DEPLOY.md](DEPLOY.md) para instruções completas de deploy e configuração de jobs agendados.
 
 ## 🤝 Contribuição
 

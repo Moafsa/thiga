@@ -454,11 +454,12 @@
     
     <!-- Revenue Report -->
     @php
-        $totalRevenue = $route->total_revenue ?? ($route->settings['total_cte_value'] ?? 0);
+        // Always prioritize sum of shipment values as primary source
         $totalShipmentsValue = $route->shipments->sum('value') ?? 0;
-        if ($totalRevenue == 0 && $totalShipmentsValue > 0) {
-            $totalRevenue = $totalShipmentsValue;
-        }
+        // Use saved route values only as fallback if no shipments have values
+        $totalRevenue = $totalShipmentsValue > 0 
+            ? $totalShipmentsValue 
+            : ($route->total_revenue ?? ($route->settings['total_cte_value'] ?? 0));
     @endphp
     @if($totalRevenue > 0)
     <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.1) 100%); border-radius: 10px; border-left: 4px solid #4caf50;">

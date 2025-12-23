@@ -449,6 +449,12 @@
             </div>
             
             <div class="sidebar-item">
+                <a href="<?php echo e(route('driver-expenses.index')); ?>" class="sidebar-link <?php echo e(request()->routeIs('driver-expenses.*') ? 'active' : ''); ?>" data-tooltip="Gastos dos Motoristas">
+                    <i class="fas fa-receipt"></i>
+                </a>
+            </div>
+            
+            <div class="sidebar-item">
                 <a href="<?php echo e(route('cash-flow.index')); ?>" class="sidebar-link <?php echo e(request()->routeIs('cash-flow.*') ? 'active' : ''); ?>" data-tooltip="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
                 </a>

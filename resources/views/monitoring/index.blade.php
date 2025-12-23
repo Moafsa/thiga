@@ -114,8 +114,8 @@
         <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; display: flex; align-items: center; gap: 10px; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 8px;">
             <label style="color: rgba(245, 245, 245, 0.9); font-size: 0.9em; margin: 0;">Modo:</label>
             <select id="monitoring-map-style-selector" style="padding: 6px 10px; border-radius: 5px; background-color: var(--cor-principal); color: var(--cor-texto-claro); border: 1px solid rgba(255, 255, 255, 0.2); cursor: pointer; font-size: 0.9em;">
-                <option value="google">Google Maps</option>
                 <option value="uber">Modo Uber</option>
+                <option value="google">Google Maps</option>
             </select>
         </div>
         <div id="monitoring-map"></div>
@@ -145,9 +145,9 @@
             <i class="fas fa-users"></i> Motoristas Ativos
         </h3>
         @forelse($activeDrivers as $driver)
-            <div class="driver-card" data-driver-id="{{ $driver->id }}" onclick="focusDriver({{ $driver->id }})">
+            <div class="driver-card" data-driver-id="{{ $driver->id }}">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <div style="flex: 1;">
+                    <div style="flex: 1; cursor: pointer;" onclick="focusDriver({{ $driver->id }})">
                         <h4 style="color: var(--cor-texto-claro); margin: 0 0 5px 0;">{{ $driver->name }}</h4>
                         @if($driver->phone)
                             <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 0;">
@@ -160,9 +160,19 @@
                             </p>
                         @endif
                     </div>
-                    <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50;">
-                        <i class="fas fa-circle" style="font-size: 0.7em;"></i> Online
-                    </span>
+                    <div style="display: flex; flex-direction: column; gap: 5px; align-items: end;">
+                        <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50;">
+                            <i class="fas fa-circle" style="font-size: 0.7em;"></i> Online
+                        </span>
+                        <button 
+                            class="toggle-trail-btn" 
+                            data-driver-id="{{ $driver->id }}"
+                            onclick="toggleDriverTrail({{ $driver->id }}); event.stopPropagation();"
+                            title="Mostrar/Ocultar Rastro"
+                            style="background: rgba(255, 107, 53, 0.2); border: 1px solid var(--cor-acento); color: var(--cor-acento); padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; transition: all 0.3s;">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         @empty
@@ -228,8 +238,10 @@
     let driverMarkers = {};
     let routePolylines = {};
     let shipmentMarkers = [];
+    let driverTrails = {}; // Store polyline trails for each driver
+    let driverTrailVisibility = {}; // Track visibility state for each driver trail
     let bounds;
-    let currentMapStyle = 'google'; // Default to Google Maps style
+    let currentMapStyle = 'uber'; // Default to Uber style
     
     // Map style configurations
     const mapStyles = {
@@ -289,13 +301,29 @@
                 stylers: [{ color: '#757575' }]
             }
         ],
-        google: [
-            {
-                featureType: 'poi',
-                elementType: 'labels',
-                stylers: [{ visibility: 'off' }]
-            }
-        ]
+        google: [] // Empty array = default Google Maps style
+    };
+    
+    // Route style configurations
+    const routeStyles = {
+        uber: {
+            strokeColor: '#1a73e8',
+            strokeOpacity: 1.0,
+            strokeWeight: 6,
+            pickupColor: '#1a73e8',
+            deliveryColor: '#34a853',
+            markerScale: 12,
+            markerStrokeWeight: 3
+        },
+        google: {
+            strokeColor: '#4285F4',
+            strokeOpacity: 0.8,
+            strokeWeight: 5,
+            pickupColor: '#2196F3',
+            deliveryColor: '#4CAF50',
+            markerScale: 10,
+            markerStrokeWeight: 2
+        }
     };
 
     // Initialize Google Maps
@@ -305,8 +333,8 @@
             return;
         }
 
-        // Load saved map style preference or default to 'google'
-        currentMapStyle = localStorage.getItem('monitoringMapStyle') || 'google';
+        // Load saved map style preference or default to 'uber'
+        currentMapStyle = localStorage.getItem('monitoringMapStyle') || 'uber';
 
         map = new google.maps.Map(document.getElementById('monitoring-map'), {
             center: { lat: -23.5505, lng: -46.6333 }, // São Paulo
@@ -360,6 +388,22 @@
             streetViewControl: styleName === 'google'
         });
         
+        // Update driver markers
+        const style = routeStyles[styleName] || routeStyles.uber;
+        Object.values(driverMarkers).forEach(marker => {
+            const icon = marker.getIcon();
+            if (icon && typeof icon === 'object') {
+                marker.setIcon({
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: style.markerScale,
+                    fillColor: '#FF0000',
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: style.markerStrokeWeight
+                });
+            }
+        });
+        
         // Reload routes and markers with new style
         loadRoutesAndShipments();
         loadDriverLocations();
@@ -388,64 +432,144 @@
     // Make initMap globally available
     window.initMap = initMap;
 
-    // Load driver locations
+    // Load driver locations with trail and custom icon
     function loadDriverLocations() {
         if (!map) return;
         
         fetch('{{ route("monitoring.driver-locations") }}')
             .then(response => response.json())
             .then(drivers => {
-                // Remove old markers
+                // Remove old markers and trails
                 Object.values(driverMarkers).forEach(marker => marker.setMap(null));
+                Object.values(driverTrails).forEach(trail => trail.setMap(null));
                 driverMarkers = {};
+                driverTrails = {};
                 bounds = new google.maps.LatLngBounds();
 
                 if (drivers.length === 0) {
                     return;
                 }
 
-                // Add markers for each driver
+                // Add markers and trails for each driver
                 drivers.forEach(driver => {
                     if (driver.latitude && driver.longitude) {
                         const position = { lat: driver.latitude, lng: driver.longitude };
                         
-                        // Marker style based on current map style
-                        const markerStyle = currentMapStyle === 'uber' ? {
-                            scale: 12,
-                            strokeWeight: 3
-                        } : {
-                            scale: 10,
-                            strokeWeight: 2
-                        };
+                        // Draw trail/path if location history exists
+                        if (driver.location_history && driver.location_history.length > 1) {
+                            const trailPath = driver.location_history.map(loc => ({
+                                lat: loc.lat,
+                                lng: loc.lng
+                            }));
+                            
+                            // Add current position to trail
+                            trailPath.push(position);
+                            
+                            const trail = new google.maps.Polyline({
+                                path: trailPath,
+                                geodesic: true,
+                                strokeColor: '#FF6B35',
+                                strokeOpacity: 0.6,
+                                strokeWeight: 3,
+                                zIndex: 500
+                            });
+                            
+                            // Default visibility: visible
+                            driverTrailVisibility[driver.id] = driverTrailVisibility[driver.id] !== undefined 
+                                ? driverTrailVisibility[driver.id] 
+                                : true;
+                            
+                            if (driverTrailVisibility[driver.id]) {
+                                trail.setMap(map);
+                            }
+                            
+                            driverTrails[driver.id] = trail;
+                        }
 
+                        // Create custom icon with driver photo (or placeholder) - lazy loading
+                        const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=64');
+                        
+                        // Use placeholder initially for lazy loading
+                        const placeholderUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name.substring(0, 1)) + '&background=FF6B35&color=fff&size=50';
+                        
                         const marker = new google.maps.Marker({
                             position: position,
                             map: map,
                             icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: markerStyle.scale,
-                                fillColor: '#FF0000',
-                                fillOpacity: 1,
-                                strokeColor: '#FFFFFF',
-                                strokeWeight: markerStyle.strokeWeight
+                                url: placeholderUrl,
+                                scaledSize: new google.maps.Size(50, 50),
+                                anchor: new google.maps.Point(25, 25),
+                                origin: new google.maps.Point(0, 0)
                             },
-                            title: driver.name
+                            title: driver.name,
+                            zIndex: 1000,
+                            optimized: false
+                        });
+                        
+                        // Lazy load actual photo
+                        if (driver.photo_url) {
+                            const img = new Image();
+                            img.onload = function() {
+                                marker.setIcon({
+                                    url: driverPhotoUrl,
+                                    scaledSize: new google.maps.Size(50, 50),
+                                    anchor: new google.maps.Point(25, 25),
+                                    origin: new google.maps.Point(0, 0)
+                                });
+                            };
+                            img.onerror = function() {
+                                // Keep placeholder if image fails to load
+                            };
+                            img.src = driverPhotoUrl;
+                        }
+
+                        // Create tooltip content with route information (lazy loading for photo)
+                        const tooltipPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=40');
+                        let tooltipContent = `<div style="padding: 12px; min-width: 250px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <img src="${tooltipPhotoUrl}" loading="lazy" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${driver.name}') + '&background=FF6B35&color=fff&size=40'">
+                                <div>
+                                    <h4 style="margin: 0; color: #333; font-size: 1.1em;">${driver.name}</h4>
+                                    ${driver.phone ? `<p style="margin: 3px 0 0 0; color: #666; font-size: 0.85em;"><i class="fas fa-phone"></i> ${driver.phone}</p>` : ''}
+                                </div>
+                            </div>`;
+                        
+                        if (driver.active_route) {
+                            tooltipContent += `
+                                <div style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
+                                    <p style="margin: 5px 0; color: #333; font-weight: 600;"><i class="fas fa-route" style="color: #1a73e8;"></i> ${driver.active_route.name}</p>
+                                    <p style="margin: 5px 0; color: #666; font-size: 0.9em;">${driver.active_route.shipments_count} ${driver.active_route.shipments_count === 1 ? 'carga' : 'cargas'}</p>
+                                    <p style="margin: 5px 0; color: #666; font-size: 0.85em;">Status: <span style="color: ${driver.active_route.status === 'in_progress' ? '#4caf50' : '#ff9800'};">${driver.active_route.status === 'in_progress' ? 'Em Andamento' : 'Agendada'}</span></p>
+                                </div>`;
+                        }
+                        
+                        tooltipContent += `
+                            <p style="margin: 10px 0 0 0; font-size: 0.75em; color: #999; border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px;">
+                                <i class="fas fa-clock"></i> Última atualização: ${new Date(driver.last_update).toLocaleString('pt-BR')}
+                            </p>
+                        </div>`;
+
+                        // Create info window for click
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: tooltipContent
                         });
 
-                        let infoContent = `<div style="padding: 10px; min-width: 200px;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--cor-acento);">${driver.name}</h4>`;
-                        if (driver.phone) {
-                            infoContent += `<p style="margin: 5px 0; color: #666;"><i class="fas fa-phone"></i> ${driver.phone}</p>`;
-                        }
-                        if (driver.active_route) {
-                            infoContent += `<p style="margin: 5px 0; color: #666;"><i class="fas fa-route"></i> ${driver.active_route.name}</p>`;
-                            infoContent += `<p style="margin: 5px 0; color: #666;"><small>${driver.active_route.shipments_count} ${driver.active_route.shipments_count === 1 ? 'carga' : 'cargas'}</small></p>`;
-                        }
-                        infoContent += `<p style="margin: 10px 0 0 0; font-size: 0.85em; color: #999;">Última atualização: ${new Date(driver.last_update).toLocaleString('pt-BR')}</p>`;
-                        infoContent += `</div>`;
+                        // Create tooltip that appears on hover
+                        let tooltip = null;
+                        marker.addListener('mouseover', function() {
+                            if (tooltip) tooltip.close();
+                            tooltip = new google.maps.InfoWindow({
+                                content: tooltipContent,
+                                disableAutoPan: true
+                            });
+                            tooltip.open(map, marker);
+                        });
 
-                        const infoWindow = new google.maps.InfoWindow({
-                            content: infoContent
+                        marker.addListener('mouseout', function() {
+                            if (tooltip) {
+                                tooltip.close();
+                                tooltip = null;
+                            }
                         });
 
                         marker.addListener('click', () => {
@@ -465,45 +589,83 @@
             .catch(error => console.error('Error loading driver locations:', error));
     }
 
-    // Load routes and shipments with route paths
+    // Load routes and shipments with route paths (using same logic as route show page)
     function loadRoutesAndShipments() {
         if (!map || !bounds) return;
         
-        // Clear existing route renderers
+        // Clear existing route renderers and shipment markers
         if (window.routeRenderers) {
             window.routeRenderers.forEach(renderer => renderer.setMap(null));
         }
         window.routeRenderers = [];
+        shipmentMarkers.forEach(marker => marker.setMap(null));
+        shipmentMarkers = [];
         
         @if($activeRoutes->count() > 0)
             @foreach($activeRoutes as $route)
                 @if($route->shipments->count() > 0)
                     const route{{ $route->id }}Waypoints = [];
                     
-                    @foreach($route->shipments as $shipment)
+                    // CRITICAL: Add depot/branch as origin (first waypoint) - same logic as route show page
+                    @if($route->start_latitude && $route->start_longitude)
+                        const originPos{{ $route->id }} = { lat: {{ $route->start_latitude }}, lng: {{ $route->start_longitude }} };
+                        const originMarker{{ $route->id }} = new google.maps.Marker({
+                            position: originPos{{ $route->id }},
+                            map: map,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: (routeStyles[currentMapStyle] || routeStyles.uber).markerScale * 1.2,
+                                fillColor: '#FF6B35', // Orange for depot/branch
+                                fillOpacity: 1,
+                                strokeColor: '#FFFFFF',
+                                strokeWeight: (routeStyles[currentMapStyle] || routeStyles.uber).markerStrokeWeight + 1,
+                                zIndex: 2000
+                            },
+                            title: 'Ponto de Partida: {{ $route->branch->name ?? "Depósito/Filial" }}'
+                        });
+                        shipmentMarkers.push(originMarker{{ $route->id }});
+                        bounds.extend(originPos{{ $route->id }});
+                        route{{ $route->id }}Waypoints.push(originPos{{ $route->id }});
+                    @endif
+                    
+                    // Add only delivery addresses as waypoints (NOT pickups) - same logic as route show page
+                    @php
+                        $shipments = $route->shipments;
+                        $optimizedOrder = $route->settings['sequential_optimized_order'] ?? null;
+                        if ($optimizedOrder && is_array($optimizedOrder)) {
+                            $shipmentsMap = $shipments->keyBy('id');
+                            $orderedShipments = collect();
+                            foreach ($optimizedOrder as $shipmentId) {
+                                if ($shipmentsMap->has($shipmentId)) {
+                                    $orderedShipments->push($shipmentsMap->get($shipmentId));
+                                }
+                            }
+                            foreach ($shipments as $shipment) {
+                                if (!in_array($shipment->id, $optimizedOrder)) {
+                                    $orderedShipments->push($shipment);
+                                }
+                            }
+                            $shipments = $orderedShipments;
+                        }
+                    @endphp
+                    
+                    @foreach($shipments as $shipment)
+                        // Show pickup markers but don't add to waypoints
                         @if($shipment->pickup_latitude && $shipment->pickup_longitude)
                             const pickupPos{{ $shipment->id }} = { lat: {{ $shipment->pickup_latitude }}, lng: {{ $shipment->pickup_longitude }} };
-                            // Marker style based on current map style
-                            const pickupMarkerStyle{{ $shipment->id }} = currentMapStyle === 'uber' ? {
-                                scale: 12,
-                                fillColor: '#1a73e8',
-                                strokeWeight: 3
-                            } : {
-                                scale: 8,
-                                fillColor: '#2196F3',
-                                strokeWeight: 2
-                            };
+                            const pickupStyle{{ $shipment->id }} = routeStyles[currentMapStyle] || routeStyles.uber;
                             
                             const pickupMarker{{ $shipment->id }} = new google.maps.Marker({
                                 position: pickupPos{{ $shipment->id }},
                                 map: map,
                                 icon: {
                                     path: google.maps.SymbolPath.CIRCLE,
-                                    scale: pickupMarkerStyle{{ $shipment->id }}.scale,
-                                    fillColor: pickupMarkerStyle{{ $shipment->id }}.fillColor,
+                                    scale: pickupStyle{{ $shipment->id }}.markerScale,
+                                    fillColor: pickupStyle{{ $shipment->id }}.pickupColor,
                                     fillOpacity: 1,
                                     strokeColor: '#FFFFFF',
-                                    strokeWeight: pickupMarkerStyle{{ $shipment->id }}.strokeWeight
+                                    strokeWeight: pickupStyle{{ $shipment->id }}.markerStrokeWeight,
+                                    zIndex: 1000
                                 },
                                 title: 'Coleta: {{ $shipment->tracking_number }}'
                             });
@@ -519,32 +681,25 @@
                             pickupMarker{{ $shipment->id }}.addListener('click', () => pickupInfo{{ $shipment->id }}.open(map, pickupMarker{{ $shipment->id }}));
                             shipmentMarkers.push(pickupMarker{{ $shipment->id }});
                             bounds.extend(pickupPos{{ $shipment->id }});
-                            route{{ $route->id }}Waypoints.push(pickupPos{{ $shipment->id }});
+                            // NOTE: Pickups are NOT added to waypoints - only visual markers
                         @endif
 
+                        // Add delivery addresses as waypoints
                         @if($shipment->delivery_latitude && $shipment->delivery_longitude)
                             const deliveryPos{{ $shipment->id }} = { lat: {{ $shipment->delivery_latitude }}, lng: {{ $shipment->delivery_longitude }} };
-                            // Marker style based on current map style
-                            const deliveryMarkerStyle{{ $shipment->id }} = currentMapStyle === 'uber' ? {
-                                scale: 12,
-                                fillColor: '#34a853',
-                                strokeWeight: 3
-                            } : {
-                                scale: 8,
-                                fillColor: '#4CAF50',
-                                strokeWeight: 2
-                            };
+                            const deliveryStyle{{ $shipment->id }} = routeStyles[currentMapStyle] || routeStyles.uber;
                             
                             const deliveryMarker{{ $shipment->id }} = new google.maps.Marker({
                                 position: deliveryPos{{ $shipment->id }},
                                 map: map,
                                 icon: {
                                     path: google.maps.SymbolPath.CIRCLE,
-                                    scale: deliveryMarkerStyle{{ $shipment->id }}.scale,
-                                    fillColor: deliveryMarkerStyle{{ $shipment->id }}.fillColor,
+                                    scale: deliveryStyle{{ $shipment->id }}.markerScale,
+                                    fillColor: deliveryStyle{{ $shipment->id }}.deliveryColor,
                                     fillOpacity: 1,
                                     strokeColor: '#FFFFFF',
-                                    strokeWeight: deliveryMarkerStyle{{ $shipment->id }}.strokeWeight
+                                    strokeWeight: deliveryStyle{{ $shipment->id }}.markerStrokeWeight,
+                                    zIndex: 1000
                                 },
                                 title: 'Entrega: {{ $shipment->tracking_number }}'
                             });
@@ -560,13 +715,14 @@
                             deliveryMarker{{ $shipment->id }}.addListener('click', () => deliveryInfo{{ $shipment->id }}.open(map, deliveryMarker{{ $shipment->id }}));
                             shipmentMarkers.push(deliveryMarker{{ $shipment->id }});
                             bounds.extend(deliveryPos{{ $shipment->id }});
+                            // Add delivery address as waypoint
                             route{{ $route->id }}Waypoints.push(deliveryPos{{ $shipment->id }});
                         @endif
                     @endforeach
                     
-                    // Draw route path using Directions API
+                    // Draw route path: Depot → Destinations → Depot (return)
                     if (route{{ $route->id }}Waypoints.length > 1) {
-                        drawRoutePath(route{{ $route->id }}Waypoints, '{{ $route->id }}', '{{ $route->name }}');
+                        drawRoutePathCorrect(route{{ $route->id }}Waypoints, '{{ $route->id }}', '{{ $route->name }}');
                     }
                 @endif
             @endforeach
@@ -578,25 +734,22 @@
         @endif
     }
 
-    // Draw route path using Directions API
-    function drawRoutePath(waypoints, routeId, routeName) {
+    // Draw route path using Directions API (correct logic: depot as origin and destination)
+    function drawRoutePathCorrect(waypoints, routeId, routeName) {
         if (waypoints.length < 2 || typeof google === 'undefined' || typeof google.maps === 'undefined') return;
 
         // Route style based on current map style
-        const routeStyle = currentMapStyle === 'uber' ? {
-            strokeColor: '#1a73e8',
-            strokeOpacity: 1.0,
-            strokeWeight: 6
-        } : {
-            strokeColor: '#FF6B35',
-            strokeOpacity: 0.7,
-            strokeWeight: 4
+        const style = routeStyles[currentMapStyle] || routeStyles.uber;
+        const routeStyle = {
+            strokeColor: style.strokeColor,
+            strokeOpacity: style.strokeOpacity,
+            strokeWeight: style.strokeWeight
         };
 
         const directionsService = new google.maps.DirectionsService();
         const directionsRenderer = new google.maps.DirectionsRenderer({
             map: map,
-            suppressMarkers: true,
+            suppressMarkers: true, // We already have custom markers
             polylineOptions: routeStyle
         });
 
@@ -606,18 +759,29 @@
         }
         window.routeRenderers.push(directionsRenderer);
 
-        const waypointsArray = waypoints.slice(1, -1).map(wp => ({
-            location: { lat: wp.lat, lng: wp.lng },
-            stopover: true
-        }));
+        // CRITICAL: waypoints[0] is the origin (depot/branch)
+        // waypoints[1] to waypoints[n] are delivery destinations
+        // Destination MUST ALWAYS be depot/branch (waypoints[0]) - return to origin
+        const waypointsArray = waypoints.length > 1 
+            ? waypoints.slice(1).map(wp => ({
+                location: { lat: wp.lat, lng: wp.lng },
+                stopover: true
+            }))
+            : [];
+
+        // Origin is ALWAYS the depot/branch (waypoints[0])
+        const origin = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+        // Destination is ALWAYS the depot/branch (return to origin)
+        const destination = { lat: waypoints[0].lat, lng: waypoints[0].lng };
 
         const request = {
-            origin: { lat: waypoints[0].lat, lng: waypoints[0].lng },
-            destination: { lat: waypoints[waypoints.length - 1].lat, lng: waypoints[waypoints.length - 1].lng },
+            origin: origin,
+            destination: destination,
             waypoints: waypointsArray.length > 0 ? waypointsArray : undefined,
             travelMode: google.maps.TravelMode.DRIVING,
             unitSystem: google.maps.UnitSystem.METRIC,
-            language: 'pt-BR'
+            language: 'pt-BR',
+            optimizeWaypoints: false // Keep order as specified
         };
 
         directionsService.route(request, function(result, status) {
@@ -670,6 +834,36 @@
             map.setZoom(15);
             marker.setAnimation(google.maps.Animation.BOUNCE);
             setTimeout(() => marker.setAnimation(null), 2000);
+        }
+    }
+
+    // Toggle driver trail visibility
+    function toggleDriverTrail(driverId) {
+        const trail = driverTrails[driverId];
+        if (!trail) return;
+        
+        // Toggle visibility state
+        driverTrailVisibility[driverId] = !driverTrailVisibility[driverId];
+        
+        // Show or hide trail
+        if (driverTrailVisibility[driverId]) {
+            trail.setMap(map);
+        } else {
+            trail.setMap(null);
+        }
+        
+        // Update button appearance
+        const button = document.querySelector(`.toggle-trail-btn[data-driver-id="${driverId}"]`);
+        if (button) {
+            if (driverTrailVisibility[driverId]) {
+                button.style.background = 'rgba(255, 107, 53, 0.2)';
+                button.style.borderColor = 'var(--cor-acento)';
+                button.style.color = 'var(--cor-acento)';
+            } else {
+                button.style.background = 'rgba(255, 255, 255, 0.1)';
+                button.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                button.style.color = 'rgba(255, 255, 255, 0.5)';
+            }
         }
     }
 

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\DriverLoginController;
 use App\Http\Controllers\Settings\WhatsAppIntegrationController;
 
 Route::get('/', function () {
@@ -17,16 +18,14 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-// Driver login routes
-Route::prefix('driver/login')->name('driver.login.')->group(function () {
-    Route::get('/phone', [App\Http\Controllers\Auth\DriverLoginController::class, 'showPhoneForm'])->name('phone');
-    Route::post('/request-code', [App\Http\Controllers\Auth\DriverLoginController::class, 'requestCode'])->name('request-code');
-    Route::get('/code', [App\Http\Controllers\Auth\DriverLoginController::class, 'showCodeForm'])->name('code');
-    Route::post('/verify-code', [App\Http\Controllers\Auth\DriverLoginController::class, 'verifyCode'])->name('verify-code');
-});
-
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
 Route::post('/register', [RegisterController::class, 'register']);
+
+// Driver login routes
+Route::get('/driver/login/phone', [DriverLoginController::class, 'showPhoneForm'])->name('driver.login.phone');
+Route::post('/driver/login/request-code', [DriverLoginController::class, 'requestCode'])->name('driver.login.request-code');
+Route::get('/driver/login/code', [DriverLoginController::class, 'showCodeForm'])->name('driver.login.code');
+Route::post('/driver/login/verify-code', [DriverLoginController::class, 'verifyCode'])->name('driver.login.verify-code');
 
 // Rotas protegidas
 Route::middleware('auth')->group(function () {
@@ -78,7 +77,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/{proposal}/accept', [App\Http\Controllers\ProposalController::class, 'accept'])->name('accept');
         Route::post('/{proposal}/reject', [App\Http\Controllers\ProposalController::class, 'reject'])->name('reject');
         Route::post('/calculate-discount', [App\Http\Controllers\ProposalController::class, 'calculateDiscount'])->name('calculateDiscount');
-        Route::post('/calculate-freight', [App\Http\Controllers\ProposalController::class, 'calculateFreight'])->name('calculateFreight');
     });
     
     // Freight Tables routes (per tenant)
@@ -113,7 +111,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\ShipmentController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\ShipmentController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\ShipmentController::class, 'store'])->name('store');
-        Route::post('/bulk-delete', [App\Http\Controllers\ShipmentController::class, 'bulkDestroy'])->name('bulk-destroy');
+        Route::post('/bulk-destroy', [App\Http\Controllers\ShipmentController::class, 'bulkDestroy'])->name('bulk-destroy');
         Route::get('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'show'])->name('show');
         Route::get('/{shipment}/edit', [App\Http\Controllers\ShipmentController::class, 'edit'])->name('edit');
         Route::put('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'update'])->name('update');
@@ -143,6 +141,16 @@ Route::middleware('auth')->group(function () {
     // Cash Flow routes
     Route::prefix('cash-flow')->name('cash-flow.')->group(function () {
         Route::get('/', [App\Http\Controllers\CashFlowController::class, 'index'])->name('index');
+    });
+    
+    // Driver Expenses routes (Admin/Manager)
+    Route::prefix('driver-expenses')->name('driver-expenses.')->group(function () {
+        Route::get('/', [App\Http\Controllers\DriverExpenseController::class, 'index'])->name('index');
+        Route::get('/reports', [App\Http\Controllers\DriverExpenseController::class, 'reports'])->name('reports');
+        Route::get('/{expense}', [App\Http\Controllers\DriverExpenseController::class, 'show'])->name('show');
+        Route::post('/{expense}/approve', [App\Http\Controllers\DriverExpenseController::class, 'approve'])->name('approve');
+        Route::post('/{expense}/reject', [App\Http\Controllers\DriverExpenseController::class, 'reject'])->name('reject');
+        Route::get('/statistics/data', [App\Http\Controllers\DriverExpenseController::class, 'statistics'])->name('statistics');
     });
     
     // Clients routes
@@ -180,37 +188,31 @@ Route::middleware('auth')->group(function () {
         Route::post('/{vehicle}/unassign-driver/{driver}', [App\Http\Controllers\VehicleController::class, 'unassignDriver'])->name('unassign-driver');
     });
     
-    // CT-e XMLs routes
-    Route::prefix('cte-xmls')->name('cte-xmls.')->group(function () {
-        Route::get('/', [App\Http\Controllers\CteXmlController::class, 'index'])->name('index');
-        Route::post('/', [App\Http\Controllers\CteXmlController::class, 'store'])->name('store');
-        Route::get('/export', [App\Http\Controllers\CteXmlController::class, 'export'])->name('export');
-        Route::delete('/{cteXml}', [App\Http\Controllers\CteXmlController::class, 'destroy'])->name('destroy');
-        Route::post('/delete-multiple', [App\Http\Controllers\CteXmlController::class, 'destroyMultiple'])->name('destroy-multiple');
-        Route::get('/{cteXml}/download', [App\Http\Controllers\CteXmlController::class, 'download'])->name('download');
-    });
-    
     // Routes routes
     Route::prefix('routes')->name('routes.')->group(function () {
         Route::get('/', [App\Http\Controllers\RouteController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\RouteController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\RouteController::class, 'store'])->name('store');
-        Route::post('/create-branch', [App\Http\Controllers\RouteController::class, 'createBranch'])->name('create-branch');
-        Route::get('/{route}/select-route', [App\Http\Controllers\RouteController::class, 'selectRoute'])->name('select-route');
-        Route::post('/{route}/select-route', [App\Http\Controllers\RouteController::class, 'storeSelectedRoute'])->name('store-selected-route');
         Route::get('/{route}', [App\Http\Controllers\RouteController::class, 'show'])->name('show');
         Route::get('/{route}/edit', [App\Http\Controllers\RouteController::class, 'edit'])->name('edit');
         Route::put('/{route}', [App\Http\Controllers\RouteController::class, 'update'])->name('update');
         Route::delete('/{route}', [App\Http\Controllers\RouteController::class, 'destroy'])->name('destroy');
-        Route::get('/{route}/cte-xml/{fiscalDocument}', [App\Http\Controllers\RouteController::class, 'downloadCteXml'])->name('download-cte-xml');
     });
     
     // Driver Dashboard routes
     Route::prefix('driver')->name('driver.')->group(function () {
         Route::get('/dashboard', [App\Http\Controllers\DriverDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/profile', [App\Http\Controllers\DriverDashboardController::class, 'profile'])->name('profile');
+        Route::put('/profile', [App\Http\Controllers\DriverDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::get('/routes/{route}/map-data', [App\Http\Controllers\DriverDashboardController::class, 'getRouteMapData'])->name('route.map-data');
-        Route::post('/routes/{route}/start', [App\Http\Controllers\DriverDashboardController::class, 'startRoute'])->name('route.start');
-        Route::post('/routes/{route}/finish', [App\Http\Controllers\DriverDashboardController::class, 'finishRoute'])->name('route.finish');
+        Route::delete('/photos/{photo}', [App\Http\Controllers\DriverDashboardController::class, 'deletePhoto'])->name('photos.delete');
+        Route::post('/photos/{photo}/set-primary', [App\Http\Controllers\DriverDashboardController::class, 'setPrimaryPhoto'])->name('photos.set-primary');
+        
+        // Wallet routes
+        Route::get('/wallet', [App\Http\Controllers\DriverWalletController::class, 'index'])->name('wallet');
+        Route::post('/wallet/expenses', [App\Http\Controllers\DriverWalletController::class, 'storeExpense'])->name('wallet.expenses.store');
+        Route::delete('/wallet/expenses/{expense}', [App\Http\Controllers\DriverWalletController::class, 'deleteExpense'])->name('wallet.expenses.delete');
+        Route::get('/wallet/export', [App\Http\Controllers\DriverWalletController::class, 'exportPdf'])->name('wallet.export');
     });
     
     // Monitoring routes (Admin/Manager)
@@ -249,6 +251,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/documents/{fiscalDocument}/status', [App\Http\Controllers\FiscalController::class, 'getStatus'])->name('document-status');
     });
     
+    // CT-e XMLs routes
+    Route::prefix('cte-xmls')->name('cte-xmls.')->group(function () {
+        Route::get('/', [App\Http\Controllers\CteXmlController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\CteXmlController::class, 'store'])->name('store');
+        Route::get('/export', [App\Http\Controllers\CteXmlController::class, 'export'])->name('export');
+        Route::get('/{cteXml}/download', [App\Http\Controllers\CteXmlController::class, 'download'])->name('download');
+        Route::delete('/{cteXml}', [App\Http\Controllers\CteXmlController::class, 'destroy'])->name('destroy');
+        Route::post('/destroy-multiple', [App\Http\Controllers\CteXmlController::class, 'destroyMultiple'])->name('destroy-multiple');
+    });
+    
     // Notifications routes
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [App\Http\Controllers\NotificationController::class, 'index'])->name('index');
@@ -272,16 +284,10 @@ Route::middleware('auth')->group(function () {
         Route::prefix('integrations')->name('integrations.')->group(function () {
             Route::get('/whatsapp', [WhatsAppIntegrationController::class, 'index'])->name('whatsapp.index');
             Route::post('/whatsapp', [WhatsAppIntegrationController::class, 'store'])->name('whatsapp.store');
-            // Specific routes must come before the generic {whatsappIntegration} route
             Route::post('/whatsapp/{whatsappIntegration}/sync', [WhatsAppIntegrationController::class, 'sync'])->name('whatsapp.sync');
-            Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::get('/whatsapp/{whatsappIntegration}/qr', [WhatsAppIntegrationController::class, 'qr'])->name('whatsapp.qr');
-            Route::get('/whatsapp/{whatsappIntegration}/status', [WhatsAppIntegrationController::class, 'status'])->name('whatsapp.status');
+            Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::delete('/whatsapp/{whatsappIntegration}', [WhatsAppIntegrationController::class, 'destroy'])->name('whatsapp.destroy');
-            // Redirect any direct access to integration ID to index page (must be last)
-            Route::get('/whatsapp/{whatsappIntegration}', function (WhatsAppIntegration $whatsappIntegration) {
-                return redirect()->route('settings.integrations.whatsapp.index');
-            })->name('whatsapp.show');
         });
     });
 });

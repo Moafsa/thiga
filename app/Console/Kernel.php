@@ -12,7 +12,16 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Clean old cache files daily at 2 AM
+        $schedule->command('cache:clean-old --days=7 --force')
+            ->dailyAt('02:00')
+            ->withoutOverlapping()
+            ->runInBackground();
+        
+        // Check for expiring CNH licenses daily at 8 AM
+        $schedule->job(new \App\Jobs\CheckExpiringCnh())
+            ->dailyAt('08:00')
+            ->withoutOverlapping();
     }
 
     /**

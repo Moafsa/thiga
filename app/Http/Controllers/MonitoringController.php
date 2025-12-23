@@ -8,6 +8,7 @@ use App\Models\Shipment;
 use App\Models\LocationTracking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class MonitoringController extends Controller
 {
@@ -84,23 +85,71 @@ class MonitoringController extends Controller
             ->whereNotNull('current_latitude')
             ->whereNotNull('current_longitude')
             ->with(['user', 'routes' => function($query) {
-                $query->whereIn('status', ['scheduled', 'in_progress']);
+                $query->whereIn('status', ['scheduled', 'in_progress'])
+                    ->with(['branch', 'shipments']);
             }])
             ->get()
             ->map(function($driver) {
+                $activeRoute = $driver->routes->first();
+                
+                // Get location history for active route (last 2 hours) with cache
+                $locationHistory = [];
+                if ($activeRoute) {
+                    $cacheKey = "driver_location_history_{$driver->id}_{$activeRoute->id}_" . now()->format('Y-m-d-H');
+                    
+                    $locationHistory = \Cache::remember($cacheKey, 300, function() use ($driver, $activeRoute) {
+                        // For long routes, sample points to reduce data size
+                        $totalPoints = \App\Models\LocationTracking::where('driver_id', $driver->id)
+                            ->where('route_id', $activeRoute->id)
+                            ->where('tracked_at', '>=', now()->subHours(2))
+                            ->count();
+                        
+                        // If more than 500 points, sample every Nth point
+                        $query = \App\Models\LocationTracking::where('driver_id', $driver->id)
+                            ->where('route_id', $activeRoute->id)
+                            ->where('tracked_at', '>=', now()->subHours(2));
+                        
+                        if ($totalPoints > 500) {
+                            // Sample every 3rd point for routes with many points
+                            $query->whereRaw('MOD(id, 3) = 0');
+                        }
+                        
+                        return $query->orderBy('tracked_at', 'asc')
+                            ->get()
+                            ->map(function($track) {
+                                return [
+                                    'lat' => $track->latitude,
+                                    'lng' => $track->longitude,
+                                    'timestamp' => $track->tracked_at->toIso8601String(),
+                                    'speed' => $track->speed,
+                                    'heading' => $track->heading,
+                                ];
+                            })
+                            ->toArray();
+                    });
+                }
+                
                 return [
                     'id' => $driver->id,
                     'name' => $driver->name,
                     'phone' => $driver->phone,
+                    'photo_url' => $driver->photo_url ? \App\Services\ImageService::getCachedPhotoUrl($driver->photo_url, 150) : null,
                     'latitude' => $driver->current_latitude,
                     'longitude' => $driver->current_longitude,
                     'last_update' => $driver->updated_at->toIso8601String(),
-                    'active_route' => $driver->routes->first() ? [
-                        'id' => $driver->routes->first()->id,
-                        'name' => $driver->routes->first()->name,
-                        'status' => $driver->routes->first()->status,
-                        'shipments_count' => $driver->routes->first()->shipments->count(),
+                    'active_route' => $activeRoute ? [
+                        'id' => $activeRoute->id,
+                        'name' => $activeRoute->name,
+                        'status' => $activeRoute->status,
+                        'shipments_count' => $activeRoute->shipments->count(),
+                        'branch' => $activeRoute->branch ? [
+                            'id' => $activeRoute->branch->id,
+                            'name' => $activeRoute->branch->name,
+                            'latitude' => $activeRoute->branch->latitude,
+                            'longitude' => $activeRoute->branch->longitude,
+                        ] : null,
                     ] : null,
+                    'location_history' => $locationHistory,
                 ];
             });
 

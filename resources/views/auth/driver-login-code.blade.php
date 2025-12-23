@@ -5,298 +5,286 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verificar Código - TMS SaaS</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         :root {
-            --cor-principal: #245a49;
-            --cor-secundaria: #1a3d33;
-            --cor-acento: #FF6B35;
-            --cor-texto-claro: #F5F5F5;
-            --cor-texto-escuro: #333;
+            --surface: #0d2923;
+            --panel: #0f1f1a;
+            --accent: #ff7a4a;
+            --text: #f6fbfb;
+            --muted: rgba(255, 255, 255, 0.75);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
+        *, *::before, *::after {
             box-sizing: border-box;
         }
-        
+
         body {
+            margin: 0;
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--cor-principal) 0%, var(--cor-secundaria) 100%);
-            color: var(--cor-texto-claro);
-            line-height: 1.6;
+            background: linear-gradient(135deg, #071414, #0d2923);
+            color: var(--text);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
+
+        .page-wrapper {
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         .login-container {
-            background-color: var(--cor-secundaria);
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--cor-acento);
-            margin-bottom: 30px;
-        }
-
-        .logo i {
-            margin-right: 10px;
-        }
-
-        h1 {
-            color: var(--cor-texto-claro);
-            font-size: 24px;
-            margin-bottom: 10px;
-            font-weight: 600;
-        }
-
-        .subtitle {
-            color: rgba(245, 245, 245, 0.7);
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
-
-        .phone-display {
-            background-color: var(--cor-principal);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 16px;
-            color: var(--cor-acento);
-            font-weight: 600;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--cor-texto-claro);
-            font-weight: 600;
-        }
-
-        .code-input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #444;
-            border-radius: 8px;
-            background-color: var(--cor-principal);
-            color: var(--cor-texto-claro);
-            font-size: 24px;
-            font-weight: 700;
-            text-align: center;
-            letter-spacing: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .code-input:focus {
-            outline: none;
-            border-color: var(--cor-acento);
-            box-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
-        }
-
-        .code-input::placeholder {
-            letter-spacing: 4px;
-            color: #999;
-        }
-
-        .btn-login {
-            width: 100%;
-            background-color: var(--cor-acento);
-            color: var(--cor-principal);
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-bottom: 20px;
-        }
-
-        .btn-login:hover {
-            background-color: #FF885A;
-        }
-
-        .btn-login:disabled {
-            background-color: #666;
-            cursor: not-allowed;
-        }
-
-        .links {
-            margin-top: 20px;
-        }
-
-        .links a {
-            color: var(--cor-acento);
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.3s ease;
-        }
-
-        .links a:hover {
-            color: var(--cor-texto-claro);
-        }
-
-        .error-message {
-            background-color: #dc3545;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        .success-message {
-            background-color: #28a745;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
+            width: min(420px, 100%);
+            background: var(--panel);
+            border-radius: 24px;
+            padding: 40px 32px;
+            box-shadow: 0 35px 70px rgba(0, 0, 0, 0.6);
+            position: relative;
         }
 
         .back-link {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: var(--cor-acento);
+            top: 18px;
+            left: 18px;
+            font-size: 14px;
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 26px;
+            text-align: center;
+            margin: 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+            margin: 6px 0 24px;
+        }
+
+        .message-card {
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .message-card.error {
+            background: rgba(208, 2, 27, 0.2);
+            border: 1px solid rgba(208, 2, 27, 0.45);
+        }
+
+        .message-card.success {
+            background: rgba(23, 139, 93, 0.2);
+            border: 1px solid rgba(23, 139, 93, 0.5);
+        }
+
+        .info-box {
+            background: rgba(37, 211, 102, 0.12);
+            border: 1px solid rgba(37, 211, 102, 0.4);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .info-box i {
+            color: #25d366;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+            font-size: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .form-group input {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 12px 14px;
+            font-size: 16px;
+            background: rgba(15, 45, 38, 0.8);
+            color: #fff;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(255, 122, 74, 0.35);
+        }
+
+        .form-group input[readonly] {
+            opacity: 0.9;
+        }
+
+        .code-input {
+            letter-spacing: 12px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .btn-login {
+            width: 100%;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            background: linear-gradient(120deg, #ff7a4a, #ff945f);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(255, 122, 74, 0.5);
+        }
+
+        .links {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .links a {
+            color: var(--accent);
             text-decoration: none;
             font-weight: 600;
-            transition: color 0.3s ease;
         }
 
-        .back-link:hover {
-            color: var(--cor-texto-claro);
-        }
-
-        .back-link i {
-            margin-right: 5px;
-        }
-
-        .whatsapp-info {
-            background-color: rgba(37, 211, 102, 0.1);
-            border: 1px solid rgba(37, 211, 102, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            color: rgba(245, 245, 245, 0.9);
-        }
-
-        .whatsapp-info i {
-            color: #25D366;
-            margin-right: 8px;
-        }
-
-        @media (max-width: 480px) {
+        @media (max-width: 520px) {
             .login-container {
-                margin: 20px;
                 padding: 30px 20px;
+            }
+
+            .back-link {
+                position: static;
+                margin-bottom: 10px;
             }
         }
     </style>
 </head>
 <body>
-    <a href="{{ route('driver.login.phone') }}" class="back-link">
-        <i class="fas fa-arrow-left"></i> Voltar
-    </a>
+    <div class="page-wrapper">
+        <div class="login-container">
+            <a class="back-link" href="{{ route('driver.login.phone') }}">
+                <i class="fas fa-arrow-left"></i> Voltar ao telefone
+            </a>
 
-    <div class="login-container">
-        <div class="logo">
-            <i class="fas fa-truck"></i> TMS SaaS
-        </div>
-        
-        <h1>Verificar Código</h1>
-        <p class="subtitle">Digite o código enviado</p>
-
-        <div class="phone-display">
-            <i class="fas fa-phone"></i> {{ $phone }}
-        </div>
-
-        @if ($errors->any())
-            <div class="error-message">
-                @foreach ($errors->all() as $error)
-                    {{ $error }}
-                @endforeach
-            </div>
-        @endif
-
-        @if (session('success'))
-            <div class="success-message">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        <div class="whatsapp-info">
-            <i class="fab fa-whatsapp"></i>
-            Verifique suas mensagens do WhatsApp e digite o código de 6 dígitos
-        </div>
-
-        <form method="POST" action="{{ route('driver.login.verify-code') }}">
-            @csrf
-            
-            <input type="hidden" name="phone" value="{{ $phone }}">
-            
-            <div class="form-group">
-                <label for="code">Código de Verificação</label>
-                <input 
-                    type="text" 
-                    id="code" 
-                    name="code" 
-                    class="code-input"
-                    required 
-                    autofocus 
-                    placeholder="000000"
-                    maxlength="6"
-                    pattern="[0-9]{6}"
-                    inputmode="numeric"
-                >
-                <small style="color: rgba(245, 245, 245, 0.6); font-size: 12px; margin-top: 5px; display: block;">
-                    O código expira em 5 minutos
-                </small>
+            <div class="logo">
+                <i class="fas fa-lock"></i> Verificação
             </div>
 
-            <button type="submit" class="btn-login">
-                <i class="fas fa-check"></i> Verificar e Entrar
-            </button>
-        </form>
+            <h1>Digite o código</h1>
+            <p class="subtitle">O código vale por 5 minutos e chega via WhatsApp</p>
 
-        <div class="links">
-            <p><a href="{{ route('driver.login.phone') }}">Solicitar novo código</a></p>
+            @if(isset($tenantName))
+                <div class="message-card success">
+                    Acessando empresa: {{ $tenantName }}
+                </div>
+            @endif
+
+            @if(session('success'))
+                <div class="message-card success">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('code_sent'))
+                <div class="message-card success">
+                    Já enviamos um código para {{ session('phone', $phone) }}.
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="message-card error">
+                    @foreach($errors->all() as $error)
+                        <div>{{ $error }}</div>
+                    @endforeach
+                </div>
+            @endif
+
+            <div class="info-box">
+                <i class="fab fa-whatsapp"></i>
+                Confira a conversa do WhatsApp e insira o código de 6 dígitos.
+            </div>
+
+            <form method="POST" action="{{ route('driver.login.verify-code') }}">
+                @csrf
+
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="text" value="{{ $phone }}" readonly>
+                    <input type="hidden" name="phone" value="{{ $phone }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="code">Código</label>
+                    <input
+                        class="code-input"
+                        type="text"
+                        id="code"
+                        name="code"
+                        maxlength="6"
+                        placeholder="000000"
+                        value="{{ old('code') }}"
+                        required
+                        autofocus
+                    >
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-check"></i> Verificar e entrar
+                </button>
+            </form>
+
+            <div class="links">
+                <p>Não recebeu? <a href="{{ route('driver.login.phone') }}">Peça outro código</a></p>
+            </div>
         </div>
     </div>
-
-    <script>
-        // Auto-format code input
-        document.getElementById('code').addEventListener('input', function(e) {
-            this.value = this.value.replace(/\D/g, '').slice(0, 6);
-        });
-    </script>
 </body>
 </html>
-
-
-
-
-
 

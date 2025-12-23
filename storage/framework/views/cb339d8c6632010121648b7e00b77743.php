@@ -219,6 +219,159 @@
         border-color: var(--cor-acento);
         background-color: rgba(255, 107, 53, 0.1);
     }
+
+    /* Wallet Card Styles */
+    .wallet-card {
+        background: linear-gradient(135deg, #1a3d33 0%, #245a49 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .wallet-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .wallet-header h2 {
+        font-size: 1.2em;
+        color: var(--cor-texto-claro);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .wallet-balance {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .wallet-balance-label {
+        font-size: 0.9em;
+        color: rgba(245, 245, 245, 0.7);
+        margin-bottom: 5px;
+    }
+
+    .wallet-balance-value {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--cor-acento);
+    }
+
+    .wallet-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .wallet-summary-item {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+    }
+
+    .wallet-summary-label {
+        font-size: 0.85em;
+        color: rgba(245, 245, 245, 0.7);
+        margin-bottom: 5px;
+    }
+
+    .wallet-summary-value {
+        font-size: 1.3em;
+        font-weight: 600;
+        color: var(--cor-texto-claro);
+    }
+
+    .wallet-summary-value.received {
+        color: #4caf50;
+    }
+
+    .wallet-summary-value.spent {
+        color: #f44336;
+    }
+
+    .wallet-transactions {
+        margin-top: 20px;
+    }
+
+    .wallet-transactions h3 {
+        font-size: 1em;
+        color: var(--cor-texto-claro);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .transaction-item {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .transaction-info {
+        flex: 1;
+    }
+
+    .transaction-route-name {
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--cor-texto-claro);
+        margin-bottom: 3px;
+    }
+
+    .transaction-date {
+        font-size: 0.75em;
+        color: rgba(245, 245, 245, 0.6);
+    }
+
+    .transaction-amounts {
+        text-align: right;
+    }
+
+    .transaction-received {
+        font-size: 0.85em;
+        color: #4caf50;
+        margin-bottom: 2px;
+    }
+
+    .transaction-spent {
+        font-size: 0.85em;
+        color: #f44336;
+        margin-bottom: 2px;
+    }
+
+    .transaction-net {
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--cor-acento);
+        margin-top: 5px;
+    }
+
+    .empty-transactions {
+        text-align: center;
+        padding: 20px;
+        color: rgba(245, 245, 245, 0.5);
+        font-size: 0.9em;
+    }
+
+    .wallet-period-info {
+        font-size: 0.8em;
+        color: rgba(245, 245, 245, 0.6);
+        text-align: center;
+        margin-top: 10px;
+        padding: 8px;
+        background-color: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+    }
 </style>
 <?php $__env->stopPush(); ?>
 
@@ -257,118 +410,6 @@
             Última atualização: <?php echo e($driver->last_location_update ? $driver->last_location_update->diffForHumans() : 'Nunca'); ?>
 
         </p>
-    </div>
-    <?php endif; ?>
-
-    <!-- Route Timeline Section -->
-    <?php if($activeRoute && $shipments->count() > 0): ?>
-    <?php
-        // Get optimized order from settings
-        $optimizedOrder = $activeRoute->settings['sequential_optimized_order'] ?? null;
-        $orderedShipments = $shipments;
-        
-        // Order shipments according to optimized order
-        if ($optimizedOrder && is_array($optimizedOrder)) {
-            $shipmentsMap = $shipments->keyBy('id');
-            $orderedShipments = collect();
-            foreach ($optimizedOrder as $shipmentId) {
-                if ($shipmentsMap->has($shipmentId)) {
-                    $orderedShipments->push($shipmentsMap->get($shipmentId));
-                }
-            }
-            // Add any shipments not in optimized order at the end
-            foreach ($shipments as $shipment) {
-                if (!in_array($shipment->id, $optimizedOrder)) {
-                    $orderedShipments->push($shipment);
-                }
-            }
-        }
-    ?>
-    
-    <div class="driver-card" style="margin-bottom: 20px;">
-        <div class="driver-card-header">
-            <div class="driver-card-title">
-                <i class="fas fa-route"></i> Timeline da Rota
-            </div>
-        </div>
-        
-        <div style="position: relative; padding-left: 25px; margin-top: 15px;">
-            <!-- Start Point: Depot/Branch -->
-            <div style="position: relative; padding-bottom: 20px; border-left: 3px solid var(--cor-acento);">
-                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: var(--cor-acento); border: 3px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-warehouse" style="color: white; font-size: 0.6em;"></i>
-                </div>
-                <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                        <h4 style="color: var(--cor-acento); margin: 0; font-size: 0.95em; font-weight: 600;">
-                            <i class="fas fa-play-circle"></i> Partida
-                        </h4>
-                        <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.8em; font-weight: 600;">INÍCIO</span>
-                    </div>
-                    <?php if($activeRoute->branch): ?>
-                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;"><?php echo e($activeRoute->branch->name); ?></p>
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
-                            <i class="fas fa-map-marker-alt"></i> <?php echo e($activeRoute->branch->city); ?>/<?php echo e($activeRoute->branch->state); ?>
-
-                        </p>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Delivery Points -->
-            <?php $__currentLoopData = $orderedShipments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $shipment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
-                <div style="position: relative; padding-bottom: 20px; border-left: 3px solid rgba(255, 107, 53, 0.3);">
-                    <div style="position: absolute; left: -8px; top: 0; width: 16px; height: 16px; border-radius: 50%; background-color: rgba(255, 107, 53, 0.5); border: 3px solid var(--cor-secundaria);"></div>
-                    <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                            <h4 style="color: var(--cor-texto-claro); margin: 0; font-size: 0.9em;">
-                                <i class="fas fa-truck"></i> Entrega <?php echo e($index + 1); ?>
-
-                            </h4>
-                            <span class="status-badge <?php echo e($shipment->status); ?>" style="font-size: 0.75em;">
-                                <?php echo e(ucfirst(str_replace('_', ' ', $shipment->status))); ?>
-
-                            </span>
-                        </div>
-                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;"><?php echo e($shipment->tracking_number); ?></p>
-                        <?php if($shipment->receiverClient): ?>
-                            <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.85em; margin: 2px 0;">
-                                <i class="fas fa-user"></i> <?php echo e($shipment->receiverClient->name); ?>
-
-                            </p>
-                        <?php endif; ?>
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
-                            <i class="fas fa-map-marker-alt"></i> <?php echo e($shipment->delivery_city); ?>/<?php echo e($shipment->delivery_state); ?>
-
-                        </p>
-                    </div>
-                </div>
-                <?php endif; ?>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-
-            <!-- End Point: Return to Depot/Branch -->
-            <div style="position: relative; padding-bottom: 0;">
-                <div style="position: absolute; left: -10px; top: 0; width: 20px; height: 20px; border-radius: 50%; background-color: var(--cor-acento); border: 3px solid var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-flag-checkered" style="color: white; font-size: 0.6em;"></i>
-                </div>
-                <div style="background-color: var(--cor-principal); padding: 12px; border-radius: 8px; margin-left: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                        <h4 style="color: var(--cor-acento); margin: 0; font-size: 0.95em; font-weight: 600;">
-                            <i class="fas fa-check-circle"></i> Retorno
-                        </h4>
-                        <span style="color: rgba(255, 107, 53, 0.8); font-size: 0.8em; font-weight: 600;">FIM</span>
-                    </div>
-                    <?php if($activeRoute->branch): ?>
-                        <p style="color: var(--cor-texto-claro); margin: 3px 0; font-size: 0.9em; font-weight: 600;"><?php echo e($activeRoute->branch->name); ?></p>
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 2px 0;">
-                            <i class="fas fa-map-marker-alt"></i> <?php echo e($activeRoute->branch->city); ?>/<?php echo e($activeRoute->branch->state); ?>
-
-                        </p>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
     </div>
     <?php endif; ?>
 
@@ -422,61 +463,6 @@
         </div>
         <?php endif; ?>
     </div>
-    
-    <!-- Time Control for Driver -->
-    <?php if($activeRoute): ?>
-    <div class="driver-card" style="margin-bottom: 20px;">
-        <div class="driver-card-header">
-            <div class="driver-card-title">
-                <i class="fas fa-clock"></i> Controle de Tempo
-            </div>
-        </div>
-        
-        <form action="<?php echo e(route('routes.update', $activeRoute)); ?>" method="POST" id="driver-times-form" style="margin-top: 15px;">
-            <?php echo csrf_field(); ?>
-            <?php echo method_field('PUT'); ?>
-            <input type="hidden" name="update_type" value="actual_times">
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                <div>
-                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
-                        Data/Hora de Partida Real
-                    </label>
-                    <input type="datetime-local" 
-                           name="actual_departure_datetime" 
-                           value="<?php echo e($activeRoute->actual_departure_datetime ? $activeRoute->actual_departure_datetime->format('Y-m-d\TH:i') : ''); ?>"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
-                    <?php if($activeRoute->planned_departure_datetime): ?>
-                        <p style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 5px;">
-                            Planejado: <?php echo e($activeRoute->planned_departure_datetime->format('d/m/Y H:i')); ?>
-
-                        </p>
-                    <?php endif; ?>
-                </div>
-                
-                <div>
-                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">
-                        Data/Hora de Chegada Real
-                    </label>
-                    <input type="datetime-local" 
-                           name="actual_arrival_datetime" 
-                           value="<?php echo e($activeRoute->actual_arrival_datetime ? $activeRoute->actual_arrival_datetime->format('Y-m-d\TH:i') : ''); ?>"
-                           style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
-                    <?php if($activeRoute->planned_arrival_datetime): ?>
-                        <p style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 5px;">
-                            Planejado: <?php echo e($activeRoute->planned_arrival_datetime->format('d/m/Y H:i')); ?>
-
-                        </p>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">
-                <i class="fas fa-save"></i> Salvar Horários Reais
-            </button>
-        </form>
-    </div>
-    <?php endif; ?>
 <?php else: ?>
     <div class="empty-state">
         <i class="fas fa-route"></i>
@@ -484,6 +470,100 @@
         <p>Você não tem rotas atribuídas no momento.</p>
     </div>
 <?php endif; ?>
+
+<!-- Wallet Card (always visible) -->
+<div class="wallet-card">
+    <div class="wallet-header">
+        <h2><i class="fas fa-wallet"></i> Carteira</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <form method="GET" action="<?php echo e(route('driver.dashboard')); ?>" id="period-filter-form" style="display: flex; gap: 5px;">
+                <select name="period" id="period-select" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; background: var(--cor-principal); color: var(--cor-texto-claro); border: 1px solid rgba(255,255,255,0.2); font-size: 0.85em;">
+                    <option value="all" <?php echo e(($period ?? 'all') === 'all' ? 'selected' : ''); ?>>Todo Período</option>
+                    <option value="week" <?php echo e(($period ?? 'all') === 'week' ? 'selected' : ''); ?>>Esta Semana</option>
+                    <option value="month" <?php echo e(($period ?? 'all') === 'month' ? 'selected' : ''); ?>>Este Mês</option>
+                    <option value="year" <?php echo e(($period ?? 'all') === 'year' ? 'selected' : ''); ?>>Este Ano</option>
+                </select>
+            </form>
+            <a href="<?php echo e(route('driver.wallet.export', ['period' => $period ?? 'all'])); ?>" class="btn-primary" style="padding: 8px 12px; font-size: 0.85em; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-file-pdf"></i> PDF
+            </a>
+        </div>
+    </div>
+    
+    <div class="wallet-balance">
+        <div class="wallet-balance-label">Saldo Disponível</div>
+        <div class="wallet-balance-value" style="color: <?php echo e(($currentBalance ?? 0) >= 0 ? '#4caf50' : '#f44336'); ?>;">
+            R$ <?php echo e(number_format($currentBalance ?? 0, 2, ',', '.')); ?>
+
+        </div>
+    </div>
+
+    <div class="wallet-summary">
+        <div class="wallet-summary-item">
+            <div class="wallet-summary-label">Total Recebido</div>
+            <div class="wallet-summary-value received">R$ <?php echo e(number_format($totalReceived ?? 0, 2, ',', '.')); ?></div>
+        </div>
+        <div class="wallet-summary-item">
+            <div class="wallet-summary-label">Gastos Comprovados</div>
+            <div class="wallet-summary-value spent">R$ <?php echo e(number_format($totalSpent ?? 0, 2, ',', '.')); ?></div>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 15px;">
+        <a href="<?php echo e(route('driver.wallet')); ?>" class="btn-primary" style="padding: 10px 20px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fas fa-wallet"></i> Ver Carteira Completa
+        </a>
+    </div>
+
+    <?php if($recentFinancialRoutes && $recentFinancialRoutes->count() > 0): ?>
+    <div class="wallet-transactions">
+        <h3><i class="fas fa-history"></i> Histórico Recente</h3>
+        <?php $__currentLoopData = $recentFinancialRoutes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $transaction): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <div class="transaction-item">
+            <div class="transaction-info">
+                <div class="transaction-route-name"><?php echo e($transaction['description']); ?></div>
+                <div class="transaction-date"><?php echo e($transaction['date']->format('d/m/Y')); ?></div>
+                <?php if(isset($transaction['expense']) && $transaction['expense']->expense_type): ?>
+                <div style="font-size: 0.8em; color: rgba(245,245,245,0.6); margin-top: 3px;">
+                    <i class="fas fa-tag"></i> <?php echo e($transaction['expense']->expense_type_label); ?>
+
+                </div>
+                <?php endif; ?>
+            </div>
+            <div class="transaction-amounts">
+                <?php if($transaction['is_positive']): ?>
+                <div class="transaction-received" style="color: #4caf50; font-weight: 600;">
+                    + R$ <?php echo e(number_format($transaction['amount'], 2, ',', '.')); ?>
+
+                </div>
+                <?php else: ?>
+                <div class="transaction-spent" style="color: #f44336; font-weight: 600;">
+                    - R$ <?php echo e(number_format($transaction['amount'], 2, ',', '.')); ?>
+
+                </div>
+                <?php endif; ?>
+                <div class="transaction-net" style="font-size: 0.9em; color: <?php echo e($transaction['balance'] >= 0 ? '#4caf50' : '#f44336'); ?>; margin-top: 5px;">
+                    Saldo: <?php echo e($transaction['balance'] >= 0 ? '+' : ''); ?>R$ <?php echo e(number_format($transaction['balance'], 2, ',', '.')); ?>
+
+                </div>
+            </div>
+        </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    </div>
+    <?php else: ?>
+    <div class="empty-transactions">
+        <i class="fas fa-inbox"></i> Nenhuma transação financeira registrada ainda.
+    </div>
+    <?php endif; ?>
+
+    <?php if(isset($period) && $period !== 'all'): ?>
+    <div class="wallet-period-info">
+        <i class="fas fa-calendar"></i> 
+        Período: <?php echo e($startDate ? $startDate->format('d/m/Y') : 'Início'); ?> até <?php echo e($endDate->format('d/m/Y')); ?>
+
+    </div>
+    <?php endif; ?>
+</div>
 
 <!-- Status Update Modal -->
 <div id="statusModal" class="modal">
@@ -684,5 +764,4 @@
     }
 </script>
 <?php $__env->stopPush(); ?>
-
 <?php echo $__env->make('driver.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/driver/dashboard.blade.php ENDPATH**/ ?>

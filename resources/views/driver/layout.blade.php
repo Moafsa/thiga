@@ -9,17 +9,8 @@
     <meta name="apple-mobile-web-app-title" content="TMS Motorista">
     <title>@yield('title', 'TMS Motorista')</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192x192.png') }}">
-    
-    <!-- Service Worker Registration - Early registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                console.log('SW registration failed:', err);
-            });
-        }
-    </script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -268,9 +259,18 @@
 <body>
     <!-- Top Header -->
     <header class="driver-header">
-        <div class="driver-header-left">
-            <div class="driver-avatar">
-                {{ substr(Auth::user()->name ?? 'D', 0, 1) }}
+        <div class="driver-header-left" style="cursor: pointer;" onclick="window.location.href='{{ route('driver.profile') }}'" title="Ver Perfil">
+            @php
+                $driver = \App\Models\Driver::where('user_id', Auth::id())->first();
+                $photoUrl = $driver ? $driver->getDisplayPhotoUrl() : null;
+                $hasPhoto = $driver && ($driver->primaryPhoto || $driver->photo_url) && $photoUrl && !str_starts_with($photoUrl, 'https://ui-avatars.com');
+            @endphp
+            <div class="driver-avatar" style="{{ $hasPhoto ? 'background: none; border: 2px solid var(--cor-acento);' : '' }}">
+                @if($hasPhoto)
+                    <img src="{{ $photoUrl }}" alt="{{ Auth::user()->name ?? 'Motorista' }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.parentElement.innerHTML='{{ substr(Auth::user()->name ?? 'D', 0, 1) }}';">
+                @else
+                    {{ substr(Auth::user()->name ?? 'D', 0, 1) }}
+                @endif
             </div>
             <div class="driver-info">
                 <h3>{{ Auth::user()->name ?? 'Motorista' }}</h3>
@@ -281,12 +281,9 @@
             <button class="header-btn" onclick="window.location.reload()" title="Atualizar">
                 <i class="fas fa-sync-alt"></i>
             </button>
-            <form method="POST" action="{{ route('logout') }}" style="display: inline;">
-                @csrf
-                <button type="submit" class="header-btn" title="Sair">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-            </form>
+            <button class="header-btn" onclick="window.location.href='{{ route('logout') }}'" title="Sair">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
         </div>
     </header>
 
@@ -309,12 +306,30 @@
             <i class="fas fa-truck"></i>
             <span>Entregas</span>
         </a>
-        <a href="{{ route('driver.dashboard') }}#profile" class="nav-item">
+        <a href="{{ route('driver.wallet') }}" class="nav-item {{ request()->routeIs('driver.wallet*') ? 'active' : '' }}">
+            <i class="fas fa-wallet"></i>
+            <span>Carteira</span>
+        </a>
+        <a href="{{ route('driver.profile') }}" class="nav-item {{ request()->routeIs('driver.profile') ? 'active' : '' }}">
             <i class="fas fa-user"></i>
             <span>Perfil</span>
         </a>
     </nav>
 
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
 
     @stack('scripts')
 </body>

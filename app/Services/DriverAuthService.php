@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\Driver;
 use App\Models\DriverLoginCode;
+use App\Models\DriverTenantAssignment;
 use App\Models\Tenant;
 use App\Models\WhatsAppIntegration;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -25,7 +27,7 @@ class DriverAuthService
     ) {
     }
 
-    public function requestLoginCode(string $rawPhone, ?string $deviceId = null): DriverLoginCode
+    public function requestLoginCode(string $rawPhone, ?string $deviceId = null, ?DriverTenantAssignment $assignment = null): DriverLoginCode
     {
         $normalizedPhone = $this->normalizePhone($rawPhone);
 
@@ -35,38 +37,18 @@ class DriverAuthService
             ]);
         }
 
-        // Try to find driver with normalized phone
-        // Also try with 55 prefix in case number is stored with country code
-        // Also try variations (with/without extra digit) for flexibility
-        $driver = Driver::with('tenant')
-            ->whereNotNull('phone_e164')
-            ->where(function ($query) use ($normalizedPhone) {
-                $query->where('phone_e164', $normalizedPhone)
-                    ->orWhere('phone_e164', '55' . $normalizedPhone)
-                    // Try removing last digit if number has 11 digits (54997092223 -> 5497092223)
-                    ->orWhere(function ($q) use ($normalizedPhone) {
-                        if (strlen($normalizedPhone) === 11 && str_starts_with($normalizedPhone, '54')) {
-                            $withoutLast = substr($normalizedPhone, 0, -1);
-                            $q->where('phone_e164', $withoutLast)
-                              ->orWhere('phone_e164', '55' . $withoutLast);
-                        }
-                    })
-                    // Try adding digit if number has 10 digits (5497092223 -> 54997092223)
-                    ->orWhere(function ($q) use ($normalizedPhone) {
-                        if (strlen($normalizedPhone) === 10 && str_starts_with($normalizedPhone, '54')) {
-                            // Try adding 9 before last digit (common pattern)
-                            $withExtra = substr($normalizedPhone, 0, -1) . '9' . substr($normalizedPhone, -1);
-                            $q->where('phone_e164', $withExtra)
-                              ->orWhere('phone_e164', '55' . $withExtra);
-                        }
-                    });
-            })
-            ->first();
+        $driver = $this->resolveDriverForAssignment($rawPhone, $normalizedPhone, $assignment);
 
         if (!$driver) {
             throw ValidationException::withMessages([
                 'phone' => __('Não encontramos um motorista com este telefone.'),
             ]);
+        }
+
+        $tenant = $assignment?->tenant ?? $driver->tenant;
+
+        if (!$tenant) {
+            throw new RuntimeException('Driver tenant not found.');
         }
 
         $this->ensureCanRequestCode($driver, $normalizedPhone);
@@ -75,19 +57,10 @@ class DriverAuthService
         $codeHash = hash('sha256', $code);
         $expiresAt = now()->addMinutes(self::CODE_TTL_MINUTES);
 
-        /** @var Tenant $tenant */
-        $tenant = $driver->tenant;
-
-        if (!$tenant) {
-            throw new RuntimeException('Driver tenant not found.');
-        }
-
         $integration = $this->resolveIntegration($tenant);
 
         $message = $this->buildCodeMessage($driver, $tenant, $code);
 
-        // Try to send message first, before creating the code
-        // This ensures we don't create a code if message sending fails
         try {
             $this->dispatchWhatsAppMessage($integration, $normalizedPhone, $message);
             Log::info('WhatsApp message sent successfully', [
@@ -95,20 +68,18 @@ class DriverAuthService
                 'phone' => $normalizedPhone,
             ]);
         } catch (\Throwable $e) {
-            // If message sending fails, don't create the code
             Log::error('Failed to send WhatsApp message before creating code', [
                 'phone' => $normalizedPhone,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            throw $e; // Re-throw to be caught by controller
+            throw $e;
         }
 
-        // Only create code if message was sent successfully
         $loginCode = null;
-        DB::transaction(function () use (&$loginCode, $driver, $normalizedPhone, $codeHash, $expiresAt, $deviceId) {
+        DB::transaction(function () use (&$loginCode, $driver, $normalizedPhone, $codeHash, $expiresAt, $deviceId, $tenant) {
             $loginCode = DriverLoginCode::create([
-                'tenant_id' => $driver->tenant_id,
+                'tenant_id' => $tenant->id,
                 'driver_id' => $driver->id,
                 'phone_e164' => $normalizedPhone,
                 'code_hash' => $codeHash,
@@ -124,7 +95,7 @@ class DriverAuthService
         return $loginCode;
     }
 
-    public function verifyLoginCode(string $rawPhone, string $code, ?string $deviceId = null): Driver
+    public function verifyLoginCode(string $rawPhone, string $code, ?string $deviceId = null, ?DriverTenantAssignment $assignment = null): Driver
     {
         $normalizedPhone = $this->normalizePhone($rawPhone);
 
@@ -134,28 +105,7 @@ class DriverAuthService
             ]);
         }
 
-        // Try to find driver with normalized phone (same flexible search as requestLoginCode)
-        $driver = Driver::with('tenant', 'user')
-            ->whereNotNull('phone_e164')
-            ->where(function ($query) use ($normalizedPhone) {
-                $query->where('phone_e164', $normalizedPhone)
-                    ->orWhere('phone_e164', '55' . $normalizedPhone)
-                    ->orWhere(function ($q) use ($normalizedPhone) {
-                        if (strlen($normalizedPhone) === 11 && str_starts_with($normalizedPhone, '54')) {
-                            $withoutLast = substr($normalizedPhone, 0, -1);
-                            $q->where('phone_e164', $withoutLast)
-                              ->orWhere('phone_e164', '55' . $withoutLast);
-                        }
-                    })
-                    ->orWhere(function ($q) use ($normalizedPhone) {
-                        if (strlen($normalizedPhone) === 10 && str_starts_with($normalizedPhone, '54')) {
-                            $withExtra = substr($normalizedPhone, 0, -1) . '9' . substr($normalizedPhone, -1);
-                            $q->where('phone_e164', $withExtra)
-                              ->orWhere('phone_e164', '55' . $withExtra);
-                        }
-                    });
-            })
-            ->first();
+        $driver = $this->resolveDriverForAssignment($rawPhone, $normalizedPhone, $assignment);
 
         if (!$driver) {
             throw ValidationException::withMessages([
@@ -163,27 +113,34 @@ class DriverAuthService
             ]);
         }
 
-        // Search for login code with normalized phone or with 55 prefix
-        // Also try variations (with/without extra digit) for flexibility
-        // This handles cases where code was created with one format but driver has another
+        // Extract local part (without DDI) for variations search
+        $localPhone = strlen($normalizedPhone) > 2 ? substr($normalizedPhone, 2) : $normalizedPhone;
+        
         $loginCode = DriverLoginCode::where('driver_id', $driver->id)
-            ->where(function ($query) use ($normalizedPhone) {
+            ->where(function ($query) use ($normalizedPhone, $localPhone) {
+                // Exact match
                 $query->where('phone_e164', $normalizedPhone)
-                    ->orWhere('phone_e164', '55' . $normalizedPhone)
-                    // Try removing last digit if number has 11 digits
-                    ->orWhere(function ($q) use ($normalizedPhone) {
-                        if (strlen($normalizedPhone) === 11 && str_starts_with($normalizedPhone, '54')) {
-                            $withoutLast = substr($normalizedPhone, 0, -1);
-                            $q->where('phone_e164', $withoutLast)
-                              ->orWhere('phone_e164', '55' . $withoutLast);
-                        }
-                    })
-                    // Try adding digit if number has 10 digits
-                    ->orWhere(function ($q) use ($normalizedPhone) {
-                        if (strlen($normalizedPhone) === 10 && str_starts_with($normalizedPhone, '54')) {
-                            $withExtra = substr($normalizedPhone, 0, -1) . '9' . substr($normalizedPhone, -1);
-                            $q->where('phone_e164', $withExtra)
-                              ->orWhere('phone_e164', '55' . $withExtra);
+                    ->orWhere('phone_e164', $localPhone)
+                    // For DDD 54, handle variations with/without digit 9
+                    ->orWhere(function ($q) use ($localPhone) {
+                        if (str_starts_with($localPhone, '54')) {
+                            $length = strlen($localPhone);
+                            
+                            // If local has 10 digits (without 9), also search for 11 digits (with 9)
+                            if ($length === 10) {
+                                // Add 9 after DDD: 54 + 9 + rest
+                                $withNine = substr($localPhone, 0, 2) . '9' . substr($localPhone, 2);
+                                $q->where('phone_e164', '55' . $withNine)
+                                  ->orWhere('phone_e164', $withNine);
+                            }
+                            
+                            // If local has 11 digits (with 9), also search for 10 digits (without 9)
+                            if ($length === 11 && $localPhone[2] === '9') {
+                                // Remove the 9: 54 + rest (skip position 2)
+                                $withoutNine = substr($localPhone, 0, 2) . substr($localPhone, 3);
+                                $q->where('phone_e164', '55' . $withoutNine)
+                                  ->orWhere('phone_e164', $withoutNine);
+                            }
                         }
                     });
             })
@@ -236,55 +193,285 @@ class DriverAuthService
             return null;
         }
 
-        // First, handle numbers that start with 54
-        // If number has 11 digits starting with 54, it might have an extra digit
-        // Normalize to 10 digits by removing the extra digit (54997092223 -> 5497092223)
-        if (str_starts_with($digits, '54')) {
-            if (strlen($digits) === 11) {
-                // Remove the extra digit (usually the 4th digit after 54)
-                // Pattern: 54997092223 -> 5497092223 (remove the extra 9 at position 3)
-                $normalized = substr($digits, 0, 3) . substr($digits, 4);
-                return $normalized; // Return normalized: 5497092223
-            } elseif (strlen($digits) === 10) {
-                return $digits; // Return as is: 5497092223
+        if (str_starts_with($digits, '55')) {
+            $digits = substr($digits, 2);
+        }
+
+        $local = $this->normalizeBrazilianLocalNumber($digits);
+
+        return $local ? '55' . $local : null;
+    }
+
+    protected function normalizeBrazilianLocalNumber(string $digits): ?string
+    {
+        $length = strlen($digits);
+
+        if ($length === 11 && $digits[2] === '9') {
+            return substr($digits, 0, 2) . substr($digits, 3);
+        }
+
+        if ($length === 10) {
+            return $digits;
+        }
+
+        if ($length === 11 && $digits[2] !== '9') {
+            return $digits;
+        }
+
+        return null;
+    }
+
+    protected function findDriverByPhone(string $rawPhone, string $normalizedPhone, array $with = ['tenant']): ?Driver
+    {
+        // Try Driver model normalization first
+        $canonicalPhone = Driver::normalizePhone($rawPhone);
+
+        if ($canonicalPhone) {
+            $driver = Driver::with($with)
+                ->whereNotNull('phone_e164')
+                ->where('phone_e164', $canonicalPhone)
+                ->first();
+
+            if ($driver) {
+                return $driver;
             }
         }
 
-        // If number starts with 55 and has 12+ digits, remove the leading 55
-        // This handles cases like +5554997092223 or 5554997092223 -> 5497092223
-        if (str_starts_with($digits, '55') && strlen($digits) >= 12) {
-            $digits = substr($digits, 2);
-            // After removing 55, if it now starts with 54, normalize it
-            if (str_starts_with($digits, '54')) {
-                if (strlen($digits) === 11) {
-                    // Remove extra digit
-                    $normalized = substr($digits, 0, 3) . substr($digits, 4);
-                    return $normalized;
-                } elseif (strlen($digits) === 10) {
-                    return $digits;
+        // Also try raw phone (cleaned) - both with and without DDI
+        // Since user said DB stores only DDD + number (54997092223), not with DDI (5554997092223)
+        $rawDigits = preg_replace('/\D/', '', $rawPhone);
+        if ($rawDigits) {
+            // Try as-is (without DDI - this is how user said it's stored)
+            $driver = Driver::with($with)
+                ->whereNotNull('phone_e164')
+                ->where('phone_e164', $rawDigits)
+                ->first();
+            if ($driver) {
+                Log::info('Driver found using raw phone (no DDI)', [
+                    'raw' => $rawPhone,
+                    'rawDigits' => $rawDigits,
+                    'driver_id' => $driver->id,
+                ]);
+                return $driver;
+            }
+            
+            // Also try with DDI (in case it's stored that way)
+            if (!str_starts_with($rawDigits, '55')) {
+                $driver = Driver::with($with)
+                    ->whereNotNull('phone_e164')
+                    ->where('phone_e164', '55' . $rawDigits)
+                    ->first();
+                if ($driver) {
+                    Log::info('Driver found using raw phone (with DDI)', [
+                        'raw' => $rawPhone,
+                        'withDDI' => '55' . $rawDigits,
+                        'driver_id' => $driver->id,
+                    ]);
+                    return $driver;
                 }
             }
         }
 
-        // Handle numbers without country code (10-11 digits)
-        // Example: 4997092223 -> 5497092223
-        if (strlen($digits) >= 10 && strlen($digits) <= 11) {
-            // If it doesn't start with 54, assume it's a local number and add 54
-            if (!str_starts_with($digits, '54')) {
-                return '54' . $digits;
+        // Fall back to normalized phone search with variations
+        return $this->findDriverByNormalizedPhone($normalizedPhone, $rawPhone, $with);
+    }
+
+    protected function findDriverByNormalizedPhone(string $normalizedPhone, ?string $rawPhone = null, array $with = []): ?Driver
+    {
+        // normalizedPhone comes as '55' + local (10 or 11 digits)
+        // Extract local part (without DDI)
+        $localPhone = strlen($normalizedPhone) > 2 ? substr($normalizedPhone, 2) : $normalizedPhone;
+        
+        // Build list of phone variations to search
+        $searchPhones = [
+            $normalizedPhone,      // Normalized: 55 + local (10 digits without 9)
+            $localPhone,           // Local without DDI
+        ];
+        
+        // Add raw phone variations if provided
+        if ($rawPhone) {
+            $rawDigits = preg_replace('/\D/', '', $rawPhone);
+            if ($rawDigits) {
+                // Add raw with DDI
+                if (!str_starts_with($rawDigits, '55')) {
+                    $searchPhones[] = '55' . $rawDigits;
+                }
+                // Add raw as-is
+                $searchPhones[] = $rawDigits;
             }
-            // If it starts with 54 and has 11 digits, remove the extra digit
-            if (str_starts_with($digits, '54') && strlen($digits) === 11) {
-                return substr($digits, 0, 3) . substr($digits, 4);
+        }
+        
+        // For DDD 54, handle variations with/without digit 9
+        if (str_starts_with($localPhone, '54')) {
+            $length = strlen($localPhone);
+            
+            // If local has 10 digits (normalized removed the 9), also search for 11 digits (with 9)
+            if ($length === 10) {
+                // Add 9 after DDD: 54 + 9 + rest of 8 digits = 11 digits
+                $withNine = substr($localPhone, 0, 2) . '9' . substr($localPhone, 2);
+                $searchPhones[] = '55' . $withNine;  // With DDI
+                $searchPhones[] = $withNine;         // Without DDI
             }
-            return $digits; // Already starts with 54 and has 10 digits
+            
+            // If local has 11 digits (with 9), also search for 10 digits (without 9)
+            if ($length === 11 && isset($localPhone[2]) && $localPhone[2] === '9') {
+                // Remove the 9: 54 + rest (skip position 2 which is the 9)
+                $withoutNine = substr($localPhone, 0, 2) . substr($localPhone, 3);
+                $searchPhones[] = '55' . $withoutNine;  // With DDI
+                $searchPhones[] = $withoutNine;         // Without DDI
+            }
+        }
+        
+        // Remove duplicates and search
+        $searchPhones = array_unique($searchPhones);
+        
+        Log::info('Searching driver with phone variations', [
+            'normalizedPhone' => $normalizedPhone,
+            'localPhone' => $localPhone,
+            'searchPhones' => $searchPhones,
+        ]);
+        
+        $driver = Driver::with($with)
+            ->whereNotNull('phone_e164')
+            ->whereIn('phone_e164', $searchPhones)
+            ->first();
+            
+        if ($driver) {
+            Log::info('Driver found', [
+                'driver_id' => $driver->id,
+                'phone_e164' => $driver->phone_e164,
+                'matched_phone' => $driver->phone_e164,
+            ]);
+        } else {
+            Log::warning('Driver not found with any phone variation', [
+                'searchPhones' => $searchPhones,
+            ]);
+        }
+        
+        return $driver;
+    }
+
+    public function getAssignmentsByPhone(string $rawPhone): Collection
+    {
+        // Clean the phone number but keep it as-is (don't remove the 9)
+        $cleanPhone = preg_replace('/\D/', '', $rawPhone);
+        
+        if (!$cleanPhone || strlen($cleanPhone) < 10) {
+            Log::warning('Invalid phone number', ['raw' => $rawPhone, 'clean' => $cleanPhone]);
+            return collect();
         }
 
-        // If number is 12+ digits and doesn't start with 55, return as is
-        if (strlen($digits) >= 12 && !str_starts_with($digits, '55')) {
-            return $digits;
+        Log::info('Searching driver by phone', [
+            'raw' => $rawPhone,
+            'clean' => $cleanPhone,
+        ]);
+
+        // Search directly with the clean phone number (tries with and without DDI)
+        $driver = $this->findDriverByPhoneDirect($cleanPhone, ['assignments.tenant', 'assignments.user']);
+
+        if (!$driver) {
+            Log::warning('Driver not found by phone', [
+                'raw' => $rawPhone,
+                'clean' => $cleanPhone,
+            ]);
+            return collect();
         }
 
+        $assignments = $driver->assignments()->with(['tenant', 'user', 'driver'])->get();
+        
+        Log::info('Driver assignments retrieved', [
+            'driver_id' => $driver->id,
+            'assignments_count' => $assignments->count(),
+            'assignments' => $assignments->pluck('id')->toArray(),
+        ]);
+
+        return $assignments;
+    }
+    
+    protected function findDriverByPhoneDirect(string $cleanPhone, array $with): ?Driver
+    {
+        // First, try exact match (as stored in DB - only DDD + number, no DDI)
+        $driver = Driver::with($with)
+            ->whereNotNull('phone_e164')
+            ->where('phone_e164', $cleanPhone)
+            ->first();
+            
+        if ($driver) {
+            Log::info('Driver found with exact match', [
+                'cleanPhone' => $cleanPhone,
+                'driver_id' => $driver->id,
+                'phone_e164' => $driver->phone_e164,
+            ]);
+            return $driver;
+        }
+        
+        // If not found, build search variations with normalization
+        $searchPhones = [];
+        
+        // Remove DDI if present
+        $localPart = str_starts_with($cleanPhone, '55') ? substr($cleanPhone, 2) : $cleanPhone;
+        
+        // Always add the original clean phone as-is
+        $searchPhones[] = $cleanPhone;
+        
+        // Also add local part if different from clean phone
+        if ($localPart !== $cleanPhone) {
+            $searchPhones[] = $localPart;
+        }
+        
+        // Add version with DDI (55) if not already present
+        if (!str_starts_with($cleanPhone, '55')) {
+            $searchPhones[] = '55' . $cleanPhone;
+            $searchPhones[] = '55' . $localPart;
+        }
+        
+        // For DDD 54, handle variations with/without digit 9
+        if (str_starts_with($localPart, '54')) {
+            $length = strlen($localPart);
+            
+            // If has 11 digits with 9, also search without 9
+            if ($length === 11 && isset($localPart[2]) && $localPart[2] === '9') {
+                $withoutNine = substr($localPart, 0, 2) . substr($localPart, 3);
+                $searchPhones[] = $withoutNine;  // Without 9, without DDI
+                $searchPhones[] = '55' . $withoutNine;  // Without 9, with DDI
+            }
+            
+            // If has 10 digits, also search with 9
+            if ($length === 10) {
+                $withNine = substr($localPart, 0, 2) . '9' . substr($localPart, 2);
+                $searchPhones[] = $withNine;  // With 9, without DDI
+                $searchPhones[] = '55' . $withNine;  // With 9, with DDI
+            }
+        }
+        
+        $searchPhones = array_unique($searchPhones);
+        
+        if (!empty($searchPhones)) {
+            Log::info('Searching driver with phone variations', [
+                'cleanPhone' => $cleanPhone,
+                'searchPhones' => $searchPhones,
+            ]);
+            
+            $driver = Driver::with($with)
+                ->whereNotNull('phone_e164')
+                ->whereIn('phone_e164', $searchPhones)
+                ->first();
+                
+            if ($driver) {
+                Log::info('Driver found with variations', [
+                    'driver_id' => $driver->id,
+                    'phone_e164' => $driver->phone_e164,
+                    'matched_phone' => $driver->phone_e164,
+                ]);
+                return $driver;
+            }
+        }
+        
+        Log::warning('Driver not found with any phone variation', [
+            'cleanPhone' => $cleanPhone,
+            'searchPhones' => $searchPhones,
+        ]);
+        
         return null;
     }
 
@@ -301,6 +488,15 @@ class DriverAuthService
                 'phone' => __('Aguarde alguns instantes antes de solicitar um novo código.'),
             ]);
         }
+    }
+
+    protected function resolveDriverForAssignment(string $rawPhone, string $normalizedPhone, ?DriverTenantAssignment $assignment): ?Driver
+    {
+        if ($assignment && $assignment->driver) {
+            return $assignment->driver;
+        }
+
+        return $this->findDriverByPhone($rawPhone, $normalizedPhone, ['tenant', 'user']);
     }
 
     protected function resolveIntegration(Tenant $tenant): WhatsAppIntegration

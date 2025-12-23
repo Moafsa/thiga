@@ -141,6 +141,10 @@ class RouteController extends Controller
         \Log::info('Route store request received', [
             'has_cte_xml_numbers' => $request->has('cte_xml_numbers'),
             'cte_xml_numbers_count' => $request->has('cte_xml_numbers') ? count($request->cte_xml_numbers) : 0,
+            'has_addresses' => $request->has('addresses'),
+            'addresses_count' => $request->has('addresses') ? count($request->addresses) : 0,
+            'addresses_keys' => $request->has('addresses') ? array_keys($request->addresses) : [],
+            'addresses_data' => $request->has('addresses') ? $request->addresses : [],
             'all_input' => $request->except(['_token']),
         ]);
 
@@ -163,12 +167,13 @@ class RouteController extends Controller
                 'shipment_ids.*' => 'exists:shipments,id',
                 'cte_xml_numbers' => 'nullable|array',
                 'cte_xml_numbers.*' => 'string',
-                'addresses' => 'nullable|array',
+                'addresses' => 'nullable|array|min:1',
                 'addresses.*.address' => 'required_with:addresses|string|max:255',
                 'addresses.*.city' => 'required_with:addresses|string|max:255',
                 'addresses.*.state' => 'required_with:addresses|string|size:2',
                 'addresses.*.zip_code' => 'nullable|string|max:10',
                 'addresses.*.recipient_name' => 'nullable|string|max:255',
+                'addresses.*.freight_value' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string',
             ]);
 
@@ -250,6 +255,7 @@ class RouteController extends Controller
                         }
                         
                         $hasShipments = true;
+                        // Total revenue will be updated automatically by ShipmentObserver
                     } catch (\Exception $e) {
                         DB::rollBack();
                         \Log::error('Error processing CT-e XML numbers', [
@@ -265,9 +271,21 @@ class RouteController extends Controller
             // Process addresses if provided
             if ($request->has('addresses') && !empty($request->addresses)) {
                 try {
+                    \Log::info('Processing addresses', [
+                        'addresses_count' => count($request->addresses),
+                        'addresses_keys' => array_keys($request->addresses),
+                        'addresses_data' => $request->addresses,
+                    ]);
+                    
                     $createdShipments = $this->processAddresses($request->addresses, $tenant, $route);
+                    
+                    \Log::info('Addresses processed', [
+                        'created_shipments_count' => count($createdShipments),
+                    ]);
+                    
                     if (!empty($createdShipments)) {
                         $hasShipments = true;
+                        // Total revenue will be updated automatically by ShipmentObserver
                     }
                 } catch (\Exception $e) {
                     DB::rollBack();
@@ -287,6 +305,14 @@ class RouteController extends Controller
                 
                 if ($updated > 0) {
                     $hasShipments = true;
+                    // Update total revenue manually because bulk update() doesn't fire model events
+                    $route->calculateTotalRevenue();
+                    $totalRevenue = $route->shipments()->sum('value') ?? 0;
+                    $route->update([
+                        'settings' => array_merge($route->settings ?? [], [
+                            'total_cte_value' => $totalRevenue,
+                        ]),
+                    ]);
                 }
             }
 
@@ -961,6 +987,19 @@ class RouteController extends Controller
         $createdShipments = [];
         $googleMapsService = app(GoogleMapsService::class);
         
+        \Log::info('processAddresses called', [
+            'addresses_count' => count($addresses),
+            'addresses_keys' => array_keys($addresses),
+        ]);
+        
+        // Normalize array to sequential indices to handle non-sequential keys
+        $addresses = array_values($addresses);
+        
+        \Log::info('After array_values', [
+            'addresses_count' => count($addresses),
+            'addresses_keys' => array_keys($addresses),
+        ]);
+        
         // Create a default sender client if doesn't exist
         $defaultSender = Client::where('tenant_id', $tenant->id)
             ->where('name', 'like', '%Remetente%')
@@ -974,23 +1013,58 @@ class RouteController extends Controller
             ]);
         }
         
-        // Process addresses in pairs (pickup -> delivery)
-        for ($i = 0; $i < count($addresses); $i++) {
-            $currentAddress = $addresses[$i];
-            $nextAddress = isset($addresses[$i + 1]) ? $addresses[$i + 1] : null;
-            
-            // If there's a next address, create shipment from current to next
-            // Otherwise, create shipment from current to current (single address)
-            $pickupAddress = $currentAddress;
-            $deliveryAddress = $nextAddress ?: $currentAddress;
+        // Load branch relationship if not already loaded
+        if (!$route->relationLoaded('branch') && $route->branch_id) {
+            $route->load('branch');
+        }
+        
+        // Get branch information for pickup address
+        $branch = $route->branch;
+        $pickupAddress = [];
+        if ($branch) {
+            $pickupAddress = [
+                'address' => trim(implode(', ', array_filter([
+                    $branch->address ?? '',
+                    $branch->address_number ?? '',
+                    $branch->neighborhood ?? '',
+                ]))),
+                'city' => $branch->city ?? '',
+                'state' => $branch->state ?? '',
+                'zip_code' => $branch->postal_code ?? '',
+            ];
+        }
+        
+        // Process each address as a separate delivery destination
+        // Pickup is always at the depot/branch (defaultSender), delivery is at each address
+        foreach ($addresses as $index => $deliveryAddress) {
+            \Log::info('Processing address', [
+                'index' => $index,
+                'delivery_address' => $deliveryAddress,
+            ]);
             
             // Geocode addresses
-            $pickupFullAddress = trim(implode(', ', array_filter([
-                $pickupAddress['address'] ?? '',
-                $pickupAddress['city'] ?? '',
-                $pickupAddress['state'] ?? '',
-                $pickupAddress['zip_code'] ?? '',
-            ])));
+            // If branch exists, use branch address for pickup, otherwise use delivery address
+            if (!empty($pickupAddress['address'])) {
+                $pickupFullAddress = trim(implode(', ', array_filter([
+                    $pickupAddress['address'] ?? '',
+                    $pickupAddress['city'] ?? '',
+                    $pickupAddress['state'] ?? '',
+                    $pickupAddress['zip_code'] ?? '',
+                ])));
+                // Use branch coordinates if available
+                $pickupCoords = $branch->latitude && $branch->longitude 
+                    ? ['latitude' => $branch->latitude, 'longitude' => $branch->longitude]
+                    : $googleMapsService->geocode($pickupFullAddress);
+            } else {
+                // Fallback: use delivery address as pickup if no branch
+                $pickupFullAddress = trim(implode(', ', array_filter([
+                    $deliveryAddress['address'] ?? '',
+                    $deliveryAddress['city'] ?? '',
+                    $deliveryAddress['state'] ?? '',
+                    $deliveryAddress['zip_code'] ?? '',
+                ])));
+                $pickupCoords = $googleMapsService->geocode($pickupFullAddress);
+            }
             
             $deliveryFullAddress = trim(implode(', ', array_filter([
                 $deliveryAddress['address'] ?? '',
@@ -999,7 +1073,6 @@ class RouteController extends Controller
                 $deliveryAddress['zip_code'] ?? '',
             ])));
             
-            $pickupCoords = $googleMapsService->geocode($pickupFullAddress);
             $deliveryCoords = $googleMapsService->geocode($deliveryFullAddress);
             
             // Create or find receiver client
@@ -1019,16 +1092,16 @@ class RouteController extends Controller
                 'receiver_client_id' => $receiverClient->id,
                 'tracking_number' => $trackingNumber,
                 'tracking_code' => $trackingNumber,
-                'title' => 'Entrega ' . ($i + 1) . ' - ' . ($deliveryAddress['recipient_name'] ?? $deliveryAddress['city'] ?? 'Destinatário'),
+                'title' => 'Entrega ' . ($index + 1) . ' - ' . ($deliveryAddress['recipient_name'] ?? $deliveryAddress['city'] ?? 'Destinatário'),
                 'recipient_name' => $deliveryAddress['recipient_name'] ?? 'Destinatário',
                 'recipient_address' => $deliveryAddress['address'] ?? '',
                 'recipient_city' => $deliveryAddress['city'] ?? '',
                 'recipient_state' => $deliveryAddress['state'] ?? '',
                 'recipient_zip_code' => $deliveryAddress['zip_code'] ?? '',
-                'pickup_address' => $pickupAddress['address'] ?? '',
-                'pickup_city' => $pickupAddress['city'] ?? '',
-                'pickup_state' => $pickupAddress['state'] ?? '',
-                'pickup_zip_code' => $pickupAddress['zip_code'] ?? '',
+                'pickup_address' => !empty($pickupAddress['address']) ? $pickupAddress['address'] : ($deliveryAddress['address'] ?? ''),
+                'pickup_city' => !empty($pickupAddress['city']) ? $pickupAddress['city'] : ($deliveryAddress['city'] ?? ''),
+                'pickup_state' => !empty($pickupAddress['state']) ? $pickupAddress['state'] : ($deliveryAddress['state'] ?? ''),
+                'pickup_zip_code' => !empty($pickupAddress['zip_code']) ? $pickupAddress['zip_code'] : ($deliveryAddress['zip_code'] ?? ''),
                 'pickup_latitude' => $pickupCoords['latitude'] ?? null,
                 'pickup_longitude' => $pickupCoords['longitude'] ?? null,
                 'delivery_address' => $deliveryAddress['address'] ?? '',
@@ -1043,15 +1116,26 @@ class RouteController extends Controller
                 'delivery_time' => '18:00',
                 'status' => 'scheduled',
                 'delivery_notes' => 'Shipment created from address input',
+                'freight_value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : null,
+                'value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : 0,
+                'goods_value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : 0,
             ]);
             
             $createdShipments[] = $shipment;
             
-            // Only create one shipment per address pair
-            if ($nextAddress) {
-                $i++; // Skip next address as it's already used as delivery
-            }
+            \Log::info('Shipment created from address', [
+                'shipment_id' => $shipment->id,
+                'index' => $index,
+                'delivery_address' => $deliveryAddress['address'] ?? 'N/A',
+                'freight_value' => $shipment->freight_value,
+                'value' => $shipment->value,
+                'goods_value' => $shipment->goods_value,
+            ]);
         }
+        
+        \Log::info('Finished processing addresses', [
+            'total_shipments_created' => count($createdShipments),
+        ]);
         
         return $createdShipments;
     }

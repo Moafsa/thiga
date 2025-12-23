@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\DriverTenantAssignment;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Driver extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'tenant_id',
@@ -25,6 +28,7 @@ class Driver extends Model
         'vehicle_plate',
         'vehicle_model',
         'vehicle_color',
+        'photo_url',
         'current_latitude',
         'current_longitude',
         'last_location_update',
@@ -73,6 +77,38 @@ class Driver extends Model
     public function deliveryProofs(): HasMany
     {
         return $this->hasMany(DeliveryProof::class);
+    }
+
+    /**
+     * Get all photos for this driver
+     */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(DriverPhoto::class)->orderBy('sort_order')->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get primary photo
+     */
+    public function primaryPhoto(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(DriverPhoto::class)->where('is_primary', true);
+    }
+
+    /**
+     * Get all expenses (proven expenses) for this driver
+     */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(DriverExpense::class)->orderBy('expense_date', 'desc');
+    }
+
+    /**
+     * Get approved expenses only
+     */
+    public function approvedExpenses(): HasMany
+    {
+        return $this->hasMany(DriverExpense::class)->where('status', 'approved');
     }
 
     /**
@@ -161,9 +197,115 @@ class Driver extends Model
         return $this->status === 'offline';
     }
 
+    /**
+     * Get photo URL for display (with fallback to avatar)
+     * Uses MinIO if available, otherwise public disk
+     */
+    public function getDisplayPhotoUrl(): string
+    {
+        // Try primary photo first
+        try {
+            $primaryPhoto = $this->primaryPhoto;
+            if ($primaryPhoto && $primaryPhoto->photo_url) {
+                $primaryUrl = $primaryPhoto->url;
+                if ($primaryUrl) {
+                    return $primaryUrl;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::debug('Error getting primary photo URL', [
+                'driver_id' => $this->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Fallback to photo_url field
+        if ($this->attributes['photo_url'] ?? null) {
+            $photoPath = $this->attributes['photo_url'];
+            
+            // Try MinIO first
+            try {
+                $minioConfig = config('filesystems.disks.minio');
+                if ($minioConfig && \Storage::disk('minio')->exists($photoPath)) {
+                    // Build URL manually for path-style endpoint
+                    $baseUrl = rtrim($minioConfig['url'] ?? '', '/');
+                    $bucket = $minioConfig['bucket'] ?? '';
+                    $path = ltrim($photoPath, '/');
+                    $minioUrl = "{$baseUrl}/{$bucket}/{$path}";
+                    
+                    // Validate that URL was generated successfully
+                    if (filter_var($minioUrl, FILTER_VALIDATE_URL)) {
+                        return $minioUrl;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::debug('Failed to get MinIO URL for driver photo', [
+                    'driver_id' => $this->id,
+                    'path' => $photoPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Fallback to public disk
+            try {
+                if (\Storage::disk('public')->exists($photoPath)) {
+                    return \Storage::disk('public')->url($photoPath);
+                }
+            } catch (\Exception $e) {
+                \Log::debug('Failed to get public disk URL for driver photo', [
+                    'driver_id' => $this->id,
+                    'path' => $photoPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=FF6B35&color=fff&size=150';
+    }
+
+    /**
+     * Get the full photo URL if exists
+     * Uses MinIO if available, otherwise public disk
+     */
+    public function getPhotoUrl(): ?string
+    {
+        if ($this->attributes['photo_url'] ?? null) {
+            $photoPath = $this->attributes['photo_url'];
+            
+            // Try MinIO first
+            try {
+                if (\Storage::disk('minio')->exists($photoPath)) {
+                    return \Storage::disk('minio')->url($photoPath);
+                }
+            } catch (\Exception $e) {
+                // MinIO not available
+            }
+
+            // Fallback to public disk
+            if (\Storage::disk('public')->exists($photoPath)) {
+                return \Storage::disk('public')->url($photoPath);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get storage disk for photos (MinIO if available, otherwise public)
+     * @deprecated Use DriverPhotoService::getStorageDisk() instead
+     */
+    public static function getPhotoStorageDisk(): string
+    {
+        return \App\Services\DriverPhotoService::getStorageDisk();
+    }
+
     public function isOnBreak(): bool
     {
         return $this->status === 'on_break';
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(DriverTenantAssignment::class);
     }
 
     public function getStatusLabelAttribute(): string
@@ -193,6 +335,18 @@ class Driver extends Model
         }
 
         return $this->last_location_update->diffForHumans();
+    }
+
+    /**
+     * Get activity log options
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'phone', 'email', 'cnh_number', 'cnh_category', 'cnh_expiry_date', 'vehicle_plate', 'vehicle_model', 'vehicle_color', 'photo_url'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "Driver {$eventName}");
     }
 
     public function updateLocation(float $latitude, float $longitude, array $metadata = []): void

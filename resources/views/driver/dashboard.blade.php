@@ -221,6 +221,159 @@
         border-color: var(--cor-acento);
         background-color: rgba(255, 107, 53, 0.1);
     }
+
+    /* Wallet Card Styles */
+    .wallet-card {
+        background: linear-gradient(135deg, #1a3d33 0%, #245a49 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .wallet-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .wallet-header h2 {
+        font-size: 1.2em;
+        color: var(--cor-texto-claro);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .wallet-balance {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .wallet-balance-label {
+        font-size: 0.9em;
+        color: rgba(245, 245, 245, 0.7);
+        margin-bottom: 5px;
+    }
+
+    .wallet-balance-value {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--cor-acento);
+    }
+
+    .wallet-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .wallet-summary-item {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+    }
+
+    .wallet-summary-label {
+        font-size: 0.85em;
+        color: rgba(245, 245, 245, 0.7);
+        margin-bottom: 5px;
+    }
+
+    .wallet-summary-value {
+        font-size: 1.3em;
+        font-weight: 600;
+        color: var(--cor-texto-claro);
+    }
+
+    .wallet-summary-value.received {
+        color: #4caf50;
+    }
+
+    .wallet-summary-value.spent {
+        color: #f44336;
+    }
+
+    .wallet-transactions {
+        margin-top: 20px;
+    }
+
+    .wallet-transactions h3 {
+        font-size: 1em;
+        color: var(--cor-texto-claro);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .transaction-item {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .transaction-info {
+        flex: 1;
+    }
+
+    .transaction-route-name {
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--cor-texto-claro);
+        margin-bottom: 3px;
+    }
+
+    .transaction-date {
+        font-size: 0.75em;
+        color: rgba(245, 245, 245, 0.6);
+    }
+
+    .transaction-amounts {
+        text-align: right;
+    }
+
+    .transaction-received {
+        font-size: 0.85em;
+        color: #4caf50;
+        margin-bottom: 2px;
+    }
+
+    .transaction-spent {
+        font-size: 0.85em;
+        color: #f44336;
+        margin-bottom: 2px;
+    }
+
+    .transaction-net {
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--cor-acento);
+        margin-top: 5px;
+    }
+
+    .empty-transactions {
+        text-align: center;
+        padding: 20px;
+        color: rgba(245, 245, 245, 0.5);
+        font-size: 0.9em;
+    }
+
+    .wallet-period-info {
+        font-size: 0.8em;
+        color: rgba(245, 245, 245, 0.6);
+        text-align: center;
+        margin-top: 10px;
+        padding: 8px;
+        background-color: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+    }
 </style>
 @endpush
 
@@ -317,6 +470,94 @@
         <p>Você não tem rotas atribuídas no momento.</p>
     </div>
 @endif
+
+<!-- Wallet Card (always visible) -->
+<div class="wallet-card">
+    <div class="wallet-header">
+        <h2><i class="fas fa-wallet"></i> Carteira</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <form method="GET" action="{{ route('driver.dashboard') }}" id="period-filter-form" style="display: flex; gap: 5px;">
+                <select name="period" id="period-select" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; background: var(--cor-principal); color: var(--cor-texto-claro); border: 1px solid rgba(255,255,255,0.2); font-size: 0.85em;">
+                    <option value="all" {{ ($period ?? 'all') === 'all' ? 'selected' : '' }}>Todo Período</option>
+                    <option value="week" {{ ($period ?? 'all') === 'week' ? 'selected' : '' }}>Esta Semana</option>
+                    <option value="month" {{ ($period ?? 'all') === 'month' ? 'selected' : '' }}>Este Mês</option>
+                    <option value="year" {{ ($period ?? 'all') === 'year' ? 'selected' : '' }}>Este Ano</option>
+                </select>
+            </form>
+            <a href="{{ route('driver.wallet.export', ['period' => $period ?? 'all']) }}" class="btn-primary" style="padding: 8px 12px; font-size: 0.85em; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-file-pdf"></i> PDF
+            </a>
+        </div>
+    </div>
+    
+    <div class="wallet-balance">
+        <div class="wallet-balance-label">Saldo Disponível</div>
+        <div class="wallet-balance-value" style="color: {{ ($currentBalance ?? 0) >= 0 ? '#4caf50' : '#f44336' }};">
+            R$ {{ number_format($currentBalance ?? 0, 2, ',', '.') }}
+        </div>
+    </div>
+
+    <div class="wallet-summary">
+        <div class="wallet-summary-item">
+            <div class="wallet-summary-label">Total Recebido</div>
+            <div class="wallet-summary-value received">R$ {{ number_format($totalReceived ?? 0, 2, ',', '.') }}</div>
+        </div>
+        <div class="wallet-summary-item">
+            <div class="wallet-summary-label">Gastos Comprovados</div>
+            <div class="wallet-summary-value spent">R$ {{ number_format($totalSpent ?? 0, 2, ',', '.') }}</div>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 15px;">
+        <a href="{{ route('driver.wallet') }}" class="btn-primary" style="padding: 10px 20px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fas fa-wallet"></i> Ver Carteira Completa
+        </a>
+    </div>
+
+    @if($recentFinancialRoutes && $recentFinancialRoutes->count() > 0)
+    <div class="wallet-transactions">
+        <h3><i class="fas fa-history"></i> Histórico Recente</h3>
+        @foreach($recentFinancialRoutes as $transaction)
+        <div class="transaction-item">
+            <div class="transaction-info">
+                <div class="transaction-route-name">{{ $transaction['description'] }}</div>
+                <div class="transaction-date">{{ $transaction['date']->format('d/m/Y') }}</div>
+                @if(isset($transaction['expense']) && $transaction['expense']->expense_type)
+                <div style="font-size: 0.8em; color: rgba(245,245,245,0.6); margin-top: 3px;">
+                    <i class="fas fa-tag"></i> {{ $transaction['expense']->expense_type_label }}
+                </div>
+                @endif
+            </div>
+            <div class="transaction-amounts">
+                @if($transaction['is_positive'])
+                <div class="transaction-received" style="color: #4caf50; font-weight: 600;">
+                    + R$ {{ number_format($transaction['amount'], 2, ',', '.') }}
+                </div>
+                @else
+                <div class="transaction-spent" style="color: #f44336; font-weight: 600;">
+                    - R$ {{ number_format($transaction['amount'], 2, ',', '.') }}
+                </div>
+                @endif
+                <div class="transaction-net" style="font-size: 0.9em; color: {{ $transaction['balance'] >= 0 ? '#4caf50' : '#f44336' }}; margin-top: 5px;">
+                    Saldo: {{ $transaction['balance'] >= 0 ? '+' : '' }}R$ {{ number_format($transaction['balance'], 2, ',', '.') }}
+                </div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+    @else
+    <div class="empty-transactions">
+        <i class="fas fa-inbox"></i> Nenhuma transação financeira registrada ainda.
+    </div>
+    @endif
+
+    @if(isset($period) && $period !== 'all')
+    <div class="wallet-period-info">
+        <i class="fas fa-calendar"></i> 
+        Período: {{ $startDate ? $startDate->format('d/m/Y') : 'Início' }} até {{ $endDate->format('d/m/Y') }}
+    </div>
+    @endif
+</div>
 
 <!-- Status Update Modal -->
 <div id="statusModal" class="modal">

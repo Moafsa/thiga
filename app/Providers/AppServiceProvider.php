@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register observers
         \App\Models\Branch::observe(\App\Observers\BranchObserver::class);
+        \App\Models\Route::observe(\App\Observers\RouteObserver::class);
         
         // Fix for Laravel 10 compatibility with league/flysystem-aws-s3-v3
         // Override the default S3 driver creation to use the correct PortableVisibilityConverter

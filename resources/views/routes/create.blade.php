@@ -401,7 +401,15 @@
             }
         }
         
-        function addAddressField() {
+        function addAddressField(values = {}) {
+            // Escape HTML to prevent XSS
+            const escapeHtml = (text) => {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+            
             const addressDiv = document.createElement('div');
             addressDiv.className = 'address-field';
             addressDiv.style.cssText = 'background-color: var(--cor-secundaria); padding: 15px; border-radius: 8px; margin-bottom: 15px; position: relative;';
@@ -415,23 +423,27 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <div>
                         <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Endereço Completo *</label>
-                        <input type="text" name="addresses[${addressIndex}][address]" placeholder="Rua, número, bairro" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <input type="text" name="addresses[${addressIndex}][address]" value="${escapeHtml(values.address || '')}" placeholder="Rua, número, bairro" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                     </div>
                     <div>
                         <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Cidade *</label>
-                        <input type="text" name="addresses[${addressIndex}][city]" placeholder="Cidade" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <input type="text" name="addresses[${addressIndex}][city]" value="${escapeHtml(values.city || '')}" placeholder="Cidade" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                     </div>
                     <div>
                         <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Estado *</label>
-                        <input type="text" name="addresses[${addressIndex}][state]" placeholder="UF" maxlength="2" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); text-transform: uppercase;">
+                        <input type="text" name="addresses[${addressIndex}][state]" value="${escapeHtml(values.state || '')}" placeholder="UF" maxlength="2" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); text-transform: uppercase;">
                     </div>
                     <div>
                         <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">CEP</label>
-                        <input type="text" name="addresses[${addressIndex}][zip_code]" placeholder="00000-000" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <input type="text" name="addresses[${addressIndex}][zip_code]" value="${escapeHtml(values.zip_code || '')}" placeholder="00000-000" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                     </div>
                     <div>
                         <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Nome do Destinatário</label>
-                        <input type="text" name="addresses[${addressIndex}][recipient_name]" placeholder="Nome (opcional)" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <input type="text" name="addresses[${addressIndex}][recipient_name]" value="${escapeHtml(values.recipient_name || '')}" placeholder="Nome (opcional)" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                    </div>
+                    <div>
+                        <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Valor do Frete (R$)</label>
+                        <input type="number" name="addresses[${addressIndex}][freight_value]" value="${escapeHtml(values.freight_value || '')}" placeholder="0.00" step="0.01" min="0" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                     </div>
                 </div>
             `;
@@ -453,6 +465,17 @@
                 if (title) {
                     title.textContent = `Endereço ${index + 1}`;
                 }
+                
+                // Update all input name attributes to use sequential index
+                const inputs = field.querySelectorAll('input[name^="addresses["]');
+                inputs.forEach(input => {
+                    const currentName = input.name;
+                    // Extract the field name (e.g., 'address', 'city', 'state', etc.)
+                    const match = currentName.match(/addresses\[\d+\]\[(.+)\]/);
+                    if (match && match[1]) {
+                        input.name = `addresses[${index}][${match[1]}]`;
+                    }
+                });
             });
         }
         
@@ -515,7 +538,16 @@
         
         // Add first address field by default
         addAddressBtn.addEventListener('click', addAddressField);
-        addAddressField(); // Add one address field by default
+        
+        // Restore old addresses if validation failed
+        const oldAddresses = @json(old('addresses', []));
+        if (oldAddresses && oldAddresses.length > 0) {
+            oldAddresses.forEach(address => {
+                addAddressField(address);
+            });
+        } else {
+            addAddressField(); // Add one address field by default
+        }
         
         driverSelect.addEventListener('change', filterVehicles);
         
