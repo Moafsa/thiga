@@ -172,7 +172,7 @@ class DriverController extends Controller
     {
         $this->authorizeAccess($driver);
 
-        $driver->load(['routes', 'shipments', 'locationTrackings', 'vehicles']);
+        $driver->load(['primaryPhoto', 'photos', 'routes', 'shipments', 'locationTrackings', 'vehicles']);
 
         return view('drivers.show', compact('driver'));
     }
@@ -180,10 +180,12 @@ class DriverController extends Controller
     /**
      * Show the form for editing the specified driver
      */
-    public function edit(Driver $driver)
+public function edit(Driver $driver)
     {
         $this->authorizeAccess($driver);
 
+        $driver->load(['primaryPhoto', 'photos']);
+        
         $cnhCategories = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];
 
         return view('drivers.edit', compact('driver', 'cnhCategories'));
