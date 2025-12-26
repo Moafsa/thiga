@@ -193,10 +193,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\RouteController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\RouteController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\RouteController::class, 'store'])->name('store');
+        Route::post('/create-branch', [App\Http\Controllers\RouteController::class, 'createBranch'])->name('create-branch');
         Route::get('/{route}', [App\Http\Controllers\RouteController::class, 'show'])->name('show');
         Route::get('/{route}/edit', [App\Http\Controllers\RouteController::class, 'edit'])->name('edit');
         Route::put('/{route}', [App\Http\Controllers\RouteController::class, 'update'])->name('update');
         Route::delete('/{route}', [App\Http\Controllers\RouteController::class, 'destroy'])->name('destroy');
+        
+        // Custom route actions
+        Route::get('/{route}/select-route', [App\Http\Controllers\RouteController::class, 'selectRoute'])->name('select-route');
+        Route::post('/{route}/select-route', [App\Http\Controllers\RouteController::class, 'storeSelectedRoute'])->name('store-selected-route');
+        Route::get('/{route}/download-cte-xml/{fiscalDocument}', [App\Http\Controllers\RouteController::class, 'downloadCteXml'])->name('download-cte-xml');
     });
     
     // Driver Dashboard routes

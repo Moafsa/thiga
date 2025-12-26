@@ -42,7 +42,7 @@ class CteAuthorized extends Notification implements ShouldQueue
             'shipment_id' => $shipment->id ?? null,
             'shipment_tracking_number' => $shipment->tracking_number ?? 'N/A',
             'access_key' => $this->fiscalDocument->access_key,
-            'message' => "CT-e authorized for shipment " . ($shipment->tracking_number ?? 'N/A'),
+            'message' => "CT-e authorized for shipment {$shipment->tracking_number ?? 'N/A'}",
             'url' => $shipment ? route('shipments.show', $shipment) : null,
         ];
     }
