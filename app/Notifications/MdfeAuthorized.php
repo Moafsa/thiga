@@ -42,7 +42,7 @@ class MdfeAuthorized extends Notification implements ShouldQueue
             'route_id' => $route->id ?? null,
             'route_name' => $route->name ?? 'N/A',
             'access_key' => $this->fiscalDocument->access_key,
-            'message' => "MDF-e authorized for route {$route->name ?? 'N/A'}",
+            'message' => "MDF-e authorized for route " . ($route->name ?? 'N/A'),
             'url' => $route ? route('routes.show', $route) : null,
         ];
     }

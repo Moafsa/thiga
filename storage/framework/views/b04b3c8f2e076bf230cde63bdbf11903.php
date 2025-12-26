@@ -26,9 +26,17 @@
             <!-- Current Photo Preview -->
             <div style="text-align: center;">
                 <div style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; border: 3px solid var(--cor-acento); margin: 0 auto 15px; background: var(--cor-secundaria); display: flex; align-items: center; justify-content: center;">
-                    <img id="photo-preview" src="<?php echo e($driver->photo_url ? Storage::url($driver->photo_url) : 'https://ui-avatars.com/api/?name=' . urlencode($driver->name) . '&background=FF6B35&color=fff&size=150'); ?>" 
+                    <?php
+                        try {
+                            $photoUrl = $driver->getDisplayPhotoUrl();
+                        } catch (\Exception $e) {
+                            $photoUrl = 'https://ui-avatars.com/api/?name=' . urlencode($driver->name) . '&background=FF6B35&color=fff&size=150';
+                        }
+                    ?>
+                    <img id="photo-preview" src="<?php echo e($photoUrl); ?>" 
                          alt="Foto do Motorista" 
-                         style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                         style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                         onerror="this.src='https://ui-avatars.com/api/?name=<?php echo e(urlencode($driver->name)); ?>&background=FF6B35&color=fff&size=150'">
                 </div>
                 <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Foto Atual</p>
             </div>

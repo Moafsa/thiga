@@ -262,3 +262,5 @@ $score = ($normalizedCost * 0.5) + ($normalizedDuration * 0.3) + ($normalizedDis
 
 
 
+
+

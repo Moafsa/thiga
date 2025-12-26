@@ -1,207 +1,124 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Novo Vendedor - TMS SaaS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Poppins', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center">
-                    <a href="{{ route('dashboard') }}" class="text-2xl font-bold text-green-600">
-                        <i class="fas fa-truck mr-2"></i>
-                        TMS SaaS
-                    </a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="text-gray-700">{{ Auth::user()->name }}</span>
-                    <form method="POST" action="{{ route('logout') }}" class="inline">
-                        @csrf
-                        <button type="submit" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </header>
+@extends('layouts.app')
 
-    <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Page Header -->
-        <div class="mb-8">
-            <div class="flex items-center">
-                <a href="{{ route('salespeople.index') }}" class="text-gray-500 hover:text-gray-700 mr-4">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Novo Vendedor</h1>
-                    <p class="text-gray-600 mt-2">Cadastre um novo vendedor no sistema</p>
-                </div>
-            </div>
-        </div>
+@section('title', 'Novo Vendedor - TMS SaaS')
+@section('page-title', 'Novo Vendedor')
 
-        <!-- Form -->
-        <div class="bg-white rounded-lg shadow-md p-8">
-            <form method="POST" action="{{ route('salespeople.store') }}" class="space-y-6">
-                @csrf
-                
-                <!-- Personal Information -->
-                <div class="border-b pb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Pessoais</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
-                            <input type="text" id="name" name="name" value="{{ old('name') }}" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('name')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
+@push('styles')
+@include('shared.styles')
+@endpush
 
-                        <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">E-mail *</label>
-                            <input type="email" id="email" name="email" value="{{ old('email') }}" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('email')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                            <input type="text" id="phone" name="phone" value="{{ old('phone') }}"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('phone')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="document" class="block text-sm font-medium text-gray-700 mb-2">CPF/CNPJ</label>
-                            <input type="text" id="document" name="document" value="{{ old('document') }}"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('document')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Commission and Discount Settings -->
-                <div class="border-b pb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Configurações Comerciais</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="commission_rate" class="block text-sm font-medium text-gray-700 mb-2">Taxa de Comissão (%) *</label>
-                            <input type="number" id="commission_rate" name="commission_rate" value="{{ old('commission_rate') }}" 
-                                   min="0" max="100" step="0.01" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('commission_rate')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="max_discount_percentage" class="block text-sm font-medium text-gray-700 mb-2">Desconto Máximo (%) *</label>
-                            <input type="number" id="max_discount_percentage" name="max_discount_percentage" value="{{ old('max_discount_percentage') }}" 
-                                   min="0" max="100" step="0.01" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('max_discount_percentage')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Password -->
-                <div class="border-b pb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Acesso ao Sistema</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Senha *</label>
-                            <input type="password" id="password" name="password" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                            @error('password')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-2">Confirmar Senha *</label>
-                            <input type="password" id="password_confirmation" name="password_confirmation" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Form Actions -->
-                <div class="flex justify-end space-x-4">
-                    <a href="{{ route('salespeople.index') }}" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                        Cancelar
-                    </a>
-                    <button type="submit" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                        <i class="fas fa-save mr-2"></i>
-                        Salvar Vendedor
-                    </button>
-                </div>
-            </form>
-        </div>
+@section('content')
+<div class="page-header">
+    <div class="page-header-text">
+        <a href="{{ route('salespeople.index') }}" class="btn-secondary" style="margin-bottom: 10px;">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        <h2>Cadastre um novo vendedor no sistema</h2>
     </div>
+</div>
 
-    <!-- Success/Error Messages -->
-    @if(session('success'))
-        <div class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            <i class="fas fa-check mr-2"></i>
-            {{ session('success') }}
+<div class="card" style="max-width: 900px; margin: 0 auto;">
+    <form method="POST" action="{{ route('salespeople.store') }}">
+        @csrf
+        
+        <!-- Personal Information -->
+        <div style="margin-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;">
+            <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+                <i class="fas fa-user mr-2"></i> Informações Pessoais
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div>
+                    <label>Nome Completo *</label>
+                    <input type="text" name="name" value="{{ old('name') }}" required placeholder="Nome do vendedor">
+                    @error('name')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label>E-mail *</label>
+                    <input type="email" name="email" value="{{ old('email') }}" required placeholder="email@exemplo.com">
+                    @error('email')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Telefone</label>
+                    <input type="text" name="phone" value="{{ old('phone') }}" placeholder="(00) 00000-0000">
+                    @error('phone')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label>CPF/CNPJ</label>
+                    <input type="text" name="document" value="{{ old('document') }}" placeholder="000.000.000-00">
+                    @error('document')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
         </div>
-    @endif
 
-    @if(session('error'))
-        <div class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            <i class="fas fa-exclamation-triangle mr-2"></i>
-            {{ session('error') }}
+        <!-- Commercial Settings -->
+        <div style="margin-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;">
+            <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+                <i class="fas fa-briefcase mr-2"></i> Configurações Comerciais
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Taxa de Comissão (%) *</label>
+                    <input type="number" name="commission_rate" value="{{ old('commission_rate') }}" min="0" max="100" step="0.01" required placeholder="0.00">
+                    @error('commission_rate')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label>Desconto Máximo (%) *</label>
+                    <input type="number" name="max_discount_percentage" value="{{ old('max_discount_percentage') }}" min="0" max="100" step="0.01" required placeholder="0.00">
+                    @error('max_discount_percentage')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
         </div>
-    @endif
 
-    <script>
-        // Auto-hide success/error messages
-        setTimeout(() => {
-            const messages = document.querySelectorAll('.fixed');
-            messages.forEach(msg => msg.remove());
-        }, 5000);
-    </script>
-</body>
-</html>
+        <!-- Access -->
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+                <i class="fas fa-lock mr-2"></i> Acesso ao Sistema
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Senha *</label>
+                    <input type="password" name="password" required placeholder="Mínimo 8 caracteres">
+                    @error('password')
+                        <p style="color: #f44336; font-size: 0.8em; margin-top: 5px;">{{ $message }}</p>
+                    @enderror
+                </div>
 
+                <div>
+                    <label>Confirmar Senha *</label>
+                    <input type="password" name="password_confirmation" required placeholder="Repita a senha">
+                </div>
+            </div>
+        </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px;">
+            <a href="{{ route('salespeople.index') }}" class="btn-secondary">
+                Cancelar
+            </a>
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-save"></i> Salvar Vendedor
+            </button>
+        </div>
+    </form>
+</div>
+@endsection

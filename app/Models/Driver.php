@@ -136,6 +136,25 @@ class Driver extends Model
     {
         static::saving(function (Driver $driver) {
             $driver->phone_e164 = self::normalizePhone($driver->phone);
+            
+            // Disable activity log if table doesn't exist
+            try {
+                if (!\Schema::hasTable('activity_log')) {
+                    activity()->disableLogging();
+                }
+            } catch (\Exception $e) {
+                // If we can't check the table, disable logging to be safe
+                activity()->disableLogging();
+            }
+        });
+        
+        static::saved(function (Driver $driver) {
+            // Re-enable logging after save
+            try {
+                activity()->enableLogging();
+            } catch (\Exception $e) {
+                // Ignore errors when re-enabling
+            }
         });
     }
 
