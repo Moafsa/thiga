@@ -7,12 +7,14 @@ use App\Models\Driver;
 use App\Models\DriverPhoto;
 use App\Models\DriverExpense;
 use App\Models\LocationTracking;
+use App\Models\Vehicle;
 use App\Services\DriverPhotoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -755,6 +757,148 @@ class DriverDashboardController extends Controller
                 'error' => $e->getMessage(),
             ]);
             return response()->json(['error' => 'Erro ao atualizar foto principal'], 500);
+        }
+    }
+
+    /**
+     * Start a route
+     */
+    public function startRoute(Request $request, Route $route)
+    {
+        $user = Auth::user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json(['error' => 'Driver not found'], 404);
+        }
+
+        // Verify route belongs to driver
+        if ($route->driver_id !== $driver->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Verify route status
+        if ($route->status !== 'scheduled') {
+            return response()->json([
+                'error' => 'Route can only be started if it is scheduled. Current status: ' . $route->status
+            ], 400);
+        }
+
+        try {
+            $route->update([
+                'status' => 'in_progress',
+                'started_at' => now(),
+                'actual_departure_datetime' => now(),
+            ]);
+
+            // Update vehicle status if vehicle is assigned
+            if ($route->vehicle_id) {
+                $vehicle = Vehicle::find($route->vehicle_id);
+                if ($vehicle && $vehicle->status === 'available') {
+                    $vehicle->update(['status' => 'in_use']);
+                }
+            }
+
+            Log::info('Route started by driver', [
+                'route_id' => $route->id,
+                'driver_id' => $driver->id,
+                'started_at' => $route->started_at,
+            ]);
+
+            return response()->json([
+                'message' => 'Route started successfully',
+                'route' => [
+                    'id' => $route->id,
+                    'status' => $route->status,
+                    'started_at' => $route->started_at,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error starting route', [
+                'route_id' => $route->id,
+                'driver_id' => $driver->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Error starting route: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Finish a route
+     */
+    public function finishRoute(Request $request, Route $route)
+    {
+        $user = Auth::user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json(['error' => 'Driver not found'], 404);
+        }
+
+        // Verify route belongs to driver
+        if ($route->driver_id !== $driver->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Verify route status
+        if ($route->status !== 'in_progress') {
+            return response()->json([
+                'error' => 'Route can only be finished if it is in progress. Current status: ' . $route->status
+            ], 400);
+        }
+
+        try {
+            $route->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'actual_arrival_datetime' => now(),
+            ]);
+
+            // Update vehicle status if vehicle is assigned
+            if ($route->vehicle_id) {
+                $vehicle = Vehicle::find($route->vehicle_id);
+                if ($vehicle) {
+                    // Check if vehicle has other active routes
+                    $hasOtherActiveRoutes = Route::where('vehicle_id', $route->vehicle_id)
+                        ->where('id', '!=', $route->id)
+                        ->whereIn('status', ['scheduled', 'in_progress'])
+                        ->exists();
+                    
+                    if (!$hasOtherActiveRoutes && $vehicle->status === 'in_use') {
+                        $vehicle->update(['status' => 'available']);
+                    }
+                }
+            }
+
+            Log::info('Route finished by driver', [
+                'route_id' => $route->id,
+                'driver_id' => $driver->id,
+                'completed_at' => $route->completed_at,
+            ]);
+
+            return response()->json([
+                'message' => 'Route finished successfully',
+                'route' => [
+                    'id' => $route->id,
+                    'status' => $route->status,
+                    'completed_at' => $route->completed_at,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error finishing route', [
+                'route_id' => $route->id,
+                'driver_id' => $driver->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Error finishing route: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

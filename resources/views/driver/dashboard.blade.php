@@ -1033,7 +1033,14 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Erro ao iniciar rota');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.message) {
                     window.location.reload();
@@ -1043,7 +1050,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erro ao iniciar rota. Tente novamente.');
+                alert('Erro ao iniciar rota: ' + error.message);
             });
         }
     }
@@ -1057,7 +1064,14 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Erro ao finalizar rota');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.message) {
                     window.location.reload();
@@ -1067,7 +1081,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erro ao finalizar rota. Tente novamente.');
+                alert('Erro ao finalizar rota: ' + error.message);
             });
         }
     }

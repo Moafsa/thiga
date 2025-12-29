@@ -211,6 +211,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/profile', [App\Http\Controllers\DriverDashboardController::class, 'profile'])->name('profile');
         Route::put('/profile', [App\Http\Controllers\DriverDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::get('/routes/{route}/map-data', [App\Http\Controllers\DriverDashboardController::class, 'getRouteMapData'])->name('route.map-data');
+        Route::post('/routes/{route}/start', [App\Http\Controllers\DriverDashboardController::class, 'startRoute'])->name('routes.start');
+        Route::post('/routes/{route}/finish', [App\Http\Controllers\DriverDashboardController::class, 'finishRoute'])->name('routes.finish');
         Route::delete('/photos/{photo}', [App\Http\Controllers\DriverDashboardController::class, 'deletePhoto'])->name('photos.delete');
         Route::post('/photos/{photo}/set-primary', [App\Http\Controllers\DriverDashboardController::class, 'setPrimaryPhoto'])->name('photos.set-primary');
         
