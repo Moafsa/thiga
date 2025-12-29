@@ -962,7 +962,7 @@
         // Load Google Maps API with Directions library
         if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places,directions&language=pt-BR&callback=initRouteMapCallback`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=pt-BR&callback=initRouteMapCallback&loading=async`;
             script.async = true;
             script.defer = true;
             document.head.appendChild(script);

@@ -321,6 +321,73 @@ class DriverDashboardController extends Controller
     }
 
     /**
+     * Update driver location from web browser (AJAX endpoint)
+     */
+    public function updateLocation(Request $request)
+    {
+        $user = Auth::user();
+        $tenant = $user->tenant;
+
+        if (!$tenant) {
+            return response()->json(['error' => 'Tenant not found'], 404);
+        }
+
+        $driver = Driver::where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$driver) {
+            return response()->json(['error' => 'Driver not found'], 404);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'accuracy' => 'nullable|numeric|min:0',
+            'route_id' => 'nullable|exists:routes,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Update driver current location
+        $driver->update([
+            'current_latitude' => $request->latitude,
+            'current_longitude' => $request->longitude,
+            'last_location_update' => now(),
+        ]);
+
+        // Create location tracking record
+        LocationTracking::create([
+            'tenant_id' => $driver->tenant_id,
+            'driver_id' => $driver->id,
+            'route_id' => $request->route_id,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'accuracy' => $request->accuracy,
+            'tracked_at' => now(),
+            'device_id' => $request->header('User-Agent'),
+            'metadata' => ['source' => 'web_browser'],
+        ]);
+
+        Log::debug('Driver location updated from web', [
+            'driver_id' => $driver->id,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+        ]);
+
+        return response()->json([
+            'message' => 'Location updated successfully',
+            'location' => [
+                'latitude' => $driver->current_latitude,
+                'longitude' => $driver->current_longitude,
+                'updated_at' => $driver->last_location_update,
+            ],
+        ]);
+    }
+
+    /**
      * Get current driver location (AJAX endpoint for polling)
      */
     public function getCurrentLocation(Request $request)

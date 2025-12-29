@@ -211,6 +211,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/profile', [App\Http\Controllers\DriverDashboardController::class, 'profile'])->name('profile');
         Route::put('/profile', [App\Http\Controllers\DriverDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::get('/location/current', [App\Http\Controllers\DriverDashboardController::class, 'getCurrentLocation'])->name('location.current');
+        Route::post('/location/update', [App\Http\Controllers\DriverDashboardController::class, 'updateLocation'])->name('location.update');
         Route::get('/routes/{route}/map-data', [App\Http\Controllers\DriverDashboardController::class, 'getRouteMapData'])->name('route.map-data');
         Route::post('/routes/{route}/start', [App\Http\Controllers\DriverDashboardController::class, 'startRoute'])->name('routes.start');
         Route::post('/routes/{route}/finish', [App\Http\Controllers\DriverDashboardController::class, 'finishRoute'])->name('routes.finish');

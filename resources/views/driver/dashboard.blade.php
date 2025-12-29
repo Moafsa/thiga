@@ -1091,10 +1091,13 @@
         }
     }
 
-    // Auto-update location
+    // Auto-update location from browser geolocation
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition(function(position) {
-            fetch('/api/driver/location/update', {
+            const routeId = {{ $activeRoute->id ?? 'null' }};
+            
+            // Update location on server using web endpoint (session auth)
+            fetch('/driver/location/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1104,21 +1107,54 @@
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
                     accuracy: position.coords.accuracy,
-                    route_id: {{ $activeRoute->id ?? 'null' }},
+                    route_id: routeId,
                 })
-            }).catch(err => console.error('Error updating location:', err));
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Location updated on server:', data);
+            })
+            .catch(err => {
+                console.error('Error updating location on server:', err);
+            });
             
-            // Update map if it exists
-            if (window.routeMap && window.driverMarker) {
+            // Update map marker immediately for better UX
+            if (window.routeMap) {
                 const newPosition = { lat: position.coords.latitude, lng: position.coords.longitude };
-                window.driverMarker.setPosition(newPosition);
-                window.routeMap.setCenter(newPosition);
+                
+                if (window.driverMarker) {
+                    window.driverMarker.setPosition(newPosition);
+                } else {
+                    // Create marker if it doesn't exist
+                    window.driverMarker = new google.maps.Marker({
+                        position: newPosition,
+                        map: window.routeMap,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 12,
+                            fillColor: '#2196F3',
+                            fillOpacity: 1,
+                            strokeColor: '#FFFFFF',
+                            strokeWeight: 3,
+                        },
+                        title: 'Sua Localização Atual',
+                        zIndex: 1000,
+                        animation: google.maps.Animation.DROP
+                    });
+                }
             }
         }, function(error) {
             console.error('Geolocation error:', error);
+            if (error.code === 1) {
+                console.warn('Geolocation permission denied');
+            } else if (error.code === 2) {
+                console.warn('Geolocation position unavailable');
+            } else if (error.code === 3) {
+                console.warn('Geolocation timeout');
+            }
         }, {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 10000, // Increased timeout
             maximumAge: 0
         });
     }
@@ -1134,10 +1170,10 @@
             return;
         }
 
-        // Load Google Maps API with Directions library
+        // Load Google Maps API (Directions API is included by default, no need to specify as library)
         if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places,directions&language=pt-BR&callback=initRouteMapCallback`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=pt-BR&callback=initRouteMapCallback&loading=async`;
             script.async = true;
             script.defer = true;
             document.head.appendChild(script);
