@@ -679,7 +679,7 @@
             </span>
         </div>
         <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
-            Última atualização: {{ $driver->last_location_update ? $driver->last_location_update->diffForHumans() : 'Nunca' }}
+            Última atualização: {{ (isset($driver->attributes["last_location_update"]) && $driver->attributes["last_location_update"]) ? \Carbon\Carbon::parse($driver->attributes["last_location_update"])->diffForHumans() : "Nunca" }}
         </p>
     </div>
     @endif
