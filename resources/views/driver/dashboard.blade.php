@@ -945,6 +945,7 @@
     let directionsRenderer = null; // Directions renderer for route drawing
     let historyPolyline = null; // Polyline for location history path
     let locationUpdateInterval = null; // Interval for polling location updates
+    let proximityCheckInterval = null; // Interval for proximity checking
 
     function updateShipmentStatus(shipmentId, status) {
         currentShipmentId = shipmentId;

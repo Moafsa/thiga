@@ -351,16 +351,39 @@ class DriverDashboardController extends Controller
 
         // If driver location is old but we have recent tracking, use that
         // Use attributes array to access raw value and avoid accessor recursion
-        $lastUpdateRaw = isset($driver->attributes['last_location_update']) ? $driver->attributes['last_location_update'] : null;
+        $lastUpdateRaw = isset($driver->attributes['last_location_update']) && $driver->attributes['last_location_update'] 
+            ? $driver->attributes['last_location_update'] 
+            : null;
         
-        if ($recentTracking && (!$lastUpdateRaw || \Carbon\Carbon::parse($lastUpdateRaw)->lt($recentTracking->tracked_at))) {
-            $driver->update([
-                'current_latitude' => $recentTracking->latitude,
-                'current_longitude' => $recentTracking->longitude,
-                'last_location_update' => $recentTracking->tracked_at,
-            ]);
-            $driver->refresh();
-            $lastUpdateRaw = $driver->attributes['last_location_update'];
+        if ($recentTracking) {
+            $shouldUpdate = false;
+            if (!$lastUpdateRaw) {
+                $shouldUpdate = true;
+            } else {
+                try {
+                    $lastUpdateCarbon = \Carbon\Carbon::parse($lastUpdateRaw);
+                    if ($lastUpdateCarbon->lt($recentTracking->tracked_at)) {
+                        $shouldUpdate = true;
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Error parsing last_location_update', [
+                        'driver_id' => $driver->id,
+                        'last_update_raw' => $lastUpdateRaw,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $shouldUpdate = true; // Update if we can't parse the date
+                }
+            }
+            
+            if ($shouldUpdate) {
+                $driver->update([
+                    'current_latitude' => $recentTracking->latitude,
+                    'current_longitude' => $recentTracking->longitude,
+                    'last_location_update' => $recentTracking->tracked_at,
+                ]);
+                $driver->refresh();
+                $lastUpdateRaw = $driver->attributes['last_location_update'] ?? null;
+            }
         }
 
         Log::debug('Driver location requested', [
@@ -384,7 +407,23 @@ class DriverDashboardController extends Controller
                     'lat' => floatval($driver->current_latitude),
                     'lng' => floatval($driver->current_longitude),
                 ] : null,
-                'last_location_update' => $lastUpdateRaw ? \Carbon\Carbon::parse($lastUpdateRaw)->toIso8601String() : null,
+                'last_location_update' => $lastUpdateRaw ? (function() use ($lastUpdateRaw) {
+                    try {
+                        if (is_string($lastUpdateRaw)) {
+                            return \Carbon\Carbon::parse($lastUpdateRaw)->toIso8601String();
+                        } elseif ($lastUpdateRaw instanceof \Carbon\Carbon) {
+                            return $lastUpdateRaw->toIso8601String();
+                        }
+                        return null;
+                    } catch (\Exception $e) {
+                        Log::warning('Error parsing last_location_update for JSON response', [
+                            'last_update_raw' => $lastUpdateRaw,
+                            'type' => gettype($lastUpdateRaw),
+                            'error' => $e->getMessage(),
+                        ]);
+                        return null;
+                    }
+                })() : null,
             ],
         ]);
     }
