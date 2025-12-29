@@ -343,12 +343,33 @@ class DriverDashboardController extends Controller
         // Refresh driver data to get latest location from database
         $driver->refresh();
 
+        // Also check recent location tracking records
+        $recentTracking = LocationTracking::where('driver_id', $driver->id)
+            ->where('tracked_at', '>=', now()->subMinutes(5))
+            ->orderBy('tracked_at', 'desc')
+            ->first();
+
+        // If driver location is old but we have recent tracking, use that
+        if ($recentTracking && (!$driver->last_location_update || $driver->last_location_update->lt($recentTracking->tracked_at))) {
+            $driver->update([
+                'current_latitude' => $recentTracking->latitude,
+                'current_longitude' => $recentTracking->longitude,
+                'last_location_update' => $recentTracking->tracked_at,
+            ]);
+            $driver->refresh();
+        }
+
         Log::debug('Driver location requested', [
             'driver_id' => $driver->id,
             'has_location' => ($driver->current_latitude && $driver->current_longitude),
             'latitude' => $driver->current_latitude,
             'longitude' => $driver->current_longitude,
             'last_update' => $driver->last_location_update,
+            'recent_tracking' => $recentTracking ? [
+                'lat' => $recentTracking->latitude,
+                'lng' => $recentTracking->longitude,
+                'tracked_at' => $recentTracking->tracked_at,
+            ] : null,
         ]);
 
         return response()->json([
