@@ -349,11 +349,12 @@ class Driver extends Model
 
     public function getLastLocationUpdateAttribute(): string
     {
-        if (!$this->last_location_update) {
+        // Use attributes array to avoid recursion
+        if (!isset($this->attributes['last_location_update']) || !$this->attributes['last_location_update']) {
             return 'Nunca';
         }
 
-        return $this->last_location_update->diffForHumans();
+        return \Carbon\Carbon::parse($this->attributes['last_location_update'])->diffForHumans();
     }
 
     /**

@@ -350,13 +350,17 @@ class DriverDashboardController extends Controller
             ->first();
 
         // If driver location is old but we have recent tracking, use that
-        if ($recentTracking && (!$driver->last_location_update || $driver->last_location_update->lt($recentTracking->tracked_at))) {
+        // Use attributes array to access raw value and avoid accessor recursion
+        $lastUpdateRaw = isset($driver->attributes['last_location_update']) ? $driver->attributes['last_location_update'] : null;
+        
+        if ($recentTracking && (!$lastUpdateRaw || \Carbon\Carbon::parse($lastUpdateRaw)->lt($recentTracking->tracked_at))) {
             $driver->update([
                 'current_latitude' => $recentTracking->latitude,
                 'current_longitude' => $recentTracking->longitude,
                 'last_location_update' => $recentTracking->tracked_at,
             ]);
             $driver->refresh();
+            $lastUpdateRaw = $driver->attributes['last_location_update'];
         }
 
         Log::debug('Driver location requested', [
@@ -364,7 +368,7 @@ class DriverDashboardController extends Controller
             'has_location' => ($driver->current_latitude && $driver->current_longitude),
             'latitude' => $driver->current_latitude,
             'longitude' => $driver->current_longitude,
-            'last_update' => $driver->last_location_update,
+            'last_update_raw' => $lastUpdateRaw,
             'recent_tracking' => $recentTracking ? [
                 'lat' => $recentTracking->latitude,
                 'lng' => $recentTracking->longitude,
@@ -380,7 +384,7 @@ class DriverDashboardController extends Controller
                     'lat' => floatval($driver->current_latitude),
                     'lng' => floatval($driver->current_longitude),
                 ] : null,
-                'last_location_update' => $driver->last_location_update ? $driver->last_location_update->toIso8601String() : null,
+                'last_location_update' => $lastUpdateRaw ? \Carbon\Carbon::parse($lastUpdateRaw)->toIso8601String() : null,
             ],
         ]);
     }
