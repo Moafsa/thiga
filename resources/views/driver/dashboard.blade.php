@@ -946,6 +946,7 @@
     let historyPolyline = null; // Polyline for location history path
     let locationUpdateInterval = null; // Interval for polling location updates
     let proximityCheckInterval = null; // Interval for proximity checking
+    let notifiedShipments = new Set(); // Track shipments that have been notified for proximity
 
     function updateShipmentStatus(shipmentId, status) {
         currentShipmentId = shipmentId;
