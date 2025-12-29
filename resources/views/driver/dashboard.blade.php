@@ -1689,6 +1689,69 @@
             .catch(error => console.error('Error loading route history:', error));
     }
 
+    // Poll driver location in real-time
+    function startLocationPolling() {
+        // Clear any existing interval
+        if (locationUpdateInterval) {
+            clearInterval(locationUpdateInterval);
+        }
+
+        // Poll every 10 seconds
+        locationUpdateInterval = setInterval(function() {
+            updateDriverLocation();
+        }, 10000);
+
+        // Also update immediately
+        updateDriverLocation();
+    }
+
+    // Stop location polling
+    function stopLocationPolling() {
+        if (locationUpdateInterval) {
+            clearInterval(locationUpdateInterval);
+            locationUpdateInterval = null;
+        }
+    }
+
+    // Update driver location from server
+    function updateDriverLocation() {
+        fetch('/api/driver/route/active')
+            .then(response => response.json())
+            .then(data => {
+                if (data.driver && data.driver.current_location) {
+                    const newPosition = {
+                        lat: data.driver.current_location.lat,
+                        lng: data.driver.current_location.lng
+                    };
+
+                    // Update or create driver marker
+                    if (window.driverMarker && window.routeMap) {
+                        window.driverMarker.setPosition(newPosition);
+                    } else if (window.routeMap) {
+                        window.driverMarker = new google.maps.Marker({
+                            position: newPosition,
+                            map: window.routeMap,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 12,
+                                fillColor: '#2196F3',
+                                fillOpacity: 1,
+                                strokeColor: '#FFFFFF',
+                                strokeWeight: 3,
+                            },
+                            title: 'Sua Localização Atual',
+                            zIndex: 1000,
+                            animation: google.maps.Animation.DROP
+                        });
+                    }
+
+                    // Reload history to update path
+                    loadRouteHistory();
+                }
+            })
+            .catch(error => console.error('Error fetching driver location:', error));
+    }
+
     // Calculate distance using Haversine formula (returns km)
     function calculateDistance(lat1, lng1, lat2, lng2) {
         const R = 6371; // Earth radius in km
