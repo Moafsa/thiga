@@ -1434,13 +1434,15 @@
         const waypoints = [];
         
         // Add origin (depot/branch) as first waypoint
-        if (routeOriginLat && routeOriginLng) {
-            waypoints.push({ lat: routeOriginLat, lng: routeOriginLng });
+        if (isValidCoordinate(routeOriginLat) && isValidCoordinate(routeOriginLng)) {
+            waypoints.push({ lat: parseFloat(routeOriginLat), lng: parseFloat(routeOriginLng) });
         }
         
         // Add delivery locations as waypoints
         deliveryLocations.forEach(function(shipment) {
-            waypoints.push({ lat: shipment.lat, lng: shipment.lng });
+            if (isValidCoordinate(shipment.lat) && isValidCoordinate(shipment.lng)) {
+                waypoints.push({ lat: parseFloat(shipment.lat), lng: parseFloat(shipment.lng) });
+            }
         });
         
         window.routeMap.fitBounds(bounds, {
