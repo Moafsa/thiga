@@ -321,6 +321,33 @@ class DriverDashboardController extends Controller
     }
 
     /**
+     * Get current driver location (AJAX endpoint for polling)
+     */
+    public function getCurrentLocation(Request $request)
+    {
+        $user = Auth::user();
+        $driver = Driver::where('user_id', $user->id)->first();
+
+        if (!$driver) {
+            return response()->json(['error' => 'Driver not found'], 404);
+        }
+
+        // Refresh driver data to get latest location
+        $driver->refresh();
+
+        return response()->json([
+            'driver' => [
+                'id' => $driver->id,
+                'current_location' => ($driver->current_latitude && $driver->current_longitude) ? [
+                    'lat' => floatval($driver->current_latitude),
+                    'lng' => floatval($driver->current_longitude),
+                ] : null,
+                'last_location_update' => $driver->last_location_update ? $driver->last_location_update->toIso8601String() : null,
+            ],
+        ]);
+    }
+
+    /**
      * Get route map data (AJAX endpoint)
      */
     public function getRouteMapData(Request $request, Route $route)

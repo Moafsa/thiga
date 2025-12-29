@@ -1715,7 +1715,13 @@
 
     // Update driver location from server
     function updateDriverLocation() {
-        fetch('/api/driver/route/active')
+        fetch('/driver/location/current', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.driver && data.driver.current_location) {
@@ -1726,7 +1732,17 @@
 
                     // Update or create driver marker
                     if (window.driverMarker && window.routeMap) {
+                        const oldPosition = window.driverMarker.getPosition();
+                        const hasMoved = !oldPosition || 
+                            (Math.abs(oldPosition.lat() - newPosition.lat) > 0.0001 || 
+                             Math.abs(oldPosition.lng() - newPosition.lng) > 0.0001);
+                        
                         window.driverMarker.setPosition(newPosition);
+                        
+                        // Reload history to update path if driver moved
+                        if (hasMoved) {
+                            loadRouteHistory();
+                        }
                     } else if (window.routeMap) {
                         window.driverMarker = new google.maps.Marker({
                             position: newPosition,
@@ -1743,13 +1759,15 @@
                             zIndex: 1000,
                             animation: google.maps.Animation.DROP
                         });
+                        
+                        // Load history when marker is first created
+                        loadRouteHistory();
                     }
-
-                    // Reload history to update path
-                    loadRouteHistory();
                 }
             })
-            .catch(error => console.error('Error fetching driver location:', error));
+            .catch(error => {
+                console.error('Error fetching driver location:', error);
+            });
     }
 
     // Calculate distance using Haversine formula (returns km)
