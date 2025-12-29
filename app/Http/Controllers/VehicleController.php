@@ -128,11 +128,18 @@ class VehicleController extends Controller
             'current_odometer' => 'nullable|integer|min:0',
             'maintenance_interval_km' => 'nullable|integer|min:0',
             'maintenance_interval_days' => 'nullable|integer|min:0',
+            'fuel_consumption_per_km' => 'nullable|numeric|min:0|max:50',
+            'tank_capacity' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         // Normalize plate (remove dashes, uppercase)
         $validated['plate'] = strtoupper(preg_replace('/[^A-Z0-9]/', '', $validated['plate']));
+
+        // Convert km/L to L/km for storage (fuel_consumption_per_km stores L/km for cost calculations)
+        if (isset($validated['fuel_consumption_per_km']) && $validated['fuel_consumption_per_km'] > 0) {
+            $validated['fuel_consumption_per_km'] = round(1 / $validated['fuel_consumption_per_km'], 4);
+        }
 
         $validated['tenant_id'] = $tenant->id;
         $validated['is_active'] = $request->has('is_active') ? true : false;
@@ -156,6 +163,9 @@ class VehicleController extends Controller
             'drivers',
             'routes' => function($query) {
                 $query->orderBy('scheduled_date', 'desc')->limit(10);
+            },
+            'fuelRefuelings' => function($query) {
+                $query->orderBy('odometer_reading', 'desc')->limit(20);
             }
             // 'maintenances' will be loaded when VehicleMaintenance model is created
         ]);
@@ -171,7 +181,10 @@ class VehicleController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('vehicles.show', compact('vehicle', 'availableDrivers'));
+        // Get fuel consumption statistics
+        $fuelStats = $vehicle->getFuelConsumptionStats();
+
+        return view('vehicles.show', compact('vehicle', 'availableDrivers', 'fuelStats'));
     }
 
     /**
@@ -249,11 +262,19 @@ class VehicleController extends Controller
             'current_odometer' => 'nullable|integer|min:0',
             'maintenance_interval_km' => 'nullable|integer|min:0',
             'maintenance_interval_days' => 'nullable|integer|min:0',
+            'fuel_consumption_per_km' => 'nullable|numeric|min:0|max:50',
+            'tank_capacity' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         // Normalize plate
         $validated['plate'] = strtoupper(preg_replace('/[^A-Z0-9]/', '', $validated['plate']));
+        
+        // Convert km/L to L/km for storage (fuel_consumption_per_km stores L/km for cost calculations)
+        if (isset($validated['fuel_consumption_per_km']) && $validated['fuel_consumption_per_km'] > 0) {
+            $validated['fuel_consumption_per_km'] = round(1 / $validated['fuel_consumption_per_km'], 4);
+        }
+        
         $validated['is_active'] = $request->has('is_active') ? true : false;
 
         $vehicle->update($validated);

@@ -18,6 +18,9 @@ class Expense extends Model
         'route_id',
         'description',
         'amount',
+        'fuel_liters',
+        'odometer_reading',
+        'price_per_liter',
         'due_date',
         'paid_at',
         'status',
@@ -28,6 +31,9 @@ class Expense extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'fuel_liters' => 'decimal:2',
+        'odometer_reading' => 'integer',
+        'price_per_liter' => 'decimal:4',
         'due_date' => 'date',
         'paid_at' => 'date',
         'metadata' => 'array',
@@ -156,6 +162,23 @@ class Expense extends Model
     public function scopeByDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('due_date', [$startDate, $endDate]);
+    }
+
+    /**
+     * Check if expense is a fuel refueling (has fuel_liters and odometer_reading).
+     */
+    public function isFuelRefueling(): bool
+    {
+        return !is_null($this->fuel_liters) && !is_null($this->odometer_reading);
+    }
+
+    /**
+     * Scope to filter fuel refueling expenses.
+     */
+    public function scopeFuelRefuelings($query)
+    {
+        return $query->whereNotNull('fuel_liters')
+            ->whereNotNull('odometer_reading');
     }
 }
 

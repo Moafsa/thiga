@@ -372,6 +372,276 @@
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 8px;
     }
+
+    /* Map Container Styles */
+    .route-map-container {
+        background-color: var(--cor-secundaria);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .route-map-container h3 {
+        color: var(--cor-acento);
+        margin-bottom: 15px;
+        font-size: 1.2em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    #route-map {
+        width: 100%;
+        height: 400px;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .address-info {
+        margin-top: 10px;
+        padding: 12px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        font-size: 0.9em;
+        line-height: 1.6;
+    }
+
+    .address-info strong {
+        color: var(--cor-acento);
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .address-line {
+        color: rgba(245, 245, 245, 0.9);
+        margin: 3px 0;
+    }
+
+    .address-line i {
+        color: var(--cor-acento);
+        margin-right: 8px;
+        width: 20px;
+    }
+
+    /* Route Options Styles */
+    .route-options {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .route-option-btn {
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 107, 53, 0.5);
+        border-radius: 8px;
+        color: var(--cor-texto-claro);
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.3s ease;
+    }
+
+    .route-option-btn:hover {
+        background: rgba(255, 107, 53, 0.2);
+        border-color: var(--cor-acento);
+    }
+
+    .route-option-btn.active {
+        background: var(--cor-acento);
+        border-color: var(--cor-acento);
+        color: var(--cor-principal);
+    }
+
+    /* History Trail Styles */
+    .history-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+
+    .history-toggle {
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: var(--cor-texto-claro);
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+
+    .history-toggle.active {
+        background: rgba(33, 150, 243, 0.3);
+        border-color: #2196F3;
+        color: #2196F3;
+    }
+
+    /* Notification Styles */
+    .proximity-notification {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 2000;
+        max-width: 300px;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .proximity-notification h4 {
+        margin: 0 0 8px 0;
+        font-size: 1.1em;
+    }
+
+    .proximity-notification p {
+        margin: 5px 0;
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
+
+    .close-notification {
+        position: absolute;
+        top: 5px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.2em;
+        cursor: pointer;
+        opacity: 0.8;
+    }
+
+    .close-notification:hover {
+        opacity: 1;
+    }
+
+    /* Navigation Button Styles */
+    .nav-btn {
+        padding: 10px 16px;
+        background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nav-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+    }
+
+    .nav-btn:active {
+        transform: translateY(0);
+    }
+
+    .nav-btn i {
+        font-size: 1.1em;
+    }
+
+    /* Navigation App Selector */
+    .nav-app-selector {
+        position: relative;
+        display: inline-block;
+    }
+
+    .nav-app-menu {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        background: var(--cor-secundaria);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 5px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        display: none;
+        z-index: 1000;
+        min-width: 200px;
+    }
+
+    .nav-app-menu.show {
+        display: block;
+    }
+
+    .nav-app-option {
+        padding: 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--cor-texto-claro);
+        transition: background 0.2s ease;
+        margin-bottom: 5px;
+    }
+
+    .nav-app-option:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-app-option:last-child {
+        margin-bottom: 0;
+    }
+
+    .nav-app-option i {
+        width: 20px;
+        text-align: center;
+    }
+
+    .nav-app-option.active {
+        background: rgba(33, 150, 243, 0.2);
+        color: #2196F3;
+    }
+
+    /* Navigation settings */
+    .nav-settings {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        font-size: 0.85em;
+        color: rgba(245, 245, 245, 0.7);
+    }
+
+    .nav-settings-toggle {
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 5px;
+        padding: 5px 10px;
+        color: var(--cor-texto-claro);
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+
+    .nav-settings-toggle:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
 </style>
 <?php $__env->stopPush(); ?>
 
@@ -413,6 +683,49 @@
     </div>
     <?php endif; ?>
 
+    <!-- Route Map -->
+    <?php if($activeRoute && (($driver->current_latitude && $driver->current_longitude) || $shipments->filter(function($s) { return $s->delivery_latitude && $s->delivery_longitude; })->count() > 0)): ?>
+    <div class="route-map-container">
+        <h3><i class="fas fa-map"></i> Mapa da Rota</h3>
+        <div class="route-options">
+            <button class="route-option-btn active" onclick="switchRoute('fastest')" id="route-fastest">
+                <i class="fas fa-tachometer-alt"></i> Mais Rápido
+            </button>
+            <button class="route-option-btn" onclick="switchRoute('shortest')" id="route-shortest">
+                <i class="fas fa-route"></i> Mais Curto
+            </button>
+            <button class="route-option-btn" onclick="switchRoute('avoidTolls')" id="route-avoid-tolls">
+                <i class="fas fa-road"></i> Evitar Pedágios
+            </button>
+            <div class="history-controls" style="margin-left: auto;">
+                <div class="nav-settings">
+                    <span><i class="fas fa-cog"></i> Navegação:</span>
+                    <div class="nav-app-selector">
+                        <button class="nav-settings-toggle" onclick="toggleNavAppMenu()" id="nav-app-toggle">
+                            <span id="nav-app-label">Google Maps</span> <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="nav-app-menu" id="nav-app-menu">
+                            <div class="nav-app-option active" onclick="setNavApp('google')">
+                                <i class="fab fa-google"></i> Google Maps
+                            </div>
+                            <div class="nav-app-option" onclick="setNavApp('waze')">
+                                <i class="fas fa-map-marked-alt"></i> Waze
+                            </div>
+                            <div class="nav-app-option" onclick="setNavApp('apple')">
+                                <i class="fas fa-map"></i> Apple Maps
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="history-toggle" onclick="toggleRouteHistory()" id="history-toggle">
+                    <i class="fas fa-history"></i> Mostrar Histórico
+                </button>
+            </div>
+        </div>
+        <div id="route-map"></div>
+    </div>
+    <?php endif; ?>
+
     <!-- Shipments List -->
     <div id="shipments">
         <h2 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1.2em;">
@@ -425,9 +738,34 @@
                 <div class="shipment-info">
                     <h3><?php echo e($shipment->tracking_number); ?></h3>
                     <p><?php echo e($shipment->title); ?></p>
-                    <p><i class="fas fa-map-marker-alt"></i> <?php echo e($shipment->delivery_city); ?>/<?php echo e($shipment->delivery_state); ?></p>
                     <?php if($shipment->receiverClient): ?>
                     <p><i class="fas fa-user"></i> <?php echo e($shipment->receiverClient->name); ?></p>
+                    <?php endif; ?>
+                    <?php if($shipment->delivery_address || $shipment->delivery_city || $shipment->delivery_state || $shipment->delivery_zip_code): ?>
+                    <div class="address-info">
+                        <strong><i class="fas fa-map-marker-alt"></i> Endereço de Entrega:</strong>
+                        <?php if($shipment->delivery_address): ?>
+                        <div class="address-line">
+                            <i class="fas fa-road"></i><?php echo e($shipment->delivery_address); ?>
+
+                        </div>
+                        <?php endif; ?>
+                        <div class="address-line">
+                            <i class="fas fa-city"></i>
+                            <?php if($shipment->delivery_city): ?>
+                                <?php echo e($shipment->delivery_city); ?>
+
+                            <?php endif; ?>
+                            <?php if($shipment->delivery_state): ?>
+                                / <?php echo e($shipment->delivery_state); ?>
+
+                            <?php endif; ?>
+                            <?php if($shipment->delivery_zip_code): ?>
+                                - CEP: <?php echo e($shipment->delivery_zip_code); ?>
+
+                            <?php endif; ?>
+                        </div>
+                    </div>
                     <?php endif; ?>
                 </div>
                 <span class="status-badge <?php echo e($shipment->status); ?>">
@@ -435,6 +773,12 @@
 
                 </span>
             </div>
+            
+            <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
+            <button class="nav-btn" onclick="openNavigation(<?php echo e($shipment->delivery_latitude); ?>, <?php echo e($shipment->delivery_longitude); ?>, '<?php echo e(addslashes($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state)); ?>')">
+                <i class="fas fa-directions"></i> Abrir Navegação GPS
+            </button>
+            <?php endif; ?>
             
             <div class="shipment-actions">
                 <?php if($shipment->status === 'pending' || $shipment->status === 'scheduled'): ?>
@@ -754,6 +1098,13 @@
                     route_id: <?php echo e($activeRoute->id ?? 'null'); ?>,
                 })
             }).catch(err => console.error('Error updating location:', err));
+            
+            // Update map if it exists
+            if (window.routeMap && window.driverMarker) {
+                const newPosition = { lat: position.coords.latitude, lng: position.coords.longitude };
+                window.driverMarker.setPosition(newPosition);
+                window.routeMap.setCenter(newPosition);
+            }
         }, function(error) {
             console.error('Geolocation error:', error);
         }, {
@@ -762,6 +1113,802 @@
             maximumAge: 0
         });
     }
+
+    // Initialize route map
+    function initRouteMap() {
+        const mapContainer = document.getElementById('route-map');
+        if (!mapContainer) return;
+
+        const apiKey = '<?php echo e(config("services.google_maps.api_key")); ?>';
+        if (!apiKey) {
+            mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>Google Maps API key não configurada.</p></div>';
+            return;
+        }
+
+        // Load Google Maps API with Directions library
+        if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places,directions&language=pt-BR&callback=initRouteMapCallback`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+            
+            window.initRouteMapCallback = function() {
+                initRouteMap();
+            };
+            return;
+        }
+
+        // Get driver current location
+        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
+        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
+        
+        // Get delivery locations
+        <?php
+            $deliveryLocationsArray = $shipments->filter(function($s) {
+                return $s->delivery_latitude && $s->delivery_longitude;
+            })->map(function($shipment) {
+                return [
+                    'id' => $shipment->id,
+                    'tracking_number' => $shipment->tracking_number,
+                    'title' => $shipment->title,
+                    'address' => ($shipment->delivery_address ?? '') . ', ' . ($shipment->delivery_city ?? '') . '/' . ($shipment->delivery_state ?? ''),
+                    'lat' => floatval($shipment->delivery_latitude),
+                    'lng' => floatval($shipment->delivery_longitude),
+                    'status' => $shipment->status,
+                ];
+            })->values();
+        ?>
+        const deliveryLocations = <?php echo json_encode($deliveryLocationsArray, 15, 512) ?>;
+
+        // Determine map center
+        let center = { lat: -23.5505, lng: -46.6333 }; // São Paulo default
+        
+        if (driverLat && driverLng) {
+            center = { lat: driverLat, lng: driverLng };
+        } else if (deliveryLocations.length > 0) {
+            center = { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng };
+        }
+
+        // Initialize map
+        window.routeMap = new google.maps.Map(mapContainer, {
+            center: center,
+            zoom: 12,
+            mapTypeId: 'roadmap',
+            disableDefaultUI: false,
+            zoomControl: true,
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            },
+            scaleControl: true,
+            streetViewControl: false,
+            fullscreenControl: true
+        });
+
+        const bounds = new google.maps.LatLngBounds();
+        const markers = [];
+
+        // Add driver location marker
+        if (driverLat && driverLng) {
+            const driverPosition = { lat: driverLat, lng: driverLng };
+            window.driverMarker = new google.maps.Marker({
+                position: driverPosition,
+                map: window.routeMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#2196F3',
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 3,
+                },
+                title: 'Sua Localização Atual',
+                zIndex: 1000
+            });
+
+            const driverInfo = new google.maps.InfoWindow({
+                content: `<div style="padding: 10px; min-width: 200px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2196F3;">Sua Localização</h4>
+                    <p style="margin: 5px 0; color: #666;">Motorista</p>
+                </div>`
+            });
+
+            window.driverMarker.addListener('click', function() {
+                driverInfo.open(window.routeMap, window.driverMarker);
+            });
+
+            bounds.extend(driverPosition);
+            markers.push(window.driverMarker);
+        }
+
+        // Add delivery location markers
+        deliveryLocations.forEach(function(shipment, index) {
+            const deliveryPosition = { lat: shipment.lat, lng: shipment.lng };
+            
+            // Different colors based on status
+            let markerColor = '#4CAF50'; // Green for delivered
+            if (shipment.status === 'pending' || shipment.status === 'scheduled') {
+                markerColor = '#FFC107'; // Yellow for pending
+            } else if (shipment.status === 'picked_up' || shipment.status === 'in_transit') {
+                markerColor = '#2196F3'; // Blue for in transit
+            } else if (shipment.status === 'exception') {
+                markerColor = '#F44336'; // Red for exception
+            }
+
+            const marker = new google.maps.Marker({
+                position: deliveryPosition,
+                map: window.routeMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: markerColor,
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 3,
+                },
+                title: `Entrega: ${shipment.tracking_number}`,
+                label: {
+                    text: String(index + 1),
+                    color: '#FFFFFF',
+                    fontWeight: 'bold',
+                    fontSize: '12px'
+                },
+                zIndex: 500
+            });
+
+            // Escape address for safe use in template string
+            const safeAddress = (shipment.address || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            const info = new google.maps.InfoWindow({
+                content: `<div style="padding: 10px; min-width: 250px;">
+                    <h4 style="margin: 0 0 10px 0; color: ${markerColor};">Entrega #${index + 1}</h4>
+                    <p style="margin: 5px 0; color: #666;"><strong>Rastreamento:</strong> ${shipment.tracking_number}</p>
+                    <p style="margin: 5px 0; color: #666;"><strong>Descrição:</strong> ${shipment.title}</p>
+                    <p style="margin: 5px 0; color: #666;"><strong>Endereço:</strong> ${shipment.address}</p>
+                    <p style="margin: 5px 0; color: #666;"><strong>Status:</strong> ${shipment.status}</p>
+                    <button onclick="openNavigation(${shipment.lat}, ${shipment.lng}, ${safeAddress ? "'" + safeAddress + "'" : 'null'}); google.maps.event.clearInstanceListeners(this);" 
+                            style="margin-top: 10px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
+                        <i class="fas fa-directions"></i> Abrir Navegação GPS
+                    </button>
+                </div>`
+            });
+
+            marker.addListener('click', function() {
+                info.open(window.routeMap, marker);
+            });
+
+            bounds.extend(deliveryPosition);
+            markers.push(marker);
+        });
+
+        // Fit bounds to show all markers
+        if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+            // If all markers are at same location, zoom to that location
+            const extendPoint1 = new google.maps.LatLng(bounds.getNorthEast().lat() + 0.01, bounds.getNorthEast().lng() + 0.01);
+            const extendPoint2 = new google.maps.LatLng(bounds.getNorthEast().lat() - 0.01, bounds.getNorthEast().lng() - 0.01);
+            bounds.extend(extendPoint1);
+            bounds.extend(extendPoint2);
+        }
+        
+        window.routeMap.fitBounds(bounds);
+
+        // Draw route if we have driver location and delivery locations
+        if (driverLat && driverLng && deliveryLocations.length > 0) {
+            const origin = { lat: driverLat, lng: driverLng };
+            const cacheKey = getCacheKey(currentRouteMode, origin, deliveryLocations);
+            
+            // Check cache (5 minute TTL)
+            const cached = localStorage.getItem('route_cache_' + cacheKey);
+            if (cached) {
+                try {
+                    const cachedData = JSON.parse(cached);
+                    if (Date.now() - cachedData.timestamp < 300000) { // 5 minutes
+                        if (!directionsRenderer) {
+                            directionsRenderer = new google.maps.DirectionsRenderer({
+                                map: window.routeMap,
+                                suppressMarkers: true,
+                                polylineOptions: {
+                                    strokeColor: '#FF6B35',
+                                    strokeWeight: 5,
+                                    strokeOpacity: 0.8
+                                }
+                            });
+                        }
+                        window.directionsRenderer = directionsRenderer;
+                        directionsRenderer.setDirections(cachedData.response);
+                        updateRouteSummary(cachedData.response);
+                        return; // Use cached route
+                    }
+                } catch (e) {
+                    console.warn('Error reading cached route:', e);
+                }
+            }
+
+            const directionsService = new google.maps.DirectionsService();
+            if (!directionsRenderer) {
+                directionsRenderer = new google.maps.DirectionsRenderer({
+                    map: window.routeMap,
+                    suppressMarkers: true,
+                    polylineOptions: {
+                        strokeColor: '#FF6B35',
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8
+                    }
+                });
+            }
+            window.directionsRenderer = directionsRenderer;
+
+            // Create waypoints from delivery locations (limit to 23 waypoints max for Google Maps API)
+            const waypoints = deliveryLocations.slice(0, 23).map(function(shipment) {
+                return {
+                    location: { lat: shipment.lat, lng: shipment.lng },
+                    stopover: true
+                };
+            });
+
+            // Determine destination (last delivery point or same as origin if only one waypoint)
+            let destination;
+            if (deliveryLocations.length > 1 && waypoints.length > 0) {
+                destination = { lat: deliveryLocations[deliveryLocations.length - 1].lat, lng: deliveryLocations[deliveryLocations.length - 1].lng };
+            } else if (waypoints.length > 0) {
+                destination = { lat: waypoints[0].location.lat, lng: waypoints[0].location.lng };
+            } else {
+                destination = { lat: driverLat, lng: driverLng };
+            }
+
+            // Build route request with mode support
+            const routeRequest = {
+                origin: origin,
+                destination: destination,
+                waypoints: waypoints.length > 1 ? waypoints.slice(0, -1) : [],
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC,
+                optimizeWaypoints: false
+            };
+
+            // Add route preferences based on mode
+            if (currentRouteMode === 'avoidTolls') {
+                routeRequest.avoidTolls = true;
+            }
+
+            // Request directions
+            directionsService.route(routeRequest, function(response, status) {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                    
+                    // Cache the route
+                    try {
+                        const routeData = {
+                            response: response,
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem('route_cache_' + cacheKey, JSON.stringify(routeData));
+                    } catch (e) {
+                        console.warn('Could not cache route:', e);
+                    }
+                    
+                    updateRouteSummary(response);
+                } else {
+                    console.warn('Directions request failed due to ' + status);
+                    // Still show markers even if route calculation fails
+                }
+            });
+        } else if (deliveryLocations.length > 1 && !driverLat) {
+            // If no driver location but multiple delivery points, draw route between delivery points
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer({
+                map: window.routeMap,
+                suppressMarkers: true,
+                polylineOptions: {
+                    strokeColor: '#FF6B35',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8
+                }
+            });
+
+            const waypoints = deliveryLocations.slice(1, 24).map(function(shipment) {
+                return {
+                    location: { lat: shipment.lat, lng: shipment.lng },
+                    stopover: true
+                };
+            });
+
+            directionsService.route({
+                origin: { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng },
+                destination: { lat: deliveryLocations[deliveryLocations.length - 1].lat, lng: deliveryLocations[deliveryLocations.length - 1].lng },
+                waypoints: waypoints.slice(0, -1),
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC,
+                optimizeWaypoints: false
+            }, function(response, status) {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                }
+            });
+        }
+    }
+
+    // Detect device type
+    function detectDevice() {
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        
+        if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+            return 'ios';
+        }
+        
+        if (/android/i.test(ua)) {
+            return 'android';
+        }
+        
+        return 'desktop';
+    }
+
+    // Get navigation URL based on app preference and device
+    function getNavigationUrl(latitude, longitude, address, app = null) {
+        const appToUse = app || preferredNavApp;
+        const device = detectDevice();
+        
+        // Format address for URL encoding
+        const encodedAddress = encodeURIComponent(address || `${latitude},${longitude}`);
+        
+        switch (appToUse) {
+            case 'waze':
+                return `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes&q=${encodedAddress}`;
+            
+            case 'apple':
+                if (device === 'ios') {
+                    // Apple Maps URL scheme for iOS
+                    return `http://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d&t=m`;
+                } else {
+                    // Fallback to web Apple Maps
+                    return `https://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d`;
+                }
+            
+            case 'google':
+            default:
+                if (device === 'android') {
+                    // Try to open Google Maps app directly
+                    return `google.navigation:q=${latitude},${longitude}`;
+                } else if (device === 'ios') {
+                    // Use Google Maps URL scheme for iOS
+                    return `comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`;
+                } else {
+                    // Web fallback
+                    return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+                }
+        }
+    }
+
+    // Open navigation in preferred app
+    function openNavigation(latitude, longitude, address = null) {
+        const url = getNavigationUrl(latitude, longitude, address);
+        
+        // Try to open in app
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        
+        // For mobile apps, try direct link first
+        if (detectDevice() !== 'desktop') {
+            window.location.href = url;
+            
+            // Fallback after delay if app doesn't open
+            setTimeout(() => {
+                // Fallback to web version
+                const webUrl = getNavigationUrl(latitude, longitude, address, 'google');
+                if (webUrl !== url) {
+                    window.open(webUrl, '_blank');
+                }
+            }, 500);
+        } else {
+            // Desktop: open in new tab
+            link.click();
+        }
+    }
+
+    // Set preferred navigation app
+    function setNavApp(app) {
+        preferredNavApp = app;
+        localStorage.setItem('preferredNavApp', app);
+        
+        // Update UI
+        const labels = {
+            'google': 'Google Maps',
+            'waze': 'Waze',
+            'apple': 'Apple Maps'
+        };
+        
+        const labelEl = document.getElementById('nav-app-label');
+        if (labelEl) {
+            labelEl.textContent = labels[app] || 'Google Maps';
+        }
+        
+        // Update active option
+        document.querySelectorAll('.nav-app-option').forEach(opt => opt.classList.remove('active'));
+        const clickedOption = event.target.closest('.nav-app-option');
+        if (clickedOption) {
+            clickedOption.classList.add('active');
+        }
+        
+        // Close menu
+        toggleNavAppMenu();
+    }
+
+    // Toggle navigation app menu
+    function toggleNavAppMenu() {
+        const menu = document.getElementById('nav-app-menu');
+        if (menu) {
+            menu.classList.toggle('show');
+        }
+    }
+
+    // Close navigation app menu when clicking outside
+    document.addEventListener('click', function(event) {
+        const selector = document.querySelector('.nav-app-selector');
+        const menu = document.getElementById('nav-app-menu');
+        
+        if (selector && menu && !selector.contains(event.target)) {
+            menu.classList.remove('show');
+        }
+    });
+
+    // Cache key generator
+    function getCacheKey(mode, origin, destinations) {
+        const destStr = destinations.map(d => `${d.lat},${d.lng}`).join('|');
+        return `${mode}_${origin.lat},${origin.lng}_${destStr}`;
+    }
+
+    // Switch route mode
+    function switchRoute(mode) {
+        currentRouteMode = mode;
+        
+        // Update button states
+        document.querySelectorAll('.route-option-btn').forEach(btn => btn.classList.remove('active'));
+        const btnId = 'route-' + mode.replace(/([A-Z])/g, '-$1').toLowerCase();
+        const btn = document.getElementById(btnId);
+        if (btn) btn.classList.add('active');
+        
+        // Clear current route
+        if (directionsRenderer) {
+            directionsRenderer.setMap(null);
+        }
+        
+        // Reload route with new mode (call the existing route drawing logic)
+        setTimeout(() => {
+            loadRoute();
+        }, 100);
+    }
+
+    // Load route with caching - wrapper to integrate with existing code
+    function loadRoute() {
+        // This will be called after initRouteMap completes
+        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
+        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
+        
+        if (!driverLat || !driverLng) return;
+        
+        // Re-draw route using the current mode
+        // The existing route drawing code will be modified to respect currentRouteMode
+    }
+
+    // Toggle route history
+    function toggleRouteHistory() {
+        showHistory = !showHistory;
+        const toggleBtn = document.getElementById('history-toggle');
+        
+        if (showHistory) {
+            toggleBtn.classList.add('active');
+            toggleBtn.innerHTML = '<i class="fas fa-history"></i> Ocultar Histórico';
+            loadRouteHistory();
+        } else {
+            toggleBtn.classList.remove('active');
+            toggleBtn.innerHTML = '<i class="fas fa-history"></i> Mostrar Histórico';
+            if (historyPolyline) {
+                historyPolyline.setMap(null);
+            }
+        }
+    }
+
+    // Load route history from API
+    function loadRouteHistory() {
+        const routeId = <?php echo e($activeRoute->id ?? 'null'); ?>;
+        if (!routeId || !window.routeMap) return;
+
+        fetch(`/api/driver/location/history?route_id=${routeId}&minutes=1440`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.locations && data.locations.length > 1) {
+                    const path = data.locations.map(loc => ({
+                        lat: parseFloat(loc.latitude),
+                        lng: parseFloat(loc.longitude)
+                    }));
+
+                    if (historyPolyline) {
+                        historyPolyline.setMap(null);
+                    }
+
+                    historyPolyline = new google.maps.Polyline({
+                        path: path,
+                        geodesic: true,
+                        strokeColor: '#2196F3',
+                        strokeOpacity: 0.5,
+                        strokeWeight: 3,
+                        map: window.routeMap
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading route history:', error));
+    }
+
+    // Calculate distance using Haversine formula (returns km)
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371; // Earth radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    // Check proximity to delivery points
+    function checkProximity() {
+        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
+        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
+        <?php
+            $proximityLocationsArray = $shipments->filter(function($s) {
+                return $s->delivery_latitude && $s->delivery_longitude && !in_array($s->status, ['delivered', 'exception', 'cancelled']);
+            })->map(function($shipment) {
+                return [
+                    'id' => $shipment->id,
+                    'tracking_number' => $shipment->tracking_number,
+                    'title' => $shipment->title,
+                    'lat' => floatval($shipment->delivery_latitude),
+                    'lng' => floatval($shipment->delivery_longitude),
+                ];
+            })->values();
+        ?>
+        const deliveryLocations = <?php echo json_encode($proximityLocationsArray, 15, 512) ?>;
+
+        if (!driverLat || !driverLng || !deliveryLocations || deliveryLocations.length === 0) return;
+
+        deliveryLocations.forEach(shipment => {
+            if (notifiedShipments.has(shipment.id)) return;
+
+            const distance = calculateDistance(
+                driverLat, driverLng,
+                shipment.lat, shipment.lng
+            );
+
+            // Notify when within 500 meters
+            if (distance <= 0.5) {
+                showProximityNotification(shipment, distance);
+                notifiedShipments.add(shipment.id);
+            }
+        });
+    }
+
+    // Show proximity notification
+    function showProximityNotification(shipment, distance) {
+        // Remove existing notification
+        const existing = document.querySelector('.proximity-notification');
+        if (existing) existing.remove();
+
+        const notification = document.createElement('div');
+        notification.className = 'proximity-notification';
+        notification.innerHTML = `
+            <button class="close-notification" onclick="this.parentElement.remove()">&times;</button>
+            <h4><i class="fas fa-map-marker-alt"></i> Próximo do Destino!</h4>
+            <p><strong>${shipment.tracking_number}</strong></p>
+            <p>${shipment.title}</p>
+            <p>Distância: ${(distance * 1000).toFixed(0)} metros</p>
+            <button onclick="openNavigation(${shipment.lat}, ${shipment.lng}); this.parentElement.remove();" 
+                    style="margin-top: 10px; padding: 8px 16px; background: white; color: #4CAF50; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600;">
+                <i class="fas fa-directions"></i> Abrir Navegação
+            </button>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 10000);
+
+        // Vibrate if supported
+        if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+        }
+    }
+
+    // Start proximity checking
+    function startProximityChecking() {
+        if (proximityCheckInterval) return;
+        
+        // Check every 30 seconds
+        proximityCheckInterval = setInterval(checkProximity, 30000);
+        // Also check immediately
+        checkProximity();
+    }
+
+    // Stop proximity checking
+    function stopProximityChecking() {
+        if (proximityCheckInterval) {
+            clearInterval(proximityCheckInterval);
+            proximityCheckInterval = null;
+        }
+    }
+
+    // Update route summary panel
+    function updateRouteSummary(response) {
+        const route = response.routes[0];
+        const mapContainer = document.getElementById('route-map');
+        
+        // Remove existing summary
+        const existingSummary = mapContainer.querySelector('.route-summary');
+        if (existingSummary) {
+            existingSummary.remove();
+        }
+        
+        let totalDistance = 0;
+        let totalDuration = 0;
+        route.legs.forEach(function(leg) {
+            totalDistance += leg.distance.value;
+            totalDuration += leg.duration.value;
+        });
+        
+        const modeLabels = {
+            'fastest': 'Mais Rápido',
+            'shortest': 'Mais Curto',
+            'avoidTolls': 'Evitar Pedágios'
+        };
+        
+        const summaryPanel = document.createElement('div');
+        summaryPanel.className = 'route-summary';
+        summaryPanel.style.cssText = 'margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 8px; color: #fff; font-size: 0.9em;';
+        summaryPanel.innerHTML = `
+            <div><strong>Distância Total:</strong> ${(totalDistance / 1000).toFixed(2)} km</div>
+            <div><strong>Tempo Estimado:</strong> ${Math.round(totalDuration / 60)} minutos</div>
+            <div><strong>Modo:</strong> ${modeLabels[currentRouteMode] || currentRouteMode}</div>
+        `;
+        
+        mapContainer.appendChild(summaryPanel);
+    }
+
+    // Enhanced loadRoute function that works with the existing code
+    window.loadRoute = function() {
+        if (!window.routeMap) {
+            initRouteMap();
+            return;
+        }
+        
+        // Force re-draw of route by clearing and re-initializing
+        if (window.directionsRenderer) {
+            window.directionsRenderer.setMap(null);
+            window.directionsRenderer = null;
+        }
+        
+        // Re-run the route drawing logic
+        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
+        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
+        
+        if (!driverLat || !driverLng) return;
+        
+        // Trigger re-initialization by calling initRouteMap again
+        // This will use the currentRouteMode global variable
+        initRouteMap();
+    };
+
+    // Initialize navigation app preference on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-detect and set best navigation app based on device
+        const device = detectDevice();
+        if (device === 'ios' && !localStorage.getItem('preferredNavApp')) {
+            preferredNavApp = 'apple';
+            localStorage.setItem('preferredNavApp', 'apple');
+            document.getElementById('nav-app-label').textContent = 'Apple Maps';
+        } else if (!localStorage.getItem('preferredNavApp')) {
+            preferredNavApp = 'google';
+            localStorage.setItem('preferredNavApp', 'google');
+        } else {
+            preferredNavApp = localStorage.getItem('preferredNavApp');
+        }
+        
+        // Update label
+        const labels = {
+            'google': 'Google Maps',
+            'waze': 'Waze',
+            'apple': 'Apple Maps'
+        };
+        const labelEl = document.getElementById('nav-app-label');
+        if (labelEl) {
+            labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
+        }
+        
+        // Update active option in menu
+        document.querySelectorAll('.nav-app-option').forEach(opt => {
+            const app = opt.getAttribute('onclick').match(/'(\w+)'/)[1];
+            if (app === preferredNavApp) {
+                opt.classList.add('active');
+            } else {
+                opt.classList.remove('active');
+            }
+        });
+    });
+
+    // Initialize navigation app preference on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-detect and set best navigation app based on device
+        const device = detectDevice();
+        if (device === 'ios' && !localStorage.getItem('preferredNavApp')) {
+            preferredNavApp = 'apple';
+            localStorage.setItem('preferredNavApp', 'apple');
+            const labelEl = document.getElementById('nav-app-label');
+            if (labelEl) labelEl.textContent = 'Apple Maps';
+        } else if (!localStorage.getItem('preferredNavApp')) {
+            preferredNavApp = 'google';
+            localStorage.setItem('preferredNavApp', 'google');
+        } else {
+            preferredNavApp = localStorage.getItem('preferredNavApp');
+        }
+        
+        // Update label
+        const labels = {
+            'google': 'Google Maps',
+            'waze': 'Waze',
+            'apple': 'Apple Maps'
+        };
+        const labelEl = document.getElementById('nav-app-label');
+        if (labelEl) {
+            labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
+        }
+        
+        // Update active option in menu
+        document.querySelectorAll('.nav-app-option').forEach(opt => {
+            const onclickAttr = opt.getAttribute('onclick');
+            if (onclickAttr) {
+                const match = onclickAttr.match(/'(\w+)'/);
+                if (match) {
+                    const app = match[1];
+                    if (app === preferredNavApp) {
+                        opt.classList.add('active');
+                    } else {
+                        opt.classList.remove('active');
+                    }
+                }
+            }
+        });
+    });
+
+    // Initialize map when page loads
+    <?php
+        $hasDriverLocation = $driver->current_latitude && $driver->current_longitude;
+        $hasDeliveryLocations = $shipments->filter(function($s) { 
+            return $s->delivery_latitude && $s->delivery_longitude; 
+        })->count() > 0;
+        $shouldShowMap = $activeRoute && ($hasDriverLocation || $hasDeliveryLocations);
+    ?>
+    <?php if($shouldShowMap): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        initRouteMap();
+        
+        // Start proximity checking after map loads
+        setTimeout(() => {
+            startProximityChecking();
+        }, 2000);
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        stopProximityChecking();
+    });
+    <?php endif; ?>
 </script>
 <?php $__env->stopPush(); ?>
 <?php echo $__env->make('driver.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/driver/dashboard.blade.php ENDPATH**/ ?>

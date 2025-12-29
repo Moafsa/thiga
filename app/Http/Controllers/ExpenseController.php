@@ -116,6 +116,9 @@ class ExpenseController extends Controller
             'due_date' => 'required|date',
             'payment_method' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'fuel_liters' => 'nullable|numeric|min:0',
+            'odometer_reading' => 'nullable|integer|min:0',
+            'price_per_liter' => 'nullable|numeric|min:0',
         ]);
 
         // Validate vehicle if provided
@@ -150,11 +153,19 @@ class ExpenseController extends Controller
             'route_id' => $request->route_id,
             'description' => $request->description,
             'amount' => $request->amount,
+            'fuel_liters' => $request->fuel_liters,
+            'odometer_reading' => $request->odometer_reading,
+            'price_per_liter' => $request->price_per_liter,
             'due_date' => Carbon::parse($request->due_date),
             'status' => 'pending',
             'payment_method' => $request->payment_method,
             'notes' => $request->notes,
         ]);
+
+        // Update vehicle's average fuel consumption if this is a fuel refueling
+        if ($expense->isFuelRefueling() && $expense->vehicle) {
+            $expense->vehicle->updateAverageFuelConsumption();
+        }
 
         return redirect()->route('accounts.payable.index')
             ->with('success', 'Despesa criada com sucesso!');
@@ -240,6 +251,9 @@ class ExpenseController extends Controller
             'due_date' => 'required|date',
             'payment_method' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'fuel_liters' => 'nullable|numeric|min:0',
+            'odometer_reading' => 'nullable|integer|min:0',
+            'price_per_liter' => 'nullable|numeric|min:0',
         ]);
 
         // Validate vehicle if provided
@@ -273,10 +287,18 @@ class ExpenseController extends Controller
             'route_id' => $request->route_id,
             'description' => $request->description,
             'amount' => $request->amount,
+            'fuel_liters' => $request->fuel_liters,
+            'odometer_reading' => $request->odometer_reading,
+            'price_per_liter' => $request->price_per_liter,
             'due_date' => Carbon::parse($request->due_date),
             'payment_method' => $request->payment_method,
             'notes' => $request->notes,
         ]);
+
+        // Update vehicle's average fuel consumption if this is a fuel refueling
+        if ($expense->isFuelRefueling() && $expense->vehicle) {
+            $expense->vehicle->updateAverageFuelConsumption();
+        }
 
         return redirect()->route('accounts.payable.show', $expense)
             ->with('success', 'Despesa atualizada com sucesso!');

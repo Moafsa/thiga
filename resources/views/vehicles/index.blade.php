@@ -52,6 +52,11 @@
                             <i class="fas fa-users"></i> {{ $vehicle->drivers->count() }} motorista(s)
                         </p>
                     @endif
+                    @if($vehicle->getFuelConsumptionKmPerLiter())
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin-top: 5px;">
+                            <i class="fas fa-gas-pump"></i> {{ number_format($vehicle->getFuelConsumptionKmPerLiter(), 2, ',', '.') }} km/L
+                        </p>
+                    @endif
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <a href="{{ route('vehicles.show', $vehicle) }}" class="action-btn" title="Ver">

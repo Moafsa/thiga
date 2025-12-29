@@ -1663,14 +1663,9 @@ class RouteController extends Controller
             // Calculate fuel consumption if vehicle is assigned
             if ($route->vehicle_id) {
                 $vehicle = Vehicle::find($route->vehicle_id);
-                if ($vehicle && $vehicle->fuel_type) {
-                    // Average fuel consumption per km based on vehicle type
-                    $fuelConsumptionPerKm = match($vehicle->vehicle_type) {
-                        'truck' => 0.35, // 35L per 100km = 0.35L/km
-                        'van' => 0.12,   // 12L per 100km = 0.12L/km
-                        'car' => 0.10,   // 10L per 100km = 0.10L/km
-                        default => 0.20, // Default: 20L per 100km = 0.20L/km
-                    };
+                if ($vehicle) {
+                    // Use vehicle's fuel consumption per km (from database or default based on vehicle type)
+                    $fuelConsumptionPerKm = $vehicle->getFuelConsumptionPerKm();
 
                     $estimatedFuelConsumption = round(($totalDistance / 1000) * $fuelConsumptionPerKm, 2);
                     

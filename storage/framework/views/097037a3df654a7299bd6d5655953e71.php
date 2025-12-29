@@ -50,6 +50,11 @@
                             <i class="fas fa-users"></i> <?php echo e($vehicle->drivers->count()); ?> motorista(s)
                         </p>
                     <?php endif; ?>
+                    <?php if($vehicle->getFuelConsumptionKmPerLiter()): ?>
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin-top: 5px;">
+                            <i class="fas fa-gas-pump"></i> <?php echo e(number_format($vehicle->getFuelConsumptionKmPerLiter(), 2, ',', '.')); ?> km/L
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <a href="<?php echo e(route('vehicles.show', $vehicle)); ?>" class="action-btn" title="Ver">

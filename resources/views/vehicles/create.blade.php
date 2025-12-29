@@ -111,6 +111,24 @@
         </div>
     </div>
 
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Combustível</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div>
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Consumo de Combustível (km/L)</label>
+            <input type="number" name="fuel_consumption_per_km" value="{{ old('fuel_consumption_per_km') }}" step="0.01" min="0" max="50"
+                   placeholder="Ex: 2.86 (35L por 100km = 2.86 km/L)"
+                   style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <small style="color: rgba(245, 245, 245, 0.6);">Kilometers per liter (km/L). Example: 2.86 km/L = 35L per 100km</small>
+        </div>
+        <div>
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Capacidade do Tanque (L)</label>
+            <input type="number" name="tank_capacity" value="{{ old('tank_capacity') }}" step="0.01" min="0"
+                   placeholder="Ex: 100"
+                   style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <small style="color: rgba(245, 245, 245, 0.6);">Tank capacity in liters</small>
+        </div>
+    </div>
+
     <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Configurações de Manutenção</h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
         <div>

@@ -100,6 +100,18 @@
             <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ $vehicle->fuel_type }}</span>
         </div>
         @endif
+        @if($vehicle->getFuelConsumptionKmPerLiter())
+        <div>
+            <span style="color: rgba(245, 245, 245, 0.7);">Consumo:</span>
+            <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ number_format($vehicle->getFuelConsumptionKmPerLiter(), 2, ',', '.') }} km/L</span>
+        </div>
+        @endif
+        @if($vehicle->tank_capacity)
+        <div>
+            <span style="color: rgba(245, 245, 245, 0.7);">Capacidade do Tanque:</span>
+            <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ number_format($vehicle->tank_capacity, 2, ',', '.') }} L</span>
+        </div>
+        @endif
         <div>
             <span style="color: rgba(245, 245, 245, 0.7);">Status:</span>
             <span class="status-badge" style="background-color: rgba(33, 150, 243, 0.2); color: #2196F3;">
@@ -222,6 +234,86 @@
             @endif
         @endif
     </p>
+</div>
+@endif
+
+@if($vehicle->isFleet())
+<div class="info-section">
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-gas-pump"></i> Histórico de Consumo de Combustível
+    </h3>
+    
+    @if($fuelStats['total_refuelings'] > 0)
+        <div class="info-grid" style="margin-bottom: 25px;">
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.7);">Total de Abastecimentos:</span>
+                <span style="color: var(--cor-texto-claro); font-weight: 600; font-size: 1.1em;">{{ $fuelStats['total_refuelings'] }}</span>
+            </div>
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.7);">Total de Litros:</span>
+                <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ number_format($fuelStats['total_liters'], 2, ',', '.') }} L</span>
+            </div>
+            @if($fuelStats['average_consumption_km_per_liter'])
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.7);">Consumo Real Médio:</span>
+                <span style="color: var(--cor-acento); font-weight: 600; font-size: 1.1em;">{{ number_format($fuelStats['average_consumption_km_per_liter'], 2, ',', '.') }} km/L</span>
+            </div>
+            @endif
+            @if($fuelStats['last_refueling_date'])
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.7);">Último Abastecimento:</span>
+                <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ $fuelStats['last_refueling_date']->format('d/m/Y') }}</span>
+            </div>
+            @endif
+            @if($fuelStats['last_odometer'])
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.7);">Odômetro no Último Abastecimento:</span>
+                <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ number_format($fuelStats['last_odometer'], 0, ',', '.') }} km</span>
+            </div>
+            @endif
+        </div>
+
+        @if($vehicle->fuelRefuelings->count() > 0)
+        <div style="margin-top: 20px;">
+            <h4 style="color: var(--cor-texto-claro); margin-bottom: 15px;">Últimos Abastecimentos</h4>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: var(--cor-principal);">
+                            <th style="padding: 12px; text-align: left; color: var(--cor-texto-claro); border-bottom: 2px solid rgba(255,255,255,0.2);">Data</th>
+                            <th style="padding: 12px; text-align: right; color: var(--cor-texto-claro); border-bottom: 2px solid rgba(255,255,255,0.2);">Odômetro</th>
+                            <th style="padding: 12px; text-align: right; color: var(--cor-texto-claro); border-bottom: 2px solid rgba(255,255,255,0.2);">Litros</th>
+                            <th style="padding: 12px; text-align: right; color: var(--cor-texto-claro); border-bottom: 2px solid rgba(255,255,255,0.2);">Preço/L</th>
+                            <th style="padding: 12px; text-align: right; color: var(--cor-texto-claro); border-bottom: 2px solid rgba(255,255,255,0.2);">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($vehicle->fuelRefuelings->take(10) as $refueling)
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 10px; color: var(--cor-texto-claro);">{{ $refueling->due_date->format('d/m/Y') }}</td>
+                            <td style="padding: 10px; text-align: right; color: var(--cor-texto-claro);">{{ number_format($refueling->odometer_reading, 0, ',', '.') }} km</td>
+                            <td style="padding: 10px; text-align: right; color: var(--cor-texto-claro);">{{ number_format($refueling->fuel_liters, 2, ',', '.') }} L</td>
+                            <td style="padding: 10px; text-align: right; color: var(--cor-texto-claro);">
+                                @if($refueling->price_per_liter)
+                                    R$ {{ number_format($refueling->price_per_liter, 4, ',', '.') }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td style="padding: 10px; text-align: right; color: var(--cor-texto-claro); font-weight: 600;">R$ {{ number_format($refueling->amount, 2, ',', '.') }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+    @else
+        <p style="color: rgba(245, 245, 245, 0.6); text-align: center; padding: 20px;">
+            <i class="fas fa-info-circle"></i> Nenhum abastecimento registrado ainda. 
+            Registre abastecimentos nas despesas do veículo para calcular o consumo real.
+        </p>
+    @endif
 </div>
 @endif
 @endsection

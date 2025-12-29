@@ -251,4 +251,66 @@ class Route extends Model
         $totalRevenue = $this->shipments()->sum('value') ?? 0;
         $this->update(['total_revenue' => $totalRevenue]);
     }
+
+    /**
+     * Generate Google Maps directions URL for this route
+     * 
+     * @return string|null Google Maps URL or null if route doesn't have required coordinates
+     */
+    public function getGoogleMapsUrl(): ?string
+    {
+        // Origin must be depot/branch (start coordinates)
+        if (!$this->start_latitude || !$this->start_longitude) {
+            return null;
+        }
+
+        $origin = "{$this->start_latitude},{$this->start_longitude}";
+        
+        // Get shipments with delivery coordinates
+        $shipments = $this->shipments()
+            ->whereNotNull('delivery_latitude')
+            ->whereNotNull('delivery_longitude')
+            ->get();
+
+        if ($shipments->isEmpty()) {
+            // If no shipments, return simple route from origin to origin
+            return "https://www.google.com/maps/dir/?api=1&origin={$origin}&destination={$origin}&travelmode=driving";
+        }
+
+        // Build waypoints from delivery addresses
+        // Use optimized order if available, otherwise use shipment order
+        $orderedShipments = $this->getOrderedShipmentsBySequentialOptimization();
+        
+        // Filter to only shipments with coordinates
+        $orderedShipments = $orderedShipments->filter(function($shipment) {
+            return $shipment->delivery_latitude && $shipment->delivery_longitude;
+        });
+
+        // If no ordered shipments with coordinates, use regular shipments
+        if ($orderedShipments->isEmpty()) {
+            $orderedShipments = $shipments;
+        }
+
+        // Build waypoints string
+        $waypoints = $orderedShipments->map(function($shipment) {
+            return "{$shipment->delivery_latitude},{$shipment->delivery_longitude}";
+        })->implode('|');
+
+        // Destination is always the origin (return to depot/branch)
+        $destination = $origin;
+
+        // Build Google Maps directions URL
+        // Format: https://www.google.com/maps/dir/?api=1&origin=...&destination=...&waypoints=...|...&travelmode=driving
+        $url = "https://www.google.com/maps/dir/?api=1";
+        $url .= "&origin=" . urlencode($origin);
+        $url .= "&destination=" . urlencode($destination);
+        
+        if ($waypoints) {
+            $url .= "&waypoints=" . urlencode($waypoints);
+        }
+        
+        $url .= "&travelmode=driving";
+
+        return $url;
+    }
 }

@@ -136,6 +136,28 @@ class Vehicle extends Model
     }
 
     /**
+     * Get fuel refueling expenses for this vehicle.
+     */
+    public function fuelRefuelings()
+    {
+        return $this->expenses()
+            ->whereNotNull('fuel_liters')
+            ->whereNotNull('odometer_reading')
+            ->orderBy('odometer_reading', 'asc');
+    }
+
+    /**
+     * Get recent fuel refuelings (last N records).
+     */
+    public function recentFuelRefuelings(int $limit = 10)
+    {
+        return $this->fuelRefuelings()
+            ->orderBy('odometer_reading', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
      * Get the maintenances for this vehicle.
      * Note: VehicleMaintenance model will be created in Priority 6
      */
@@ -260,16 +282,19 @@ class Vehicle extends Model
 
     /**
      * Get fuel consumption per km (uses specific or average)
+     * Returns L/km for cost calculations
      */
     public function getFuelConsumptionPerKm(): float
     {
         if ($this->fuel_consumption_per_km) {
+            // If stored as L/km, return directly
             return (float) $this->fuel_consumption_per_km;
         }
 
-        // Fallback to average or default based on vehicle type
+        // If average_fuel_consumption is stored as km/L, convert to L/km
         if ($this->average_fuel_consumption) {
-            return (float) $this->average_fuel_consumption;
+            // Convert km/L to L/km
+            return round(1 / (float) $this->average_fuel_consumption, 4);
         }
 
         // Default consumption by vehicle type (liters per km)
@@ -279,6 +304,33 @@ class Vehicle extends Model
             'car' => 0.10,    // 10L per 100km = 0.10L/km
             default => 0.20,  // Default: 20L per 100km = 0.20L/km
         };
+    }
+
+    /**
+     * Get fuel consumption in km/L (kilometers per liter)
+     * This is the user-friendly format
+     */
+    public function getFuelConsumptionKmPerLiter(): ?float
+    {
+        // If average_fuel_consumption is stored as km/L, return it
+        if ($this->average_fuel_consumption) {
+            return (float) $this->average_fuel_consumption;
+        }
+
+        // If fuel_consumption_per_km is stored as L/km, convert to km/L
+        if ($this->fuel_consumption_per_km) {
+            return round(1 / (float) $this->fuel_consumption_per_km, 2);
+        }
+
+        // Default consumption by vehicle type (convert L/km to km/L)
+        $litersPerKm = match($this->vehicle_type) {
+            'truck' => 0.35,  // 35L per 100km
+            'van' => 0.12,    // 12L per 100km
+            'car' => 0.10,    // 10L per 100km
+            default => 0.20,  // Default: 20L per 100km
+        };
+
+        return round(1 / $litersPerKm, 2);
     }
 
     /**
@@ -296,6 +348,89 @@ class Vehicle extends Model
             'car' => 'gasoline',
             default => 'diesel',
         };
+    }
+
+    /**
+     * Calculate real fuel consumption based on refueling history.
+     * Returns consumption in km/L (kilometers per liter) or null if insufficient data.
+     */
+    public function calculateRealFuelConsumption(): ?float
+    {
+        $refuelings = $this->fuelRefuelings()->get();
+
+        if ($refuelings->count() < 2) {
+            return null; // Need at least 2 refuelings to calculate
+        }
+
+        // Sort by odometer reading
+        $refuelings = $refuelings->sortBy('odometer_reading');
+
+        $totalLiters = 0;
+        $totalKm = 0;
+        $previousOdometer = null;
+
+        foreach ($refuelings as $refueling) {
+            if ($previousOdometer !== null) {
+                $kmDriven = $refueling->odometer_reading - $previousOdometer;
+                if ($kmDriven > 0) {
+                    $totalKm += $kmDriven;
+                    $totalLiters += $refueling->fuel_liters;
+                }
+            }
+            $previousOdometer = $refueling->odometer_reading;
+        }
+
+        if ($totalKm > 0 && $totalLiters > 0) {
+            // Return km per liter (km/L)
+            return round($totalKm / $totalLiters, 2);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get average fuel consumption from history and update average_fuel_consumption field.
+     */
+    public function updateAverageFuelConsumption(): bool
+    {
+        $realConsumption = $this->calculateRealFuelConsumption();
+
+        if ($realConsumption !== null) {
+            $this->update(['average_fuel_consumption' => $realConsumption]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get fuel consumption statistics.
+     */
+    public function getFuelConsumptionStats(): array
+    {
+        $refuelings = $this->fuelRefuelings()->get();
+
+        if ($refuelings->isEmpty()) {
+            return [
+                'total_refuelings' => 0,
+                'total_liters' => 0,
+                'average_consumption_km_per_liter' => null,
+                'last_refueling_date' => null,
+                'last_odometer' => null,
+            ];
+        }
+
+        $totalLiters = $refuelings->sum('fuel_liters');
+        $realConsumption = $this->calculateRealFuelConsumption(); // Returns km/L
+        $lastRefueling = $refuelings->sortByDesc('odometer_reading')->first();
+
+        return [
+            'total_refuelings' => $refuelings->count(),
+            'total_liters' => round($totalLiters, 2),
+            'average_consumption_km_per_liter' => $realConsumption, // km/L
+            'last_refueling_date' => $lastRefueling->due_date,
+            'last_odometer' => $lastRefueling->odometer_reading,
+        ];
     }
 }
 
