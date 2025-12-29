@@ -1121,7 +1121,16 @@
             
             // Update map marker immediately for better UX
             if (window.routeMap) {
-                const newPosition = { lat: position.coords.latitude, lng: position.coords.longitude };
+                const lat = parseFloat(position.coords.latitude);
+                const lng = parseFloat(position.coords.longitude);
+                
+                // Validate coordinates before using
+                if (!isValidCoordinate(lat) || !isValidCoordinate(lng)) {
+                    console.warn('Invalid geolocation coordinates:', position.coords);
+                    return;
+                }
+                
+                const newPosition = { lat: lat, lng: lng };
                 
                 if (window.driverMarker) {
                     window.driverMarker.setPosition(newPosition);
@@ -1235,15 +1244,20 @@
         @endphp
         const deliveryLocations = @json($deliveryLocationsArray);
 
+        // Helper function to validate coordinates
+        function isValidCoordinate(value) {
+            return value !== null && value !== undefined && !isNaN(value) && isFinite(value);
+        }
+
         // Determine map center - prefer route origin, then driver location, then first delivery
         let center = { lat: -23.5505, lng: -46.6333 }; // São Paulo default
         
-        if (routeOriginLat && routeOriginLng) {
-            center = { lat: routeOriginLat, lng: routeOriginLng };
-        } else if (driverLat && driverLng) {
-            center = { lat: driverLat, lng: driverLng };
-        } else if (deliveryLocations.length > 0) {
-            center = { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng };
+        if (isValidCoordinate(routeOriginLat) && isValidCoordinate(routeOriginLng)) {
+            center = { lat: parseFloat(routeOriginLat), lng: parseFloat(routeOriginLng) };
+        } else if (isValidCoordinate(driverLat) && isValidCoordinate(driverLng)) {
+            center = { lat: parseFloat(driverLat), lng: parseFloat(driverLng) };
+        } else if (deliveryLocations.length > 0 && isValidCoordinate(deliveryLocations[0].lat) && isValidCoordinate(deliveryLocations[0].lng)) {
+            center = { lat: parseFloat(deliveryLocations[0].lat), lng: parseFloat(deliveryLocations[0].lng) };
         }
 
         // Initialize map
@@ -1268,8 +1282,8 @@
 
         // Add driver location marker (will be updated in real-time)
         // Always try to create marker if we have any location data
-        if (driverLat && driverLng) {
-            const driverPosition = { lat: driverLat, lng: driverLng };
+        if (isValidCoordinate(driverLat) && isValidCoordinate(driverLng)) {
+            const driverPosition = { lat: parseFloat(driverLat), lng: parseFloat(driverLng) };
             window.driverMarker = new google.maps.Marker({
                 position: driverPosition,
                 map: window.routeMap,
@@ -1309,7 +1323,13 @@
 
         // Add delivery location markers
         deliveryLocations.forEach(function(shipment, index) {
-            const deliveryPosition = { lat: shipment.lat, lng: shipment.lng };
+            // Validate coordinates before creating marker
+            if (!isValidCoordinate(shipment.lat) || !isValidCoordinate(shipment.lng)) {
+                console.warn('Invalid coordinates for shipment:', shipment);
+                return;
+            }
+            
+            const deliveryPosition = { lat: parseFloat(shipment.lat), lng: parseFloat(shipment.lng) };
             
             // Different colors based on status
             let markerColor = '#4CAF50'; // Green for delivered
@@ -1786,9 +1806,18 @@
                 console.log('Location data received:', data);
                 
                 if (data.driver && data.driver.current_location) {
+                    const lat = parseFloat(data.driver.current_location.lat);
+                    const lng = parseFloat(data.driver.current_location.lng);
+                    
+                    // Validate coordinates before using
+                    if (!isValidCoordinate(lat) || !isValidCoordinate(lng)) {
+                        console.warn('Invalid coordinates received:', data.driver.current_location);
+                        return;
+                    }
+                    
                     const newPosition = {
-                        lat: data.driver.current_location.lat,
-                        lng: data.driver.current_location.lng
+                        lat: lat,
+                        lng: lng
                     };
 
                     console.log('Updating driver marker to:', newPosition);
