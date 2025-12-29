@@ -392,107 +392,126 @@ class DriverDashboardController extends Controller
      */
     public function getCurrentLocation(Request $request)
     {
-        $user = Auth::user();
-        $tenant = $user->tenant;
+        try {
+            $user = Auth::user();
+            $tenant = $user->tenant;
 
-        if (!$tenant) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
-
-        $driver = Driver::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$driver) {
-            return response()->json(['error' => 'Driver not found'], 404);
-        }
-
-        // Refresh driver data to get latest location from database
-        $driver->refresh();
-
-        // Also check recent location tracking records
-        $recentTracking = LocationTracking::where('driver_id', $driver->id)
-            ->where('tracked_at', '>=', now()->subMinutes(5))
-            ->orderBy('tracked_at', 'desc')
-            ->first();
-
-        // If driver location is old but we have recent tracking, use that
-        // Use attributes array to access raw value and avoid accessor recursion
-        $lastUpdateRaw = isset($driver->attributes['last_location_update']) && $driver->attributes['last_location_update'] 
-            ? $driver->attributes['last_location_update'] 
-            : null;
-        
-        if ($recentTracking) {
-            $shouldUpdate = false;
-            if (!$lastUpdateRaw) {
-                $shouldUpdate = true;
-            } else {
-                try {
-                    $lastUpdateCarbon = \Carbon\Carbon::parse($lastUpdateRaw);
-                    if ($lastUpdateCarbon->lt($recentTracking->tracked_at)) {
-                        $shouldUpdate = true;
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Error parsing last_location_update', [
-                        'driver_id' => $driver->id,
-                        'last_update_raw' => $lastUpdateRaw,
-                        'error' => $e->getMessage(),
-                    ]);
-                    $shouldUpdate = true; // Update if we can't parse the date
-                }
+            if (!$tenant) {
+                return response()->json(['error' => 'Tenant not found'], 404);
             }
-            
-            if ($shouldUpdate) {
-                $driver->update([
-                    'current_latitude' => $recentTracking->latitude,
-                    'current_longitude' => $recentTracking->longitude,
-                    'last_location_update' => $recentTracking->tracked_at,
+
+            $driver = Driver::where('tenant_id', $tenant->id)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$driver) {
+                return response()->json(['error' => 'Driver not found'], 404);
+            }
+
+            // Refresh driver data to get latest location from database
+            $driver->refresh();
+
+            // Also check recent location tracking records
+            $recentTracking = null;
+            try {
+                $recentTracking = LocationTracking::where('driver_id', $driver->id)
+                    ->where('tracked_at', '>=', now()->subMinutes(5))
+                    ->orderBy('tracked_at', 'desc')
+                    ->first();
+            } catch (\Exception $e) {
+                Log::warning('Error fetching recent tracking', [
+                    'driver_id' => $driver->id,
+                    'error' => $e->getMessage(),
                 ]);
-                $driver->refresh();
-                $lastUpdateRaw = $driver->attributes['last_location_update'] ?? null;
             }
-        }
 
-        Log::debug('Driver location requested', [
-            'driver_id' => $driver->id,
-            'has_location' => ($driver->current_latitude && $driver->current_longitude),
-            'latitude' => $driver->current_latitude,
-            'longitude' => $driver->current_longitude,
-            'last_update_raw' => $lastUpdateRaw,
-            'recent_tracking' => $recentTracking ? [
-                'lat' => $recentTracking->latitude,
-                'lng' => $recentTracking->longitude,
-                'tracked_at' => $recentTracking->tracked_at,
-            ] : null,
-        ]);
-
-        return response()->json([
-            'driver' => [
-                'id' => $driver->id,
-                'name' => $driver->name,
-                'current_location' => ($driver->current_latitude && $driver->current_longitude) ? [
-                    'lat' => floatval($driver->current_latitude),
-                    'lng' => floatval($driver->current_longitude),
-                ] : null,
-                'last_location_update' => $lastUpdateRaw ? (function() use ($lastUpdateRaw) {
+            // If driver location is old but we have recent tracking, use that
+            // Use attributes array to access raw value and avoid accessor recursion
+            $lastUpdateRaw = isset($driver->attributes['last_location_update']) && $driver->attributes['last_location_update'] 
+                ? $driver->attributes['last_location_update'] 
+                : null;
+            
+            if ($recentTracking && $recentTracking->latitude && $recentTracking->longitude) {
+                $shouldUpdate = false;
+                if (!$lastUpdateRaw) {
+                    $shouldUpdate = true;
+                } else {
                     try {
-                        if (is_string($lastUpdateRaw)) {
-                            return \Carbon\Carbon::parse($lastUpdateRaw)->toIso8601String();
-                        } elseif ($lastUpdateRaw instanceof \Carbon\Carbon) {
-                            return $lastUpdateRaw->toIso8601String();
+                        $lastUpdateCarbon = \Carbon\Carbon::parse($lastUpdateRaw);
+                        if ($lastUpdateCarbon->lt($recentTracking->tracked_at)) {
+                            $shouldUpdate = true;
                         }
-                        return null;
                     } catch (\Exception $e) {
-                        Log::warning('Error parsing last_location_update for JSON response', [
+                        Log::warning('Error parsing last_location_update', [
+                            'driver_id' => $driver->id,
                             'last_update_raw' => $lastUpdateRaw,
-                            'type' => gettype($lastUpdateRaw),
                             'error' => $e->getMessage(),
                         ]);
-                        return null;
+                        $shouldUpdate = true; // Update if we can't parse the date
                     }
-                })() : null,
-            ],
-        ]);
+                }
+                
+                if ($shouldUpdate) {
+                    try {
+                        $driver->update([
+                            'current_latitude' => $recentTracking->latitude,
+                            'current_longitude' => $recentTracking->longitude,
+                            'last_location_update' => $recentTracking->tracked_at,
+                        ]);
+                        $driver->refresh();
+                        $lastUpdateRaw = $driver->attributes['last_location_update'] ?? null;
+                    } catch (\Exception $e) {
+                        Log::error('Error updating driver location from tracking', [
+                            'driver_id' => $driver->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            // Format last_location_update safely
+            $lastUpdateFormatted = null;
+            if ($lastUpdateRaw) {
+                try {
+                    if (is_string($lastUpdateRaw)) {
+                        $lastUpdateFormatted = \Carbon\Carbon::parse($lastUpdateRaw)->toIso8601String();
+                    } elseif ($lastUpdateRaw instanceof \Carbon\Carbon) {
+                        $lastUpdateFormatted = $lastUpdateRaw->toIso8601String();
+                    } elseif ($lastUpdateRaw instanceof \DateTime) {
+                        $lastUpdateFormatted = \Carbon\Carbon::instance($lastUpdateRaw)->toIso8601String();
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Error formatting last_location_update', [
+                        'last_update_raw' => $lastUpdateRaw,
+                        'type' => gettype($lastUpdateRaw),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'driver' => [
+                    'id' => $driver->id,
+                    'name' => $driver->name ?? 'Unknown',
+                    'current_location' => ($driver->current_latitude && $driver->current_longitude) ? [
+                        'lat' => floatval($driver->current_latitude),
+                        'lng' => floatval($driver->current_longitude),
+                    ] : null,
+                    'last_location_update' => $lastUpdateFormatted,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in getCurrentLocation', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'error' => 'Internal server error',
+                'message' => 'An error occurred while fetching driver location',
+            ], 500);
+        }
     }
 
     /**
