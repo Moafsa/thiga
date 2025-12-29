@@ -326,18 +326,35 @@ class DriverDashboardController extends Controller
     public function getCurrentLocation(Request $request)
     {
         $user = Auth::user();
-        $driver = Driver::where('user_id', $user->id)->first();
+        $tenant = $user->tenant;
+
+        if (!$tenant) {
+            return response()->json(['error' => 'Tenant not found'], 404);
+        }
+
+        $driver = Driver::where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)
+            ->first();
 
         if (!$driver) {
             return response()->json(['error' => 'Driver not found'], 404);
         }
 
-        // Refresh driver data to get latest location
+        // Refresh driver data to get latest location from database
         $driver->refresh();
+
+        Log::debug('Driver location requested', [
+            'driver_id' => $driver->id,
+            'has_location' => ($driver->current_latitude && $driver->current_longitude),
+            'latitude' => $driver->current_latitude,
+            'longitude' => $driver->current_longitude,
+            'last_update' => $driver->last_location_update,
+        ]);
 
         return response()->json([
             'driver' => [
                 'id' => $driver->id,
+                'name' => $driver->name,
                 'current_location' => ($driver->current_latitude && $driver->current_longitude) ? [
                     'lat' => floatval($driver->current_latitude),
                     'lng' => floatval($driver->current_longitude),

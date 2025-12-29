@@ -1228,7 +1228,8 @@
         const bounds = new google.maps.LatLngBounds();
         const markers = [];
 
-        // Add driver location marker
+        // Add driver location marker (will be updated in real-time)
+        // Always try to create marker if we have any location data
         if (driverLat && driverLng) {
             const driverPosition = { lat: driverLat, lng: driverLng };
             window.driverMarker = new google.maps.Marker({
@@ -1236,20 +1237,22 @@
                 map: window.routeMap,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 10,
+                    scale: 12,
                     fillColor: '#2196F3',
                     fillOpacity: 1,
                     strokeColor: '#FFFFFF',
                     strokeWeight: 3,
                 },
                 title: 'Sua Localização Atual',
-                zIndex: 1000
+                zIndex: 1000,
+                animation: google.maps.Animation.DROP
             });
 
             const driverInfo = new google.maps.InfoWindow({
                 content: `<div style="padding: 10px; min-width: 200px;">
                     <h4 style="margin: 0 0 10px 0; color: #2196F3;">Sua Localização</h4>
                     <p style="margin: 5px 0; color: #666;">Motorista</p>
+                    <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Atualizado: agora</p>
                 </div>`
             });
 
@@ -1259,6 +1262,11 @@
 
             bounds.extend(driverPosition);
             markers.push(window.driverMarker);
+            console.log('Initial driver marker created at:', driverPosition);
+        } else {
+            // No initial location - marker will be created when location is received
+            window.driverMarker = null;
+            console.log('No initial driver location, will create marker when location is received');
         }
 
         // Add delivery location markers
@@ -1692,15 +1700,17 @@
 
     // Poll driver location in real-time
     function startLocationPolling() {
+        console.log('Starting location polling...');
+        
         // Clear any existing interval
         if (locationUpdateInterval) {
             clearInterval(locationUpdateInterval);
         }
 
-        // Poll every 10 seconds
+        // Poll every 5 seconds (more frequent for real-time tracking)
         locationUpdateInterval = setInterval(function() {
             updateDriverLocation();
-        }, 10000);
+        }, 5000);
 
         // Also update immediately
         updateDriverLocation();
@@ -1716,6 +1726,11 @@
 
     // Update driver location from server
     function updateDriverLocation() {
+        if (!window.routeMap) {
+            console.warn('Map not initialized yet, skipping location update');
+            return;
+        }
+
         fetch('/driver/location/current', {
             method: 'GET',
             headers: {
@@ -1723,13 +1738,22 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
             }
         })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Location data received:', data);
+                
                 if (data.driver && data.driver.current_location) {
                     const newPosition = {
                         lat: data.driver.current_location.lat,
                         lng: data.driver.current_location.lng
                     };
+
+                    console.log('Updating driver marker to:', newPosition);
 
                     // Update or create driver marker
                     if (window.driverMarker && window.routeMap) {
@@ -1739,12 +1763,14 @@
                              Math.abs(oldPosition.lng() - newPosition.lng) > 0.0001);
                         
                         window.driverMarker.setPosition(newPosition);
+                        console.log('Driver marker updated, moved:', hasMoved);
                         
                         // Reload history to update path if driver moved
                         if (hasMoved) {
                             loadRouteHistory();
                         }
                     } else if (window.routeMap) {
+                        console.log('Creating new driver marker');
                         window.driverMarker = new google.maps.Marker({
                             position: newPosition,
                             map: window.routeMap,
@@ -1764,6 +1790,8 @@
                         // Load history when marker is first created
                         loadRouteHistory();
                     }
+                } else {
+                    console.warn('No location data in response:', data);
                 }
             })
             .catch(error => {
