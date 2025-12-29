@@ -37,6 +37,15 @@ class DriverController extends Controller
         }
 
         return response()->json([
+            'driver' => [
+                'id' => $driver->id,
+                'name' => $driver->name,
+                'current_location' => ($driver->current_latitude && $driver->current_longitude) ? [
+                    'lat' => floatval($driver->current_latitude),
+                    'lng' => floatval($driver->current_longitude),
+                ] : null,
+                'last_location_update' => $driver->last_location_update ? $driver->last_location_update->toIso8601String() : null,
+            ],
             'route' => [
                 'id' => $route->id,
                 'name' => $route->name,

@@ -943,6 +943,8 @@
     let currentStatus = null;
     let currentRouteMode = 'fastest'; // Default route mode
     let directionsRenderer = null; // Directions renderer for route drawing
+    let historyPolyline = null; // Polyline for location history path
+    let locationUpdateInterval = null; // Interval for polling location updates
 
     function updateShipmentStatus(shipmentId, status) {
         currentShipmentId = shipmentId;
@@ -1386,6 +1388,12 @@
         if (waypoints.length > 1) {
             calculateRouteWithDirections(waypoints);
         }
+        
+        // Load location history and start real-time updates
+        if ({{ $activeRoute->id ?? 'null' }}) {
+            loadRouteHistory();
+            startLocationPolling();
+        }
     }
 
     // Calculate route using Google Directions API - EXACTLY like admin dashboard
@@ -1671,9 +1679,10 @@
                         path: path,
                         geodesic: true,
                         strokeColor: '#2196F3',
-                        strokeOpacity: 0.5,
-                        strokeWeight: 3,
-                        map: window.routeMap
+                        strokeOpacity: 0.6,
+                        strokeWeight: 4,
+                        map: window.routeMap,
+                        zIndex: 100
                     });
                 }
             })
@@ -1953,6 +1962,7 @@
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
         stopProximityChecking();
+        stopLocationPolling();
     });
     @endif
 </script>
