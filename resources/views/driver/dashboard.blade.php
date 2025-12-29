@@ -941,6 +941,8 @@
 <script>
     let currentShipmentId = null;
     let currentStatus = null;
+    let currentRouteMode = 'fastest'; // Default route mode
+    let directionsRenderer = null; // Directions renderer for route drawing
 
     function updateShipmentStatus(shipmentId, status) {
         currentShipmentId = shipmentId;
@@ -1157,9 +1159,27 @@
         @endphp
         const routeOptions = @json($routeOptions);
         
-        // Get delivery locations
+        // Get delivery locations - order by sequential optimization if available
         @php
-            $deliveryLocationsArray = $shipments->filter(function($s) {
+            $shipmentsForMap = $shipments;
+            $optimizedOrder = $activeRoute->settings['sequential_optimized_order'] ?? null;
+            if ($optimizedOrder && is_array($optimizedOrder)) {
+                $shipmentsMap = $shipments->keyBy('id');
+                $orderedShipments = collect();
+                foreach ($optimizedOrder as $shipmentId) {
+                    if ($shipmentsMap->has($shipmentId)) {
+                        $orderedShipments->push($shipmentsMap->get($shipmentId));
+                    }
+                }
+                foreach ($shipments as $shipment) {
+                    if (!in_array($shipment->id, $optimizedOrder)) {
+                        $orderedShipments->push($shipment);
+                    }
+                }
+                $shipmentsForMap = $orderedShipments;
+            }
+            
+            $deliveryLocationsArray = $shipmentsForMap->filter(function($s) {
                 return $s->delivery_latitude && $s->delivery_longitude;
             })->map(function($shipment) {
                 return [
@@ -1341,185 +1361,105 @@
             markers.push(originMarker);
         }
         
-        window.routeMap.fitBounds(bounds);
-
-        // Draw route if we have route origin (depot/branch) and delivery locations
-        // Use route origin instead of driver location for route calculation
-        const origin = (routeOriginLat && routeOriginLng) 
-            ? { lat: routeOriginLat, lng: routeOriginLng }
-            : (driverLat && driverLng ? { lat: driverLat, lng: driverLng } : null);
+        // Build waypoints array - EXACTLY like admin dashboard
+        // CRITICAL: waypoints[0] is the origin (depot/branch), rest are delivery destinations
+        const waypoints = [];
         
-        if (origin && deliveryLocations.length > 0) {
-            const cacheKey = getCacheKey(currentRouteMode, origin, deliveryLocations);
-            
-            // Check cache (5 minute TTL)
-            const cached = localStorage.getItem('route_cache_' + cacheKey);
-            if (cached) {
-                try {
-                    const cachedData = JSON.parse(cached);
-                    if (Date.now() - cachedData.timestamp < 300000) { // 5 minutes
-                        if (!directionsRenderer) {
-                            directionsRenderer = new google.maps.DirectionsRenderer({
-                                map: window.routeMap,
-                                suppressMarkers: true,
-                                polylineOptions: {
-                                    strokeColor: '#FF6B35',
-                                    strokeWeight: 5,
-                                    strokeOpacity: 0.8
-                                }
-                            });
-                        }
-                        window.directionsRenderer = directionsRenderer;
-                        directionsRenderer.setDirections(cachedData.response);
-                        updateRouteSummary(cachedData.response);
-                        return; // Use cached route
-                    }
-                } catch (e) {
-                    console.warn('Error reading cached route:', e);
-                }
-            }
+        // Add origin (depot/branch) as first waypoint
+        if (routeOriginLat && routeOriginLng) {
+            waypoints.push({ lat: routeOriginLat, lng: routeOriginLng });
+        }
+        
+        // Add delivery locations as waypoints
+        deliveryLocations.forEach(function(shipment) {
+            waypoints.push({ lat: shipment.lat, lng: shipment.lng });
+        });
+        
+        window.routeMap.fitBounds(bounds, {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 50
+        });
 
-            const directionsService = new google.maps.DirectionsService();
-            if (!directionsRenderer) {
-                directionsRenderer = new google.maps.DirectionsRenderer({
-                    map: window.routeMap,
-                    suppressMarkers: true,
-                    polylineOptions: {
-                        strokeColor: '#FF6B35',
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8
-                    }
-                });
-            }
-            window.directionsRenderer = directionsRenderer;
+        // Calculate route using Directions API - EXACTLY like admin dashboard
+        if (waypoints.length > 1) {
+            calculateRouteWithDirections(waypoints);
+        }
+    }
 
-            // Create waypoints from delivery locations (limit to 23 waypoints max for Google Maps API)
-            const waypoints = deliveryLocations.slice(0, 23).map(function(shipment) {
-                return {
-                    location: { lat: shipment.lat, lng: shipment.lng },
-                    stopover: true
-                };
-            });
+    // Calculate route using Google Directions API - EXACTLY like admin dashboard
+    // CRITICAL: waypoints[0] is the origin (depot/branch), rest are delivery destinations
+    // The route MUST return to depot/branch (waypoints[0]) after all deliveries
+    function calculateRouteWithDirections(waypoints) {
+        if (waypoints.length < 2) return;
 
-            // Destination should always be the origin (depot/branch) - return to origin
-            // This matches the backend logic where routes always return to depot
-            let destination = origin;
-
-            // Build route request with mode support
-            const routeRequest = {
-                origin: origin,
-                destination: destination,
-                waypoints: waypoints.length > 1 ? waypoints.slice(0, -1) : [],
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-                optimizeWaypoints: false
-            };
-
-            // Add route preferences based on mode
-            if (currentRouteMode === 'avoidTolls') {
-                routeRequest.avoidTolls = true;
-            }
-
-            // Request directions
-            directionsService.route(routeRequest, function(response, status) {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(response);
-                    
-                    // Cache the route
-                    try {
-                        const routeData = {
-                            response: response,
-                            timestamp: Date.now()
-                        };
-                        localStorage.setItem('route_cache_' + cacheKey, JSON.stringify(routeData));
-                    } catch (e) {
-                        console.warn('Could not cache route:', e);
-                    }
-                    
-                    updateRouteSummary(response);
-                } else {
-                    console.error('Directions request failed:', status);
-                    console.error('Request:', routeRequest);
-                    // Still show markers even if route calculation fails
-                }
-            });
-        } else if (deliveryLocations.length > 0 && origin) {
-            // If we have origin and deliveries, try to draw route
-            const directionsService = new google.maps.DirectionsService();
-            if (!directionsRenderer) {
-                directionsRenderer = new google.maps.DirectionsRenderer({
-                    map: window.routeMap,
-                    suppressMarkers: true,
-                    polylineOptions: {
-                        strokeColor: '#FF6B35',
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8
-                    }
-                });
-            }
-            window.directionsRenderer = directionsRenderer;
-
-            const waypoints = deliveryLocations.slice(0, 23).map(function(shipment) {
-                return {
-                    location: { lat: shipment.lat, lng: shipment.lng },
-                    stopover: true
-                };
-            });
-
-            const routeRequest = {
-                origin: origin,
-                destination: origin, // Always return to origin
-                waypoints: waypoints,
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-                optimizeWaypoints: false
-            };
-
-            if (currentRouteMode === 'avoidTolls') {
-                routeRequest.avoidTolls = true;
-            }
-
-            directionsService.route(routeRequest, function(response, status) {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(response);
-                    updateRouteSummary(response);
-                } else {
-                    console.error('Directions request failed:', status);
-                }
-            });
-        } else if (deliveryLocations.length > 1 && !origin) {
-            // If no driver location but multiple delivery points, draw route between delivery points
-            const directionsService = new google.maps.DirectionsService();
-            const directionsRenderer = new google.maps.DirectionsRenderer({
+        const directionsService = new google.maps.DirectionsService();
+        
+        // Initialize directions renderer
+        if (!directionsRenderer) {
+            directionsRenderer = new google.maps.DirectionsRenderer({
                 map: window.routeMap,
-                suppressMarkers: true,
+                suppressMarkers: true, // We already have custom markers
                 polylineOptions: {
                     strokeColor: '#FF6B35',
+                    strokeOpacity: 0.8,
                     strokeWeight: 5,
-                    strokeOpacity: 0.8
-                }
-            });
-
-            const waypoints = deliveryLocations.slice(1, 24).map(function(shipment) {
-                return {
-                    location: { lat: shipment.lat, lng: shipment.lng },
-                    stopover: true
-                };
-            });
-
-            directionsService.route({
-                origin: { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng },
-                destination: { lat: deliveryLocations[deliveryLocations.length - 1].lat, lng: deliveryLocations[deliveryLocations.length - 1].lng },
-                waypoints: waypoints.slice(0, -1),
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-                optimizeWaypoints: false
-            }, function(response, status) {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(response);
+                    icons: [] // Ensure continuous line without dots
                 }
             });
         }
+        window.directionsRenderer = directionsRenderer;
+
+        // CRITICAL: waypoints[0] is the origin (depot/branch)
+        // waypoints[1] to waypoints[n] are delivery destinations
+        // Destination MUST ALWAYS be depot/branch (waypoints[0]) - return to origin
+        // Build waypoints array (all delivery destinations, excluding origin)
+        const waypointsArray = waypoints.length > 1 
+            ? waypoints.slice(1).map(wp => ({
+                location: { lat: wp.lat, lng: wp.lng },
+                stopover: true
+            }))
+            : [];
+
+        // Origin is ALWAYS the depot/branch (waypoints[0])
+        const origin = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+        // Destination is ALWAYS the depot/branch (return to origin)
+        const destination = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+
+        const request = {
+            origin: origin,
+            destination: destination,
+            waypoints: waypointsArray.length > 0 ? waypointsArray : undefined,
+            provideRouteAlternatives: false,
+            optimizeWaypoints: false, // Keep original order (already optimized sequentially)
+            travelMode: google.maps.TravelMode.DRIVING,
+            unitSystem: google.maps.UnitSystem.METRIC,
+            language: 'pt-BR',
+            avoidHighways: false,
+            avoidTolls: currentRouteMode === 'avoidTolls'
+        };
+
+        directionsService.route(request, function(result, status) {
+            if (status === 'OK') {
+                directionsRenderer.setDirections(result);
+                updateRouteSummary(result);
+            } else {
+                console.error('Directions request failed:', status);
+                console.error('Request:', request);
+                // Fallback to simple polyline if Directions API fails
+                const routePolyline = new google.maps.Polyline({
+                    path: waypoints,
+                    geodesic: true,
+                    strokeColor: '#FF6B35',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 5,
+                    icons: [], // Ensure continuous line without dots
+                    zIndex: 100
+                });
+                routePolyline.setMap(window.routeMap);
+            }
+        });
     }
 
     // Detect device type
@@ -1666,6 +1606,11 @@
         // Clear current route
         if (directionsRenderer) {
             directionsRenderer.setMap(null);
+            directionsRenderer = null;
+        }
+        if (window.directionsRenderer) {
+            window.directionsRenderer.setMap(null);
+            window.directionsRenderer = null;
         }
         
         // Reload route with new mode (call the existing route drawing logic)
@@ -1884,6 +1829,10 @@
         if (window.directionsRenderer) {
             window.directionsRenderer.setMap(null);
             window.directionsRenderer = null;
+        }
+        if (directionsRenderer) {
+            directionsRenderer.setMap(null);
+            directionsRenderer = null;
         }
         
         // Re-run the route drawing logic
