@@ -1662,13 +1662,14 @@
         const routeId = {{ $activeRoute->id ?? 'null' }};
         if (!routeId || !window.routeMap) return;
 
-        fetch(`/api/driver/location/history?route_id=${routeId}&minutes=1440`)
+        // Use web route that works with session auth
+        fetch(`/driver/routes/${routeId}/map-data`)
             .then(response => response.json())
             .then(data => {
-                if (data.locations && data.locations.length > 1) {
-                    const path = data.locations.map(loc => ({
-                        lat: parseFloat(loc.latitude),
-                        lng: parseFloat(loc.longitude)
+                if (data.location_history && data.location_history.length > 1) {
+                    const path = data.location_history.map(loc => ({
+                        lat: parseFloat(loc.lat),
+                        lng: parseFloat(loc.lng)
                     }));
 
                     if (historyPolyline) {
