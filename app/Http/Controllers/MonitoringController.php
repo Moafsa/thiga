@@ -74,23 +74,34 @@ class MonitoringController extends Controller
      */
     public function getDriverLocations()
     {
-        $tenant = Auth::user()->tenant;
-        
-        if (!$tenant) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
+        try {
+            $tenant = Auth::user()->tenant;
+            
+            if (!$tenant) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
 
-        $drivers = Driver::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->whereNotNull('current_latitude')
-            ->whereNotNull('current_longitude')
-            ->with(['user', 'routes' => function($query) {
-                $query->whereIn('status', ['scheduled', 'in_progress'])
-                    ->with(['branch', 'shipments']);
-            }])
-            ->get()
-            ->map(function($driver) {
-                $activeRoute = $driver->routes->first();
+            // Get drivers with active routes OR with current location
+            // This ensures drivers with active routes appear even if location update failed
+            $drivers = Driver::where('tenant_id', $tenant->id)
+                ->where('is_active', true)
+                ->where(function($query) {
+                    $query->where(function($q) {
+                        // Has current location
+                        $q->whereNotNull('current_latitude')
+                          ->whereNotNull('current_longitude');
+                    })->orWhereHas('routes', function($q) {
+                        // OR has active route (even without location)
+                        $q->whereIn('status', ['scheduled', 'in_progress']);
+                    });
+                })
+                ->with(['user', 'routes' => function($query) {
+                    $query->whereIn('status', ['scheduled', 'in_progress'])
+                        ->with(['branch', 'shipments']);
+                }])
+                ->get()
+                ->map(function($driver) {
+                    $activeRoute = $driver->routes->first();
                 
                 // Get location history for active route (last 2 hours) with cache
                 $locationHistory = [];
@@ -129,31 +140,71 @@ class MonitoringController extends Controller
                     });
                 }
                 
-                return [
-                    'id' => $driver->id,
-                    'name' => $driver->name,
-                    'phone' => $driver->phone,
-                    'photo_url' => $driver->photo_url ? \App\Services\ImageService::getCachedPhotoUrl($driver->photo_url, 150) : null,
-                    'latitude' => $driver->current_latitude,
-                    'longitude' => $driver->current_longitude,
-                    'last_update' => $driver->updated_at->toIso8601String(),
-                    'active_route' => $activeRoute ? [
-                        'id' => $activeRoute->id,
-                        'name' => $activeRoute->name,
-                        'status' => $activeRoute->status,
-                        'shipments_count' => $activeRoute->shipments->count(),
-                        'branch' => $activeRoute->branch ? [
-                            'id' => $activeRoute->branch->id,
-                            'name' => $activeRoute->branch->name,
-                            'latitude' => $activeRoute->branch->latitude,
-                            'longitude' => $activeRoute->branch->longitude,
+                    // Try to get latest location from LocationTracking if current_location is null
+                    $latitude = $driver->current_latitude;
+                    $longitude = $driver->current_longitude;
+                    
+                    if (!$latitude || !$longitude) {
+                        try {
+                            $latestTracking = \App\Models\LocationTracking::where('driver_id', $driver->id)
+                                ->where('tracked_at', '>=', now()->subHours(2))
+                                ->orderBy('tracked_at', 'desc')
+                                ->first();
+                            
+                            if ($latestTracking) {
+                                $latitude = $latestTracking->latitude;
+                                $longitude = $latestTracking->longitude;
+                            }
+                        } catch (\Exception $e) {
+                            \Log::warning('Error fetching latest tracking for driver', [
+                                'driver_id' => $driver->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+                    
+                    return [
+                        'id' => $driver->id,
+                        'name' => $driver->name ?? 'Unknown',
+                        'phone' => $driver->phone,
+                        'photo_url' => $driver->photo_url ? \App\Services\ImageService::getCachedPhotoUrl($driver->photo_url, 150) : null,
+                        'latitude' => $latitude ? floatval($latitude) : null,
+                        'longitude' => $longitude ? floatval($longitude) : null,
+                        'last_update' => $driver->updated_at ? $driver->updated_at->toIso8601String() : null,
+                        'active_route' => $activeRoute ? [
+                            'id' => $activeRoute->id,
+                            'name' => $activeRoute->name,
+                            'status' => $activeRoute->status,
+                            'shipments_count' => $activeRoute->shipments->count(),
+                            'branch' => $activeRoute->branch ? [
+                                'id' => $activeRoute->branch->id,
+                                'name' => $activeRoute->branch->name,
+                                'latitude' => $activeRoute->branch->latitude,
+                                'longitude' => $activeRoute->branch->longitude,
+                            ] : null,
                         ] : null,
-                    ] : null,
-                    'location_history' => $locationHistory,
-                ];
-            });
+                        'location_history' => $locationHistory,
+                    ];
+                })
+                ->filter(function($driver) {
+                    // Only return drivers with valid location or active route
+                    return ($driver['latitude'] && $driver['longitude']) || $driver['active_route'];
+                })
+                ->values();
 
-        return response()->json($drivers);
+            return response()->json($drivers);
+        } catch (\Exception $e) {
+            \Log::error('Error in getDriverLocations', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'error' => 'Internal server error',
+                'message' => 'An error occurred while fetching driver locations',
+            ], 500);
+        }
     }
 
     /**
