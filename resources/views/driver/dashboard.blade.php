@@ -1397,8 +1397,8 @@
         }
         
         // Add route origin marker (depot/branch) if available
-        if (routeOriginLat && routeOriginLng) {
-            const originPosition = { lat: routeOriginLat, lng: routeOriginLng };
+        if (isValidCoordinate(routeOriginLat) && isValidCoordinate(routeOriginLng)) {
+            const originPosition = { lat: parseFloat(routeOriginLat), lng: parseFloat(routeOriginLng) };
             const originMarker = new google.maps.Marker({
                 position: originPosition,
                 map: window.routeMap,
