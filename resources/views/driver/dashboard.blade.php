@@ -685,7 +685,7 @@
     @endif
 
     <!-- Route Map -->
-    @if($activeRoute && (($driver->current_latitude && $driver->current_longitude) || $shipments->filter(function($s) { return $s->delivery_latitude && $s->delivery_longitude; })->count() > 0))
+    @if($activeRoute && (($activeRoute->start_latitude && $activeRoute->start_longitude) || ($driver->current_latitude && $driver->current_longitude) || $shipments->filter(function($s) { return $s->delivery_latitude && $s->delivery_longitude; })->count() > 0))
     <div class="route-map-container">
         <h3><i class="fas fa-map"></i> Mapa da Rota</h3>
         <div class="route-options">
@@ -1143,9 +1143,19 @@
             return;
         }
 
-        // Get driver current location
+        // Get driver current location (for marker only)
         const driverLat = {{ $driver->current_latitude ?? 'null' }};
         const driverLng = {{ $driver->current_longitude ?? 'null' }};
+        
+        // Get route origin (depot/branch) - this is the correct origin for route calculation
+        const routeOriginLat = {{ $activeRoute->start_latitude ?? 'null' }};
+        const routeOriginLng = {{ $activeRoute->start_longitude ?? 'null' }};
+        
+        // Get route options if available
+        @php
+            $routeOptions = $activeRoute->route_options ?? null;
+        @endphp
+        const routeOptions = @json($routeOptions);
         
         // Get delivery locations
         @php
@@ -1165,10 +1175,12 @@
         @endphp
         const deliveryLocations = @json($deliveryLocationsArray);
 
-        // Determine map center
+        // Determine map center - prefer route origin, then driver location, then first delivery
         let center = { lat: -23.5505, lng: -46.6333 }; // São Paulo default
         
-        if (driverLat && driverLng) {
+        if (routeOriginLat && routeOriginLng) {
+            center = { lat: routeOriginLat, lng: routeOriginLng };
+        } else if (driverLat && driverLng) {
             center = { lat: driverLat, lng: driverLng };
         } else if (deliveryLocations.length > 0) {
             center = { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng };
@@ -1296,11 +1308,48 @@
             bounds.extend(extendPoint2);
         }
         
+        // Add route origin marker (depot/branch) if available
+        if (routeOriginLat && routeOriginLng) {
+            const originPosition = { lat: routeOriginLat, lng: routeOriginLng };
+            const originMarker = new google.maps.Marker({
+                position: originPosition,
+                map: window.routeMap,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: '#9C27B0',
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 3,
+                },
+                title: 'Depósito/Filial',
+                zIndex: 999
+            });
+
+            const originInfo = new google.maps.InfoWindow({
+                content: `<div style="padding: 10px; min-width: 200px;">
+                    <h4 style="margin: 0 0 10px 0; color: #9C27B0;">Ponto de Partida</h4>
+                    <p style="margin: 5px 0; color: #666;">Depósito/Filial</p>
+                </div>`
+            });
+
+            originMarker.addListener('click', function() {
+                originInfo.open(window.routeMap, originMarker);
+            });
+
+            bounds.extend(originPosition);
+            markers.push(originMarker);
+        }
+        
         window.routeMap.fitBounds(bounds);
 
-        // Draw route if we have driver location and delivery locations
-        if (driverLat && driverLng && deliveryLocations.length > 0) {
-            const origin = { lat: driverLat, lng: driverLng };
+        // Draw route if we have route origin (depot/branch) and delivery locations
+        // Use route origin instead of driver location for route calculation
+        const origin = (routeOriginLat && routeOriginLng) 
+            ? { lat: routeOriginLat, lng: routeOriginLng }
+            : (driverLat && driverLng ? { lat: driverLat, lng: driverLng } : null);
+        
+        if (origin && deliveryLocations.length > 0) {
             const cacheKey = getCacheKey(currentRouteMode, origin, deliveryLocations);
             
             // Check cache (5 minute TTL)
@@ -1352,15 +1401,9 @@
                 };
             });
 
-            // Determine destination (last delivery point or same as origin if only one waypoint)
-            let destination;
-            if (deliveryLocations.length > 1 && waypoints.length > 0) {
-                destination = { lat: deliveryLocations[deliveryLocations.length - 1].lat, lng: deliveryLocations[deliveryLocations.length - 1].lng };
-            } else if (waypoints.length > 0) {
-                destination = { lat: waypoints[0].location.lat, lng: waypoints[0].location.lng };
-            } else {
-                destination = { lat: driverLat, lng: driverLng };
-            }
+            // Destination should always be the origin (depot/branch) - return to origin
+            // This matches the backend logic where routes always return to depot
+            let destination = origin;
 
             // Build route request with mode support
             const routeRequest = {
@@ -1395,11 +1438,56 @@
                     
                     updateRouteSummary(response);
                 } else {
-                    console.warn('Directions request failed due to ' + status);
+                    console.error('Directions request failed:', status);
+                    console.error('Request:', routeRequest);
                     // Still show markers even if route calculation fails
                 }
             });
-        } else if (deliveryLocations.length > 1 && !driverLat) {
+        } else if (deliveryLocations.length > 0 && origin) {
+            // If we have origin and deliveries, try to draw route
+            const directionsService = new google.maps.DirectionsService();
+            if (!directionsRenderer) {
+                directionsRenderer = new google.maps.DirectionsRenderer({
+                    map: window.routeMap,
+                    suppressMarkers: true,
+                    polylineOptions: {
+                        strokeColor: '#FF6B35',
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8
+                    }
+                });
+            }
+            window.directionsRenderer = directionsRenderer;
+
+            const waypoints = deliveryLocations.slice(0, 23).map(function(shipment) {
+                return {
+                    location: { lat: shipment.lat, lng: shipment.lng },
+                    stopover: true
+                };
+            });
+
+            const routeRequest = {
+                origin: origin,
+                destination: origin, // Always return to origin
+                waypoints: waypoints,
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC,
+                optimizeWaypoints: false
+            };
+
+            if (currentRouteMode === 'avoidTolls') {
+                routeRequest.avoidTolls = true;
+            }
+
+            directionsService.route(routeRequest, function(response, status) {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                    updateRouteSummary(response);
+                } else {
+                    console.error('Directions request failed:', status);
+                }
+            });
+        } else if (deliveryLocations.length > 1 && !origin) {
             // If no driver location but multiple delivery points, draw route between delivery points
             const directionsService = new google.maps.DirectionsService();
             const directionsRenderer = new google.maps.DirectionsRenderer({
@@ -1799,10 +1887,14 @@
         }
         
         // Re-run the route drawing logic
+        const routeOriginLat = {{ $activeRoute->start_latitude ?? 'null' }};
+        const routeOriginLng = {{ $activeRoute->start_longitude ?? 'null' }};
         const driverLat = {{ $driver->current_latitude ?? 'null' }};
         const driverLng = {{ $driver->current_longitude ?? 'null' }};
         
-        if (!driverLat || !driverLng) return;
+        // Need at least route origin or driver location, and delivery locations
+        const hasOrigin = (routeOriginLat && routeOriginLng) || (driverLat && driverLng);
+        if (!hasOrigin) return;
         
         // Trigger re-initialization by calling initRouteMap again
         // This will use the currentRouteMode global variable
@@ -1892,11 +1984,12 @@
 
     // Initialize map when page loads
     @php
+        $hasRouteOrigin = $activeRoute && $activeRoute->start_latitude && $activeRoute->start_longitude;
         $hasDriverLocation = $driver->current_latitude && $driver->current_longitude;
         $hasDeliveryLocations = $shipments->filter(function($s) { 
             return $s->delivery_latitude && $s->delivery_longitude; 
         })->count() > 0;
-        $shouldShowMap = $activeRoute && ($hasDriverLocation || $hasDeliveryLocations);
+        $shouldShowMap = $activeRoute && ($hasRouteOrigin || $hasDriverLocation || $hasDeliveryLocations);
     @endphp
     @if($shouldShowMap)
     document.addEventListener('DOMContentLoaded', function() {
