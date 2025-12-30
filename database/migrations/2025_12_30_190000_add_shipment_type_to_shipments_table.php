@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::table('shipments', function (Blueprint $table) {
             // Add shipment type: 'delivery' (entrega) or 'pickup' (coleta)
-            $table->enum('shipment_type', ['delivery', 'pickup'])->default('delivery')->after('status');
+            // Using string instead of enum for PostgreSQL compatibility
+            $table->string('shipment_type', 20)->default('delivery')->after('status');
         });
     }
 
