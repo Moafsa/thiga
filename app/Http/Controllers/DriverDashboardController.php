@@ -623,6 +623,12 @@ class DriverDashboardController extends Controller
                 return response()->json(['error' => 'Driver not found'], 404);
             }
 
+            Log::info('Update shipment status request', [
+                'shipment_id' => $shipmentId,
+                'driver_id' => $driver->id,
+                'user_id' => $user->id,
+            ]);
+
             $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
                 'status' => 'required|string|in:pending,picked_up,in_transit,delivered,exception',
                 'notes' => 'nullable|string',
@@ -635,17 +641,29 @@ class DriverDashboardController extends Controller
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
+            // Check if shipment exists first
+            $shipmentExists = \App\Models\Shipment::where('id', $shipmentId)->exists();
+            if (!$shipmentExists) {
+                Log::warning('Shipment ID does not exist', [
+                    'shipment_id' => $shipmentId,
+                ]);
+                return response()->json(['error' => 'Shipment not found'], 404);
+            }
+
             $shipment = \App\Models\Shipment::where('id', $shipmentId)
                 ->where('driver_id', $driver->id)
                 ->first();
 
             if (!$shipment) {
-                Log::warning('Shipment not found', [
+                // Check shipment's actual driver_id
+                $actualShipment = \App\Models\Shipment::where('id', $shipmentId)->first();
+                Log::warning('Shipment not found for driver', [
                     'shipment_id' => $shipmentId,
                     'driver_id' => $driver->id,
                     'user_id' => $user->id,
+                    'shipment_driver_id' => $actualShipment ? $actualShipment->driver_id : null,
                 ]);
-                return response()->json(['error' => 'Shipment not found'], 404);
+                return response()->json(['error' => 'Shipment not found or does not belong to this driver'], 404);
             }
 
             // Handle photo upload if provided (using MinIO like DriverPhotoService)
