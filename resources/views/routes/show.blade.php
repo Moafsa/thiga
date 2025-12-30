@@ -768,7 +768,7 @@
                                     @foreach($proof->photo_urls as $photoUrl)
                                         @if($photoUrl)
                                             <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-secundaria); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
-                                                <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : 'N/A' }}', '{{ addslashes($proof->notes ?? '') }}')">
+                                                <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : 'N/A' }}', '{{ addslashes($proof->description ?? '') }}')">
                                                 <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 5px; font-size: 0.7em; color: white; text-align: center;">
                                                     {{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}
                                                 </div>
@@ -777,9 +777,9 @@
                                     @endforeach
                                 @endforeach
                             </div>
-                            {{-- Display notes for each proof --}}
+                            {{-- Display descriptions for each proof --}}
                             @foreach($shipment->deliveryProofs as $proof)
-                                @if($proof->notes)
+                                @if($proof->description)
                                     <div style="background-color: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-bottom: 8px;">
                                         <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.85em; margin: 0;">
                                             <i class="fas fa-{{ $proof->proof_type === 'pickup' ? 'hand-holding' : 'truck' }}"></i> 
@@ -789,7 +789,7 @@
                                             @endif
                                         </p>
                                         <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 5px 0 0 0;">
-                                            {{ $proof->notes }}
+                                            {{ $proof->description }}
                                         </p>
                                     </div>
                                 @endif
