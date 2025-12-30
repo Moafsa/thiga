@@ -1073,7 +1073,7 @@
     }
     
     function submitForm(formData, shipmentId) {
-        fetch(`/api/driver/shipments/${shipmentId}/status`, {
+        fetch(`/driver/shipments/${shipmentId}/status`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',

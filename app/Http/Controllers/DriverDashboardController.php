@@ -603,6 +603,178 @@ class DriverDashboardController extends Controller
     }
 
     /**
+     * Update shipment status (web endpoint for driver dashboard)
+     */
+    public function updateShipmentStatus(Request $request, $shipmentId)
+    {
+        try {
+            $user = Auth::user();
+            $tenant = $user->tenant;
+
+            if (!$tenant) {
+                return response()->json(['error' => 'Tenant not found'], 404);
+            }
+
+            $driver = Driver::where('tenant_id', $tenant->id)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$driver) {
+                return response()->json(['error' => 'Driver not found'], 404);
+            }
+
+            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'status' => 'required|string|in:pending,picked_up,in_transit,delivered,exception',
+                'notes' => 'nullable|string',
+                'photo' => 'nullable|image|max:5120', // Max 5MB
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $shipment = \App\Models\Shipment::where('id', $shipmentId)
+                ->where('driver_id', $driver->id)
+                ->first();
+
+            if (!$shipment) {
+                return response()->json(['error' => 'Shipment not found'], 404);
+            }
+
+            // Handle photo upload if provided (using MinIO like DriverPhotoService)
+            $photoPath = null;
+            if ($request->hasFile('photo')) {
+                try {
+                    $photo = $request->file('photo');
+                    $extension = $photo->getClientOriginalExtension();
+                    $filename = 'proof_' . time() . '_' . uniqid() . '.' . $extension;
+                    $path = "delivery_proofs/{$shipment->tenant_id}/{$shipment->id}/{$filename}";
+                    
+                    // Try MinIO first, fallback to public
+                    $disk = 'minio';
+                    try {
+                        Storage::disk('minio')->put($path, file_get_contents($photo->getRealPath()));
+                        Log::info('Photo uploaded to MinIO', ['path' => $path]);
+                    } catch (\Exception $e) {
+                        Log::warning('MinIO upload failed, using public disk fallback', [
+                            'error' => $e->getMessage()
+                        ]);
+                        $disk = 'public';
+                        Storage::disk('public')->put($path, file_get_contents($photo->getRealPath()));
+                        Log::info('Photo uploaded to public disk', ['path' => $path]);
+                    }
+                    
+                    $photoPath = $path;
+                } catch (\Exception $e) {
+                    Log::error('Error uploading delivery proof photo', [
+                        'shipment_id' => $shipmentId,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    return response()->json(['error' => 'Failed to upload photo'], 500);
+                }
+            }
+
+            // Update shipment status
+            $updateData = [
+                'status' => $request->status,
+            ];
+
+            if ($request->notes) {
+                $updateData['notes'] = $request->notes;
+            }
+
+            if ($request->status === 'picked_up') {
+                $updateData['picked_up_at'] = now();
+            }
+
+            if ($request->status === 'delivered') {
+                $updateData['delivered_at'] = now();
+            }
+
+            $shipment->update($updateData);
+
+            // Create delivery proof if photo or location is provided
+            if ($photoPath || $request->notes || ($request->latitude && $request->longitude)) {
+                $proofData = [
+                    'tenant_id' => $shipment->tenant_id,
+                    'shipment_id' => $shipment->id,
+                    'driver_id' => $driver->id,
+                    'proof_type' => $request->status === 'delivered' ? 'delivery' : ($request->status === 'picked_up' ? 'pickup' : 'other'),
+                    'description' => $request->notes,
+                    'status' => 'pending',
+                    'delivery_time' => now(),
+                ];
+
+                // Always try to get location from shipment if not provided
+                $latitude = $request->latitude ?? $shipment->delivery_latitude ?? $shipment->pickup_latitude ?? null;
+                $longitude = $request->longitude ?? $shipment->delivery_longitude ?? $shipment->pickup_longitude ?? null;
+
+                if ($latitude && $longitude) {
+                    $proofData['latitude'] = $latitude;
+                    $proofData['longitude'] = $longitude;
+                    // Try to get address from shipment
+                    $proofData['address'] = $shipment->delivery_address ?? $shipment->pickup_address;
+                    $proofData['city'] = $shipment->delivery_city ?? $shipment->pickup_city;
+                    $proofData['state'] = $shipment->delivery_state ?? $shipment->pickup_state;
+                }
+
+                if ($photoPath) {
+                    // Store path, URL will be generated by accessor
+                    $proofData['photos'] = [$photoPath];
+                }
+
+                \App\Models\DeliveryProof::create($proofData);
+            }
+
+            // Return updated shipment with proofs
+            $shipment->load('deliveryProofs');
+
+            // Update location tracking if coordinates provided
+            if ($request->latitude && $request->longitude) {
+                LocationTracking::create([
+                    'tenant_id' => $driver->tenant_id,
+                    'driver_id' => $driver->id,
+                    'shipment_id' => $shipment->id,
+                    'route_id' => $shipment->route_id,
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude,
+                    'accuracy' => $request->accuracy ?? null,
+                    'tracked_at' => now(),
+                ]);
+
+                // Update driver current location
+                $driver->update([
+                    'current_latitude' => $request->latitude,
+                    'current_longitude' => $request->longitude,
+                    'last_location_update' => now(),
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Status atualizado com sucesso!',
+                'shipment' => [
+                    'id' => $shipment->id,
+                    'status' => $shipment->status,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error updating shipment status', [
+                'shipment_id' => $shipmentId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'error' => 'Erro ao atualizar status',
+                'message' => 'Ocorreu um erro ao processar a solicitação. Tente novamente.',
+            ], 500);
+        }
+    }
+
+    /**
      * Export wallet statement to PDF
      */
     public function exportWalletPdf(Request $request)
