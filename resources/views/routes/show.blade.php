@@ -397,7 +397,12 @@
                 <div style="background-color: var(--cor-principal); padding: 15px; border-radius: 8px; margin-left: 25px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                         <h4 style="color: var(--cor-texto-claro); margin: 0; font-size: 1em;">
-                            <i class="fas fa-truck"></i> Entrega {{ $index + 1 }}
+                            <i class="fas fa-truck"></i> 
+                            @if(($shipment->shipment_type ?? 'delivery') === 'pickup')
+                                Coleta {{ $index + 1 }}
+                            @else
+                                Entrega {{ $index + 1 }}
+                            @endif
                         </h4>
                         <span class="status-badge" style="background-color: rgba(255, 107, 53, 0.2); color: var(--cor-acento); font-size: 0.85em;">
                             {{ ucfirst(str_replace('_', ' ', $shipment->status)) }}
@@ -729,13 +734,17 @@
     <div style="display: grid; gap: 15px;">
         @foreach($route->shipments as $shipment)
             <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div style="flex: 1;">
                         <h4 style="color: var(--cor-texto-claro); margin-bottom: 5px;">{{ $shipment->tracking_number }}</h4>
                         <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">{{ $shipment->title }}</p>
-                        <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                        <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <span class="status-badge" style="background-color: rgba(255, 107, 53, 0.2); color: var(--cor-acento); font-size: 0.85em;">
                                 {{ ucfirst(str_replace('_', ' ', $shipment->status)) }}
+                            </span>
+                            <span class="status-badge" style="background-color: {{ ($shipment->shipment_type ?? 'delivery') === 'pickup' ? 'rgba(255, 215, 0, 0.2)' : 'rgba(76, 175, 80, 0.2)' }}; color: {{ ($shipment->shipment_type ?? 'delivery') === 'pickup' ? '#FFD700' : '#4caf50' }}; font-size: 0.85em;">
+                                <i class="fas fa-{{ ($shipment->shipment_type ?? 'delivery') === 'pickup' ? 'hand-holding' : 'truck' }}"></i> 
+                                {{ ($shipment->shipment_type ?? 'delivery') === 'pickup' ? 'Coleta' : 'Entrega' }}
                             </span>
                             @if($shipment->hasAuthorizedCte())
                                 <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50; font-size: 0.85em;">
@@ -747,8 +756,48 @@
                                 </span>
                             @endif
                         </div>
+                        
+                        {{-- Display delivery proofs with photos --}}
+                        @if($shipment->deliveryProofs && $shipment->deliveryProofs->count() > 0)
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <h5 style="color: var(--cor-acento); font-size: 0.9em; margin-bottom: 10px;">
+                                <i class="fas fa-camera"></i> Fotos de Comprovante
+                            </h5>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                                @foreach($shipment->deliveryProofs as $proof)
+                                    @foreach($proof->photo_urls as $photoUrl)
+                                        @if($photoUrl)
+                                            <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-secundaria); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
+                                                <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : 'N/A' }}', '{{ addslashes($proof->notes ?? '') }}')">
+                                                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 5px; font-size: 0.7em; color: white; text-align: center;">
+                                                    {{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                @endforeach
+                            </div>
+                            {{-- Display notes for each proof --}}
+                            @foreach($shipment->deliveryProofs as $proof)
+                                @if($proof->notes)
+                                    <div style="background-color: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-bottom: 8px;">
+                                        <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.85em; margin: 0;">
+                                            <i class="fas fa-{{ $proof->proof_type === 'pickup' ? 'hand-holding' : 'truck' }}"></i> 
+                                            <strong>{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}</strong> 
+                                            @if($proof->delivery_time)
+                                                - {{ $proof->delivery_time->format('d/m/Y H:i') }}
+                                            @endif
+                                        </p>
+                                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 5px 0 0 0;">
+                                            {{ $proof->notes }}
+                                        </p>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                        @endif
                     </div>
-                    <a href="{{ route('shipments.show', $shipment) }}" class="btn-secondary" style="padding: 8px 16px; margin-left: 15px;">
+                    <a href="{{ route('shipments.show', $shipment) }}" class="btn-secondary" style="padding: 8px 16px; margin-left: 15px; align-self: flex-start;">
                         Ver
                     </a>
                 </div>
@@ -865,6 +914,9 @@
     let availableRoutes = [];
     let currentRouteIndex = 0;
     let currentMapStyle = 'uber'; // Default to Uber style
+    let driverMarker = null; // Marker for driver's real-time location
+    let driverLocationInterval = null; // Interval for updating driver location
+    let driverHistoryPolyline = null; // Polyline for driver's path history
     
     // Map style configurations
     const mapStyles = {
@@ -1409,6 +1461,129 @@
             bottom: 50,
             left: 50
         });
+
+        // Start tracking driver location if route is in progress
+        @if($route->status === 'in_progress' && $route->driver)
+            startDriverLocationTracking();
+        @endif
+    }
+
+    // Start tracking driver location in real-time
+    function startDriverLocationTracking() {
+        if (!routeMap) return;
+
+        // Clear existing interval
+        if (driverLocationInterval) {
+            clearInterval(driverLocationInterval);
+        }
+
+        // Update immediately
+        updateDriverLocation();
+
+        // Update every 5 seconds
+        driverLocationInterval = setInterval(() => {
+            updateDriverLocation();
+        }, 5000);
+    }
+
+    // Stop tracking driver location
+    function stopDriverLocationTracking() {
+        if (driverLocationInterval) {
+            clearInterval(driverLocationInterval);
+            driverLocationInterval = null;
+        }
+    }
+
+    // Update driver location from server
+    function updateDriverLocation() {
+        if (!routeMap) return;
+
+        const routeId = {{ $route->id }};
+        const driverId = {{ $route->driver->id ?? 'null' }};
+
+        if (!driverId) return;
+
+        // Get current location
+        fetch(`/monitoring/driver-locations`)
+            .then(response => response.json())
+            .then(drivers => {
+                const driver = drivers.find(d => d.id === driverId);
+                
+                if (driver && driver.latitude && driver.longitude) {
+                    const position = {
+                        lat: parseFloat(driver.latitude),
+                        lng: parseFloat(driver.longitude)
+                    };
+
+                    // Update or create driver marker
+                    if (driverMarker) {
+                        driverMarker.setPosition(position);
+                    } else {
+                        // Create driver marker with photo
+                        const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=64');
+                        const markerSize = 40;
+                        
+                        driverMarker = new google.maps.Marker({
+                            position: position,
+                            map: routeMap,
+                            icon: {
+                                url: driverPhotoUrl,
+                                scaledSize: new google.maps.Size(markerSize, markerSize),
+                                anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
+                                origin: new google.maps.Point(0, 0)
+                            },
+                            title: driver.name + ' - Localização Atual',
+                            zIndex: 2000,
+                            animation: google.maps.Animation.DROP
+                        });
+                    }
+
+                    // Load and draw driver path history
+                    loadDriverPathHistory(routeId, driver);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching driver location:', error);
+            });
+    }
+
+    // Load and draw driver's path history
+    function loadDriverPathHistory(routeId, driver) {
+        if (!driver || !driver.location_history || driver.location_history.length < 2) {
+            return;
+        }
+
+        // Build path from location history
+        const path = driver.location_history.map(loc => ({
+            lat: parseFloat(loc.lat),
+            lng: parseFloat(loc.lng)
+        }));
+
+        // Add current position
+        if (driver.latitude && driver.longitude) {
+            path.push({
+                lat: parseFloat(driver.latitude),
+                lng: parseFloat(driver.longitude)
+            });
+        }
+
+        // Remove old polyline
+        if (driverHistoryPolyline) {
+            driverHistoryPolyline.setMap(null);
+        }
+
+        // Draw new polyline
+        if (path.length > 1) {
+            driverHistoryPolyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: '#2196F3',
+                strokeOpacity: 0.6,
+                strokeWeight: 4,
+                map: routeMap,
+                zIndex: 150
+            });
+        }
     }
 
     // Update route information display
@@ -1434,7 +1609,33 @@
     } else {
         initRouteMap();
     }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        stopDriverLocationTracking();
+    });
     @endif
+    function openPhotoModal(photoUrl, type, date, notes) {
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        modal.innerHTML = `
+            <div style="position: relative; max-width: 90%; max-height: 90%;">
+                <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.5em;">&times;</button>
+                <img src="${photoUrl}" alt="${type}" style="max-width: 100%; max-height: 90vh; border-radius: 10px;">
+                <div style="color: white; text-align: center; margin-top: 10px;">
+                    <p style="margin: 5px 0; font-weight: 600;">${type} - ${date}</p>
+                    ${notes ? `<p style="margin: 5px 0; color: rgba(255,255,255,0.8); font-size: 0.9em;">${notes}</p>` : ''}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+    }
 </script>
 @endpush
 @endsection
