@@ -808,8 +808,9 @@
                                         {{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}
                                     </div>
                                 </div>
-                                @endif
-                            @endforeach
+                            @endif
+                        @endforeach
+                    @endforeach
                         @endif
                     @endforeach
                 </div>
