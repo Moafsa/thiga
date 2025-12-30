@@ -1115,6 +1115,7 @@ class RouteController extends Controller
                 'delivery_date' => $route->scheduled_date,
                 'delivery_time' => '18:00',
                 'status' => 'scheduled',
+                'shipment_type' => $deliveryAddress['shipment_type'] ?? 'delivery',
                 'delivery_notes' => 'Shipment created from address input',
                 'freight_value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : null,
                 'value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : 0,
@@ -2036,6 +2037,15 @@ class RouteController extends Controller
                     'total_goods_value' => $totalGoodsValue,
                 ]),
             ]);
+
+            // Save planned path from the selected/best route option
+            if (isset($comparison['best_route']) && !empty($comparison['best_route'])) {
+                $routePathService = app(\App\Services\RoutePathService::class);
+                $bestOption = $routeOptions[$comparison['best_option'] - 1] ?? null;
+                if ($bestOption) {
+                    $routePathService->savePlannedPath($route, $bestOption);
+                }
+            }
             
             \Log::info('Route options calculated successfully with optimization', [
                 'route_id' => $route->id,

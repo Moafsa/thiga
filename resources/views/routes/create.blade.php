@@ -275,7 +275,13 @@
                             </div>
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px;">Endereço *</label>
+                            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px;">Tipo *</label>
+                            <select name="addresses[${addressIndex}][shipment_type]" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);" required>
+                                <option value="delivery">Entrega</option>
+                                <option value="pickup">Coleta</option>
+                            </select>
+                            
+                            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; margin-top: 10px;">Endereço *</label>
                             <input type="text" name="address" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -422,7 +428,13 @@
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <div>
-                        <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Endereço Completo *</label>
+                        <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Tipo *</label>
+                        <select name="addresses[${addressIndex}][shipment_type]" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);" required>
+                            <option value="delivery">Entrega</option>
+                            <option value="pickup">Coleta</option>
+                        </select>
+                        
+                        <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em; margin-top: 10px;">Endereço Completo *</label>
                         <input type="text" name="addresses[${addressIndex}][address]" value="${escapeHtml(values.address || '')}" placeholder="Rua, número, bairro" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                     </div>
                     <div>

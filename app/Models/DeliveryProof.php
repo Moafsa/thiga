@@ -126,4 +126,59 @@ class DeliveryProof extends Model
     {
         return count($this->documents ?? []);
     }
+
+    /**
+     * Get photo URLs (convert paths to full URLs using MinIO or public disk)
+     */
+    public function getPhotoUrlsAttribute(): array
+    {
+        if (!$this->photos || !is_array($this->photos)) {
+            return [];
+        }
+
+        return array_map(function($photoPath) {
+            if (!$photoPath) {
+                return null;
+            }
+
+            // If it's already a URL, return as is
+            if (filter_var($photoPath, FILTER_VALIDATE_URL)) {
+                return $photoPath;
+            }
+
+            // Try MinIO first
+            try {
+                $minioConfig = config('filesystems.disks.minio');
+                if ($minioConfig && \Storage::disk('minio')->exists($photoPath)) {
+                    $baseUrl = rtrim($minioConfig['url'] ?? '', '/');
+                    $bucket = $minioConfig['bucket'] ?? '';
+                    $path = ltrim($photoPath, '/');
+                    $minioUrl = "{$baseUrl}/{$bucket}/{$path}";
+                    
+                    if (filter_var($minioUrl, FILTER_VALIDATE_URL)) {
+                        return $minioUrl;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::debug('Failed to get MinIO URL for delivery proof photo', [
+                    'path' => $photoPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Fallback to public disk
+            try {
+                if (\Storage::disk('public')->exists($photoPath)) {
+                    return \Storage::disk('public')->url($photoPath);
+                }
+            } catch (\Exception $e) {
+                \Log::debug('Failed to get public disk URL for delivery proof photo', [
+                    'path' => $photoPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return $photoPath; // Return path as fallback
+        }, array_filter($this->photos));
+    }
 }

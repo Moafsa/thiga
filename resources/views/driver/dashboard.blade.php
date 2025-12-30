@@ -800,9 +800,8 @@
                 </h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
                     @foreach($shipment->deliveryProofs as $proof)
-                        @if($proof->photos && is_array($proof->photos))
-                            @foreach($proof->photos as $photoUrl)
-                                @if($photoUrl)
+                        @foreach($proof->photo_urls as $photoUrl)
+                            @if($photoUrl)
                                 <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-principal); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
                                     <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time->format('d/m/Y H:i') }}')">
                                     <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 5px; font-size: 0.7em; color: white; text-align: center;">
