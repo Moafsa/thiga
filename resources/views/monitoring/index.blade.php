@@ -372,9 +372,12 @@
 
         bounds = new google.maps.LatLngBounds();
 
-        // Load initial data
-        loadDriverLocations();
+        // Load initial data - routes first so route paths are available for trail checking
         loadRoutesAndShipments();
+        // Load driver locations after routes (with small delay to ensure routes are processed)
+        setTimeout(() => {
+            loadDriverLocations();
+        }, 500);
     }
 
     // Apply map style and update markers/routes
@@ -967,10 +970,11 @@
     // Refresh button
     document.getElementById('refresh-locations').addEventListener('click', function() {
         this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
-        loadDriverLocations();
+        loadRoutesAndShipments();
         setTimeout(() => {
+            loadDriverLocations();
             this.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar';
-        }, 1000);
+        }, 500);
     });
 
     // Load Google Maps when page is ready
@@ -986,7 +990,10 @@
         if (refreshInterval) clearInterval(refreshInterval);
         refreshInterval = setInterval(() => {
             if (map) {
-                loadDriverLocations();
+                loadRoutesAndShipments();
+                setTimeout(() => {
+                    loadDriverLocations();
+                }, 500);
             }
         }, 30000);
     }
