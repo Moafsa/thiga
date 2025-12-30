@@ -48,10 +48,12 @@ class DriverDashboardController extends Controller
                 ->with('error', 'You are not registered as a driver.');
         }
 
-        // Get active route
+        // Get active route with delivery proofs
         $activeRoute = Route::where('driver_id', $driver->id)
             ->whereIn('status', ['scheduled', 'in_progress'])
-            ->with(['shipments.senderClient', 'shipments.receiverClient'])
+            ->with(['shipments' => function($query) {
+                $query->with(['senderClient', 'receiverClient', 'deliveryProofs']);
+            }])
             ->orderBy('scheduled_date', 'desc')
             ->first();
 
@@ -359,7 +361,7 @@ class DriverDashboardController extends Controller
         ]);
 
         // Create location tracking record
-        LocationTracking::create([
+        $locationTracking = LocationTracking::create([
             'tenant_id' => $driver->tenant_id,
             'driver_id' => $driver->id,
             'route_id' => $request->route_id,
@@ -370,6 +372,26 @@ class DriverDashboardController extends Controller
             'device_id' => $request->header('User-Agent'),
             'metadata' => ['source' => 'web_browser'],
         ]);
+
+        // Update actual path if route is in progress
+        if ($request->route_id) {
+            $route = \App\Models\Route::find($request->route_id);
+            if ($route && $route->status === 'in_progress') {
+                try {
+                    $routePathService = app(\App\Services\RoutePathService::class);
+                    $routePathService->updateActualPath(
+                        $route,
+                        $request->latitude,
+                        $request->longitude
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Error updating actual path', [
+                        'route_id' => $request->route_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         Log::debug('Driver location updated from web', [
             'driver_id' => $driver->id,

@@ -481,6 +481,22 @@
         color: #2196F3;
     }
 
+    /* Route Deviation Alert Styles */
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .route-deviation-alert {
+        animation: slideInRight 0.3s ease-out;
+    }
+
     /* Notification Styles */
     .proximity-notification {
         position: fixed;
@@ -776,6 +792,31 @@
             </button>
             @endif
             
+            {{-- Display delivery proofs with photos --}}
+            @if($shipment->deliveryProofs && $shipment->deliveryProofs->count() > 0)
+            <div class="proof-photos" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h4 style="color: var(--cor-acento); font-size: 0.9em; margin-bottom: 10px;">
+                    <i class="fas fa-camera"></i> Fotos de Comprovante
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
+                    @foreach($shipment->deliveryProofs as $proof)
+                        @if($proof->photos && is_array($proof->photos))
+                            @foreach($proof->photos as $photoUrl)
+                                @if($photoUrl)
+                                <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-principal); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
+                                    <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time->format('d/m/Y H:i') }}')">
+                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 5px; font-size: 0.7em; color: white; text-align: center;">
+                                        {{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}
+                                    </div>
+                                </div>
+                                @endif
+                            @endforeach
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+            @endif
+            
             <div class="shipment-actions">
                 @if($shipment->status === 'pending' || $shipment->status === 'scheduled')
                 <button class="btn-action pickup" onclick="updateShipmentStatus({{ $shipment->id }}, 'picked_up')">
@@ -969,6 +1010,27 @@
         document.getElementById('photoPreview').style.display = 'none';
         document.getElementById('proofPhoto').value = '';
         document.getElementById('statusForm').reset();
+    }
+
+    function openPhotoModal(photoUrl, type, date) {
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        modal.innerHTML = `
+            <div style="position: relative; max-width: 90%; max-height: 90%;">
+                <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.5em;">&times;</button>
+                <img src="${photoUrl}" alt="${type}" style="max-width: 100%; max-height: 90vh; border-radius: 10px;">
+                <div style="color: white; text-align: center; margin-top: 10px;">
+                    <p style="margin: 5px 0;">${type} - ${date}</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
     }
 
     function previewPhoto(input) {
@@ -1770,6 +1832,11 @@
         // Poll every 5 seconds (more frequent for real-time tracking)
         locationUpdateInterval = setInterval(function() {
             updateDriverLocation();
+            // Check for route deviation every 30 seconds
+            if (!window.lastDeviationCheck || (Date.now() - window.lastDeviationCheck) > 30000) {
+                checkRouteDeviation();
+                window.lastDeviationCheck = Date.now();
+            }
         }, 5000);
 
         // Also update immediately
@@ -1782,6 +1849,106 @@
             clearInterval(locationUpdateInterval);
             locationUpdateInterval = null;
         }
+    }
+
+    // Check for route deviation and show alert
+    let lastDeviationAlert = null;
+    function checkRouteDeviation() {
+        const routeId = {{ $activeRoute->id ?? 'null' }};
+        if (!routeId) return;
+
+        fetch(`/monitoring/routes/${routeId}/deviation-costs`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.has_deviation && data.off_route_distance_km > 0.5) {
+                    // Only show alert if we haven't shown one in the last 2 minutes
+                    const now = Date.now();
+                    if (!lastDeviationAlert || (now - lastDeviationAlert) > 120000) {
+                        showRouteDeviationAlert(data);
+                        lastDeviationAlert = now;
+                    }
+                }
+            })
+            .catch(error => {
+                // Silently fail - don't spam console
+            });
+    }
+
+    // Show route deviation alert
+    function showRouteDeviationAlert(data) {
+        // Remove existing alert
+        const existing = document.querySelector('.route-deviation-alert');
+        if (existing) existing.remove();
+
+        const alert = document.createElement('div');
+        alert.className = 'route-deviation-alert';
+        alert.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.5);
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        alert.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 1.2em;">
+                    <i class="fas fa-exclamation-triangle"></i> Desvio de Rota Detectado!
+                </h4>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; padding: 0; margin-left: 10px;">
+                    &times;
+                </button>
+            </div>
+            <p style="margin: 5px 0; font-size: 0.95em;">
+                Você está <strong>${data.off_route_distance_km.toFixed(2)} km</strong> fora da rota planejada.
+            </p>
+            <p style="margin: 5px 0; font-size: 0.9em; opacity: 0.9;">
+                Custo extra estimado: <strong>R$ ${data.total_extra_cost.toFixed(2)}</strong>
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 0.85em; opacity: 0.8;">
+                <i class="fas fa-info-circle"></i> Retorne à rota planejada para evitar custos extras.
+            </p>
+        `;
+
+        document.body.appendChild(alert);
+
+        // Request browser notification permission and show
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Desvio de Rota Detectado', {
+                body: `Você está ${data.off_route_distance_km.toFixed(2)} km fora da rota. Retorne à rota planejada.`,
+                icon: '/favicon.ico',
+                tag: 'route-deviation',
+                requireInteraction: false,
+            });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification('Desvio de Rota Detectado', {
+                        body: `Você está ${data.off_route_distance_km.toFixed(2)} km fora da rota. Retorne à rota planejada.`,
+                        icon: '/favicon.ico',
+                        tag: 'route-deviation',
+                    });
+                }
+            });
+        }
+
+        // Vibrate if supported
+        if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 200]);
+        }
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (alert.parentElement) {
+                alert.remove();
+            }
+        }, 10000);
     }
 
     // Update driver location from server

@@ -50,6 +50,7 @@ class Shipment extends Model
         'delivery_date',
         'delivery_time',
         'status',
+        'shipment_type',
         'picked_up_at',
         'delivered_at',
         'notes',

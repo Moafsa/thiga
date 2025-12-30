@@ -216,11 +216,16 @@ class DriverController extends Controller
             }
 
             if ($photoPath) {
-                $proofData['photos'] = [Storage::url($photoPath)];
+                // Use full URL for storage
+                $fullUrl = asset('storage/' . $photoPath);
+                $proofData['photos'] = [$fullUrl];
             }
 
             DeliveryProof::create($proofData);
         }
+
+        // Return updated shipment with proofs
+        $shipment->load('deliveryProofs');
 
         // Update location tracking if coordinates provided
         if ($request->latitude && $request->longitude) {
