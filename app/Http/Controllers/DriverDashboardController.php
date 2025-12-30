@@ -640,6 +640,11 @@ class DriverDashboardController extends Controller
                 ->first();
 
             if (!$shipment) {
+                Log::warning('Shipment not found', [
+                    'shipment_id' => $shipmentId,
+                    'driver_id' => $driver->id,
+                    'user_id' => $user->id,
+                ]);
                 return response()->json(['error' => 'Shipment not found'], 404);
             }
 

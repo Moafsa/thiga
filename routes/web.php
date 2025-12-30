@@ -207,7 +207,7 @@ Route::middleware('auth')->group(function () {
     
     // Driver Dashboard routes
     Route::prefix('driver')->name('driver.')->group(function () {
-        Route::post('/shipments/{shipment}/status', [App\Http\Controllers\DriverDashboardController::class, 'updateShipmentStatus'])->name('shipments.update-status');
+        Route::post('/shipments/{shipmentId}/status', [App\Http\Controllers\DriverDashboardController::class, 'updateShipmentStatus'])->name('shipments.update-status');
         Route::get('/dashboard', [App\Http\Controllers\DriverDashboardController::class, 'index'])->name('dashboard');
         Route::get('/profile', [App\Http\Controllers\DriverDashboardController::class, 'profile'])->name('profile');
         Route::put('/profile', [App\Http\Controllers\DriverDashboardController::class, 'updateProfile'])->name('profile.update');
