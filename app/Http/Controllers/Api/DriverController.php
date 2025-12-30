@@ -211,7 +211,7 @@ class DriverController extends Controller
         $shipment->update($updateData);
 
         // Create delivery proof if photo or location is provided
-        if ($photoPath || ($request->latitude && $request->longitude)) {
+        if ($photoPath || $request->notes || ($request->latitude && $request->longitude)) {
             $proofData = [
                 'tenant_id' => $shipment->tenant_id,
                 'shipment_id' => $shipment->id,
@@ -222,13 +222,17 @@ class DriverController extends Controller
                 'delivery_time' => now(),
             ];
 
-            if ($request->latitude && $request->longitude) {
-                $proofData['latitude'] = $request->latitude;
-                $proofData['longitude'] = $request->longitude;
-                // Try to get address from geocoding if available
-                $proofData['address'] = $shipment->delivery_address;
-                $proofData['city'] = $shipment->delivery_city;
-                $proofData['state'] = $shipment->delivery_state;
+            // Always try to get location from shipment if not provided
+            $latitude = $request->latitude ?? $shipment->delivery_latitude ?? $shipment->pickup_latitude ?? null;
+            $longitude = $request->longitude ?? $shipment->delivery_longitude ?? $shipment->pickup_longitude ?? null;
+
+            if ($latitude && $longitude) {
+                $proofData['latitude'] = $latitude;
+                $proofData['longitude'] = $longitude;
+                // Try to get address from shipment
+                $proofData['address'] = $shipment->delivery_address ?? $shipment->pickup_address;
+                $proofData['city'] = $shipment->delivery_city ?? $shipment->pickup_city;
+                $proofData['state'] = $shipment->delivery_state ?? $shipment->pickup_state;
             }
 
             if ($photoPath) {

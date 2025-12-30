@@ -817,21 +817,21 @@
             
             <div class="shipment-actions">
                 @if($shipment->status === 'pending' || $shipment->status === 'scheduled')
-                <button class="btn-action pickup" onclick="updateShipmentStatus({{ $shipment->id }}, 'picked_up')">
-                    <i class="fas fa-hand-holding"></i> Coletado
-                </button>
+                    @if(($shipment->shipment_type ?? 'delivery') === 'pickup')
+                        <button class="btn-action pickup" onclick="updateShipmentStatus({{ $shipment->id }}, 'picked_up')">
+                            <i class="fas fa-hand-holding"></i> Coletado
+                        </button>
+                    @else
+                        <button class="btn-action delivered" onclick="updateShipmentStatus({{ $shipment->id }}, 'delivered')">
+                            <i class="fas fa-check-circle"></i> Entregue
+                        </button>
+                    @endif
                 @endif
                 
                 @if($shipment->status === 'picked_up')
-                <button class="btn-action delivered" onclick="updateShipmentStatus({{ $shipment->id }}, 'delivered')">
-                    <i class="fas fa-check-circle"></i> Entregue
-                </button>
-                @endif
-                
-                @if(in_array($shipment->status, ['pending', 'scheduled', 'picked_up', 'in_transit']))
-                <button class="btn-action exception" onclick="showExceptionModal({{ $shipment->id }})">
-                    <i class="fas fa-exclamation-triangle"></i> Exceção
-                </button>
+                    <button class="btn-action delivered" onclick="updateShipmentStatus({{ $shipment->id }}, 'delivered')">
+                        <i class="fas fa-check-circle"></i> Entregue
+                    </button>
                 @endif
             </div>
         </div>
@@ -1075,10 +1075,17 @@
             },
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Erro ao atualizar status');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.message) {
-                alert('Status atualizado com sucesso!');
+                alert(data.message);
                 window.location.reload();
             } else {
                 alert('Erro ao atualizar status: ' + (data.error || 'Erro desconhecido'));
@@ -1086,7 +1093,7 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Erro ao atualizar status. Tente novamente.');
+            alert(error.message || 'Erro ao atualizar status. Tente novamente.');
         });
     }
 
