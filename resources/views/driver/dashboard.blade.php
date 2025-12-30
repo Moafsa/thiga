@@ -811,8 +811,6 @@
                             @endif
                         @endforeach
                     @endforeach
-                        @endif
-                    @endforeach
                 </div>
             </div>
             @endif
