@@ -238,8 +238,10 @@
     let driverMarkers = {};
     let routePolylines = {};
     let shipmentMarkers = [];
-    let driverTrails = {}; // Store polyline trails for each driver
+    let driverTrails = {}; // Store polyline trails for each driver (yellow - on route)
+    let driverOffRouteTrails = {}; // Store polyline trails for drivers off route (red)
     let driverTrailVisibility = {}; // Track visibility state for each driver trail
+    let routePaths = {}; // Store route paths for each route to check if driver is on route
     let bounds;
     let currentMapStyle = 'uber'; // Default to Uber style
     
@@ -442,8 +444,10 @@
                 // Remove old markers and trails
                 Object.values(driverMarkers).forEach(marker => marker.setMap(null));
                 Object.values(driverTrails).forEach(trail => trail.setMap(null));
+                Object.values(driverOffRouteTrails).forEach(trail => trail.setMap(null));
                 driverMarkers = {};
                 driverTrails = {};
+                driverOffRouteTrails = {};
                 bounds = new google.maps.LatLngBounds();
 
                 if (drivers.length === 0) {
@@ -456,34 +460,107 @@
                         const position = { lat: driver.latitude, lng: driver.longitude };
                         
                         // Draw trail/path if location history exists
+                        // Separate into on-route (yellow) and off-route (red) segments
                         if (driver.location_history && driver.location_history.length > 1) {
-                            const trailPath = driver.location_history.map(loc => ({
-                                lat: loc.lat,
-                                lng: loc.lng
+                            const allPoints = driver.location_history.map(loc => ({
+                                lat: parseFloat(loc.lat),
+                                lng: parseFloat(loc.lng)
                             }));
                             
                             // Add current position to trail
-                            trailPath.push(position);
+                            allPoints.push(position);
                             
-                            const trail = new google.maps.Polyline({
-                                path: trailPath,
-                                geodesic: true,
-                                strokeColor: '#FF6B35',
-                                strokeOpacity: 0.6,
-                                strokeWeight: 3,
-                                zIndex: 500
+                            // Get route path for this driver's active route
+                            const routePath = driver.active_route ? routePaths[driver.active_route.id] : null;
+                            
+                            // Separate points into on-route and off-route
+                            const onRoutePoints = [];
+                            const offRoutePoints = [];
+                            const MAX_DISTANCE_FROM_ROUTE = 100; // meters
+                            
+                            allPoints.forEach((point, index) => {
+                                let isOnRoute = false;
+                                
+                                if (routePath && routePath.length > 0 && typeof google !== 'undefined' && google.maps && google.maps.geometry) {
+                                    // Check distance to nearest point on route using geometry library
+                                    let minDistance = Infinity;
+                                    const pointLatLng = new google.maps.LatLng(point.lat, point.lng);
+                                    
+                                    for (let i = 0; i < routePath.length; i++) {
+                                        const routePoint = new google.maps.LatLng(routePath[i].lat, routePath[i].lng);
+                                        const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                                            pointLatLng,
+                                            routePoint
+                                        );
+                                        if (distance < minDistance) {
+                                            minDistance = distance;
+                                        }
+                                    }
+                                    
+                                    isOnRoute = minDistance <= MAX_DISTANCE_FROM_ROUTE;
+                                } else {
+                                    // If no route path available or geometry library not loaded, assume on route
+                                    isOnRoute = true;
+                                }
+                                
+                                if (isOnRoute) {
+                                    // If previous point was off-route, add connection point
+                                    if (offRoutePoints.length > 0 && index > 0) {
+                                        const lastOffRoute = offRoutePoints[offRoutePoints.length - 1];
+                                        onRoutePoints.push(lastOffRoute);
+                                    }
+                                    onRoutePoints.push(point);
+                                } else {
+                                    // If previous point was on-route, add connection point
+                                    if (onRoutePoints.length > 0 && index > 0) {
+                                        const lastOnRoute = onRoutePoints[onRoutePoints.length - 1];
+                                        offRoutePoints.push(lastOnRoute);
+                                    }
+                                    offRoutePoints.push(point);
+                                }
                             });
                             
-                            // Default visibility: visible
-                            driverTrailVisibility[driver.id] = driverTrailVisibility[driver.id] !== undefined 
-                                ? driverTrailVisibility[driver.id] 
-                                : true;
-                            
-                            if (driverTrailVisibility[driver.id]) {
-                                trail.setMap(map);
+                            // Draw yellow trail for on-route path
+                            if (onRoutePoints.length > 1) {
+                                const onRouteTrail = new google.maps.Polyline({
+                                    path: onRoutePoints,
+                                    geodesic: true,
+                                    strokeColor: '#FFD700', // Yellow
+                                    strokeOpacity: 0.8,
+                                    strokeWeight: 4,
+                                    zIndex: 500
+                                });
+                                
+                                // Default visibility: visible
+                                driverTrailVisibility[driver.id] = driverTrailVisibility[driver.id] !== undefined 
+                                    ? driverTrailVisibility[driver.id] 
+                                    : true;
+                                
+                                if (driverTrailVisibility[driver.id]) {
+                                    onRouteTrail.setMap(map);
+                                }
+                                
+                                driverTrails[driver.id] = onRouteTrail;
                             }
                             
-                            driverTrails[driver.id] = trail;
+                            // Draw red trail for off-route path
+                            if (offRoutePoints.length > 1) {
+                                const offRouteTrail = new google.maps.Polyline({
+                                    path: offRoutePoints,
+                                    geodesic: true,
+                                    strokeColor: '#FF0000', // Red
+                                    strokeOpacity: 0.8,
+                                    strokeWeight: 4,
+                                    zIndex: 501 // Slightly above yellow to be more visible
+                                });
+                                
+                                // Default visibility: visible
+                                if (driverTrailVisibility[driver.id] !== false) {
+                                    offRouteTrail.setMap(map);
+                                }
+                                
+                                driverOffRouteTrails[driver.id] = offRouteTrail;
+                            }
                         }
 
                         // Create custom icon with driver photo (or placeholder) - lazy loading
@@ -789,6 +866,23 @@
                 directionsRenderer.setDirections(result);
                 
                 const route = result.routes[0];
+                
+                // Extract route path for distance checking
+                const path = [];
+                route.legs.forEach(leg => {
+                    leg.steps.forEach(step => {
+                        step.path.forEach(point => {
+                            path.push({
+                                lat: point.lat(),
+                                lng: point.lng()
+                            });
+                        });
+                    });
+                });
+                
+                // Store route path for driver trail checking
+                routePaths[routeId] = path;
+                
                 route.overview_path.forEach(path => {
                     bounds.extend(path);
                 });
@@ -840,16 +934,19 @@
     // Toggle driver trail visibility
     function toggleDriverTrail(driverId) {
         const trail = driverTrails[driverId];
-        if (!trail) return;
+        const offRouteTrail = driverOffRouteTrails[driverId];
+        if (!trail && !offRouteTrail) return;
         
         // Toggle visibility state
         driverTrailVisibility[driverId] = !driverTrailVisibility[driverId];
         
-        // Show or hide trail
+        // Show or hide trails
         if (driverTrailVisibility[driverId]) {
-            trail.setMap(map);
+            if (trail) trail.setMap(map);
+            if (offRouteTrail) offRouteTrail.setMap(map);
         } else {
-            trail.setMap(null);
+            if (trail) trail.setMap(null);
+            if (offRouteTrail) offRouteTrail.setMap(null);
         }
         
         // Update button appearance
