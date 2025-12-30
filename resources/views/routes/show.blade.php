@@ -1615,7 +1615,7 @@
         stopDriverLocationTracking();
     });
     @endif
-    function openPhotoModal(photoUrl, type, date, notes) {
+    function openPhotoModal(photoUrl, type, date, description) {
         const modal = document.createElement('div');
         modal.className = 'modal active';
         modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;';
@@ -1625,7 +1625,7 @@
                 <img src="${photoUrl}" alt="${type}" style="max-width: 100%; max-height: 90vh; border-radius: 10px;">
                 <div style="color: white; text-align: center; margin-top: 10px;">
                     <p style="margin: 5px 0; font-weight: 600;">${type} - ${date}</p>
-                    ${notes ? `<p style="margin: 5px 0; color: rgba(255,255,255,0.8); font-size: 0.9em;">${notes}</p>` : ''}
+                    ${description ? `<p style="margin: 5px 0; color: rgba(255,255,255,0.8); font-size: 0.9em;">${description}</p>` : ''}
                 </div>
             </div>
         `;
