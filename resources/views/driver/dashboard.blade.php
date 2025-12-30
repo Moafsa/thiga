@@ -1080,18 +1080,25 @@
             },
             body: formData
         })
-        .then(response => {
+        .then(async response => {
+            // Check if response is JSON before trying to parse
+            const contentType = response.headers.get('content-type') || '';
+            const isJson = contentType.includes('application/json');
+            
             if (!response.ok) {
-                // Check if response is JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Erro ao atualizar status');
-                    });
+                if (isJson) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || errorData.message || 'Erro ao atualizar status');
                 } else {
+                    // Server returned HTML error page, don't try to parse as JSON
                     throw new Error('Erro ao atualizar status. Tente novamente.');
                 }
             }
+            
+            if (!isJson) {
+                throw new Error('Resposta inválida do servidor. Tente novamente.');
+            }
+            
             return response.json();
         })
         .then(data => {
@@ -1974,19 +1981,29 @@
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
             }
         })
-            .then(response => {
+            .then(async response => {
+                // Check if response is JSON before trying to parse
+                const contentType = response.headers.get('content-type') || '';
+                const isJson = contentType.includes('application/json');
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    if (isJson) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+                    } else {
+                        const text = await response.text();
+                        throw new Error(`Server error (${response.status}): Received HTML instead of JSON`);
+                    }
                 }
-                // Check if response is JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return response.json();
-                } else {
-                    throw new Error('Invalid response format');
+                
+                if (!isJson) {
+                    throw new Error('Invalid response format: Expected JSON but received ' + contentType);
                 }
+                
+                return response.json();
             })
             .then(data => {
                 console.log('Location data received:', data);
@@ -2049,6 +2066,8 @@
             })
             .catch(error => {
                 console.error('Error fetching driver location:', error);
+                // Don't show alert for location errors, just log them
+                // This prevents spamming alerts every 5 seconds
             });
     }
 
