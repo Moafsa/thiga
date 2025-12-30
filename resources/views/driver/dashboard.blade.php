@@ -987,6 +987,11 @@
     let proximityCheckInterval = null; // Interval for proximity checking
     let notifiedShipments = new Set(); // Track shipments that have been notified for proximity
 
+    // Helper function to validate coordinates (must be global to be used in watchPosition)
+    function isValidCoordinate(value) {
+        return value !== null && value !== undefined && !isNaN(value) && isFinite(value);
+    }
+
     function updateShipmentStatus(shipmentId, status) {
         currentShipmentId = shipmentId;
         currentStatus = status;
@@ -1077,9 +1082,15 @@
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(data => {
-                    throw new Error(data.error || 'Erro ao atualizar status');
-                });
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Erro ao atualizar status');
+                    });
+                } else {
+                    throw new Error('Erro ao atualizar status. Tente novamente.');
+                }
             }
             return response.json();
         })
@@ -1310,11 +1321,6 @@
             })->values();
         @endphp
         const deliveryLocations = @json($deliveryLocationsArray);
-
-        // Helper function to validate coordinates
-        function isValidCoordinate(value) {
-            return value !== null && value !== undefined && !isNaN(value) && isFinite(value);
-        }
 
         // Determine map center - prefer route origin, then driver location, then first delivery
         let center = { lat: -23.5505, lng: -46.6333 }; // São Paulo default
@@ -1974,7 +1980,13 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                return response.json();
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    throw new Error('Invalid response format');
+                }
             })
             .then(data => {
                 console.log('Location data received:', data);
