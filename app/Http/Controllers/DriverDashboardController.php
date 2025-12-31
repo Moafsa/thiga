@@ -671,33 +671,85 @@ class DriverDashboardController extends Controller
             if ($request->hasFile('photo')) {
                 try {
                     $photo = $request->file('photo');
+                    Log::info('Photo file received', [
+                        'shipment_id' => $shipmentId,
+                        'original_name' => $photo->getClientOriginalName(),
+                        'size' => $photo->getSize(),
+                        'mime_type' => $photo->getMimeType(),
+                    ]);
+                    
                     $extension = $photo->getClientOriginalExtension();
                     $filename = 'proof_' . time() . '_' . uniqid() . '.' . $extension;
                     $path = "delivery_proofs/{$shipment->tenant_id}/{$shipment->id}/{$filename}";
                     
+                    // Get file contents
+                    $fileContents = file_get_contents($photo->getRealPath());
+                    Log::debug('File contents read', [
+                        'path' => $path,
+                        'size' => strlen($fileContents),
+                    ]);
+                    
+                    // Check MinIO configuration
+                    $minioConfig = config('filesystems.disks.minio');
+                    Log::debug('MinIO config check', [
+                        'has_config' => !empty($minioConfig),
+                        'has_bucket' => isset($minioConfig['bucket']),
+                        'has_endpoint' => isset($minioConfig['endpoint']),
+                    ]);
+                    
                     // Try MinIO first, fallback to public
                     $disk = 'minio';
+                    $uploaded = false;
                     try {
-                        Storage::disk('minio')->put($path, file_get_contents($photo->getRealPath()));
-                        Log::info('Photo uploaded to MinIO', ['path' => $path]);
+                        Log::info('Attempting MinIO upload', ['path' => $path]);
+                        Storage::disk('minio')->put($path, $fileContents);
+                        $uploaded = true;
+                        Log::info('Photo uploaded to MinIO successfully', [
+                            'path' => $path,
+                            'disk' => 'minio',
+                        ]);
                     } catch (\Exception $e) {
                         Log::warning('MinIO upload failed, using public disk fallback', [
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
                         ]);
                         $disk = 'public';
-                        Storage::disk('public')->put($path, file_get_contents($photo->getRealPath()));
-                        Log::info('Photo uploaded to public disk', ['path' => $path]);
+                        try {
+                            Storage::disk('public')->put($path, $fileContents);
+                            $uploaded = true;
+                            Log::info('Photo uploaded to public disk successfully', [
+                                'path' => $path,
+                                'disk' => 'public',
+                            ]);
+                        } catch (\Exception $publicException) {
+                            Log::error('Public disk upload also failed', [
+                                'error' => $publicException->getMessage(),
+                                'trace' => $publicException->getTraceAsString(),
+                            ]);
+                            throw $publicException;
+                        }
                     }
                     
-                    $photoPath = $path;
+                    if ($uploaded) {
+                        $photoPath = $path;
+                        Log::info('Photo upload completed', [
+                            'path' => $photoPath,
+                            'disk' => $disk,
+                        ]);
+                    }
                 } catch (\Exception $e) {
                     Log::error('Error uploading delivery proof photo', [
                         'shipment_id' => $shipmentId,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString(),
                     ]);
-                    return response()->json(['error' => 'Failed to upload photo'], 500);
+                    return response()->json(['error' => 'Failed to upload photo: ' . $e->getMessage()], 500);
                 }
+            } else {
+                Log::debug('No photo file in request', [
+                    'has_file' => $request->hasFile('photo'),
+                    'all_files' => array_keys($request->allFiles()),
+                ]);
             }
 
             // Update shipment status
