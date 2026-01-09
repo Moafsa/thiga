@@ -88,6 +88,21 @@
         margin: 5px 0 0 0;
     }
 
+    @keyframes slideInLeft {
+        from {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .route-deviation-alert {
+        animation: slideInLeft 0.3s ease-out;
+    }
+
     @media (max-width: 1024px) {
         .monitoring-dashboard {
             grid-template-columns: 1fr;
@@ -186,7 +201,7 @@
             <i class="fas fa-route"></i> Rotas Ativas
         </h3>
         @forelse($activeRoutes as $route)
-            <div class="route-card" style="cursor: pointer;" onclick="focusRoute({{ $route->id }})">
+            <div class="route-card" data-route-id="{{ $route->id }}" style="cursor: pointer;" onclick="focusRoute({{ $route->id }})">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                     <h4 style="color: var(--cor-texto-claro); margin: 0 0 5px 0;">{{ $route->name }}</h4>
                     <span class="status-badge" style="font-size: 0.75em;">
@@ -219,9 +234,16 @@
                 @endif
                 @if($route->estimated_distance)
                 <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 5px 0;">
-                    <i class="fas fa-route"></i> {{ number_format($route->estimated_distance, 2, ',', '.') }} km
+                    <i class="fas fa-route"></i> Estimado: {{ number_format($route->estimated_distance, 2, ',', '.') }} km
                 </p>
                 @endif
+                
+                <!-- Route deviation costs will be loaded here -->
+                <div class="route-deviation-costs" data-route-id="{{ $route->id }}" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                    <div style="text-align: center; color: rgba(245, 245, 245, 0.5); font-size: 0.8em;">
+                        <i class="fas fa-spinner fa-spin"></i> Calculando...
+                    </div>
+                </div>
             </div>
         @empty
             <div style="text-align: center; padding: 40px; color: rgba(245, 245, 245, 0.7);">
@@ -234,15 +256,15 @@
 
 @push('scripts')
 <script>
-    let map;
-    let driverMarkers = {};
-    let routePolylines = {};
-    let shipmentMarkers = [];
+    // Variables moved to monitoring-mapbox.js to avoid conflicts
+    // Old Google Maps variables kept for compatibility (not used with Mapbox)
+    let map; // Kept for compatibility but not used with Mapbox
+    // routePolylines moved to monitoring-mapbox.js to avoid duplicate declaration
     let driverTrails = {}; // Store polyline trails for each driver (yellow - on route)
     let driverOffRouteTrails = {}; // Store polyline trails for drivers off route (red)
     let driverTrailVisibility = {}; // Track visibility state for each driver trail
     let routePaths = {}; // Store route paths for each route to check if driver is on route
-    let bounds;
+    let bounds; // Kept for compatibility
     let currentMapStyle = 'uber'; // Default to Uber style
     
     // Map style configurations
@@ -328,12 +350,44 @@
         }
     };
 
-    // Initialize Google Maps
+    // Prepare routes and shipments data for Mapbox
+    @php
+        $routesForMap = $activeRoutes->map(function($route) {
+            return [
+                'id' => $route->id,
+                'name' => $route->name,
+                'status' => $route->status,
+                'start_latitude' => $route->start_latitude,
+                'start_longitude' => $route->start_longitude,
+                'shipments' => $route->shipments->map(function($shipment) {
+                    return [
+                        'id' => $shipment->id,
+                        'tracking_number' => $shipment->tracking_number,
+                        'title' => $shipment->title,
+                        'pickup_latitude' => $shipment->pickup_latitude,
+                        'pickup_longitude' => $shipment->pickup_longitude,
+                        'delivery_latitude' => $shipment->delivery_latitude,
+                        'delivery_longitude' => $shipment->delivery_longitude,
+                        'status' => $shipment->status,
+                    ];
+                })->toArray(),
+            ];
+        })->toArray();
+    @endphp
+    
+    window.monitoringRoutes = @json($routesForMap);
+    window.monitoringShipments = [];
+
+    // Initialize Mapbox (DISABLED Google Maps)
+    // Note: The actual initialization is handled by monitoring-mapbox.js
+    // This function is kept for compatibility but doesn't do anything
     function initMap() {
-        if (!document.getElementById('monitoring-map')) {
-            console.error('Map container not found');
-            return;
-        }
+        // Google Maps disabled - Mapbox initialization is handled by monitoring-mapbox.js
+        console.log('initMap called - Mapbox will handle initialization');
+        return;
+        
+        // OLD GOOGLE MAPS CODE - DISABLED
+        // if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
 
         // Load saved map style preference or default to 'uber'
         currentMapStyle = localStorage.getItem('monitoringMapStyle') || 'uber';
@@ -377,7 +431,11 @@
         // Load driver locations after routes (with small delay to ensure routes are processed)
         setTimeout(() => {
             loadDriverLocations();
-        }, 500);
+            // loadRouteDeviationCosts(); // Function not implemented yet
+            if (typeof checkRouteDeviations === 'function') {
+                checkRouteDeviations();
+            }
+        }, 1000);
     }
 
     // Apply map style and update markers/routes
@@ -414,24 +472,14 @@
         loadDriverLocations();
     }
 
-    // Load Google Maps API
+    // Load Google Maps API (DISABLED - Using Mapbox instead)
     function loadGoogleMaps() {
-        const apiKey = '{{ config("services.google_maps.api_key") }}';
-        if (!apiKey) {
-            console.error('Google Maps API key not configured');
-            document.getElementById('monitoring-map').innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>Google Maps API key not configured. Please set GOOGLE_MAPS_API_KEY in your .env file.</p></div>';
-            return;
+        // Google Maps API is disabled - show message to use Mapbox
+        console.warn('Google Maps API is disabled. Please migrate to Mapbox.');
+        const mapContainer = document.getElementById('monitoring-map');
+        if (mapContainer) {
+            mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Google Maps foi desabilitado</p><p style="font-size: 0.9em; opacity: 0.8; margin-top: 10px;">Esta página precisa ser migrada para Mapbox.</p><p style="font-size: 0.8em; opacity: 0.6; margin-top: 5px;">O mapa será restaurado após a migração.</p></div>';
         }
-
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=pt-BR&callback=initMap&loading=async`;
-        script.async = true;
-        script.defer = true;
-        script.onerror = function() {
-            console.error('Failed to load Google Maps API');
-            document.getElementById('monitoring-map').innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>Failed to load Google Maps. Please check your API key.</p></div>';
-        };
-        document.head.appendChild(script);
     }
 
     // Make initMap globally available
@@ -439,18 +487,61 @@
 
     // Load driver locations with trail and custom icon
     function loadDriverLocations() {
-        if (!map) return;
+        if (!map || typeof google === 'undefined' || typeof google.maps === 'undefined') {
+            console.warn('Google Maps not available - cannot load driver locations');
+            return;
+        }
         
         fetch('{{ route("monitoring.driver-locations") }}')
             .then(response => response.json())
             .then(drivers => {
-                // Remove old markers and trails
-                Object.values(driverMarkers).forEach(marker => marker.setMap(null));
-                Object.values(driverTrails).forEach(trail => trail.setMap(null));
-                Object.values(driverOffRouteTrails).forEach(trail => trail.setMap(null));
-                driverMarkers = {};
-                driverTrails = {};
-                driverOffRouteTrails = {};
+                // Keep existing markers and update them instead of recreating
+                const existingDriverIds = new Set(Object.keys(driverMarkers).map(id => parseInt(id)));
+                const currentDriverIds = new Set(drivers.map(d => d.id));
+                
+                // Remove markers for drivers that are no longer active
+                existingDriverIds.forEach(driverId => {
+                    if (!currentDriverIds.has(driverId)) {
+                        if (driverMarkers[driverId]) {
+                            driverMarkers[driverId].setMap(null);
+                            delete driverMarkers[driverId];
+                        }
+                        if (driverTrails[driverId]) {
+                            driverTrails[driverId].setMap(null);
+                            delete driverTrails[driverId];
+                        }
+                        if (driverOffRouteTrails[driverId]) {
+                            driverOffRouteTrails[driverId].setMap(null);
+                            delete driverOffRouteTrails[driverId];
+                        }
+                    }
+                });
+                
+                // Clear old trails for drivers that are no longer active
+                // Reuse currentDriverIds already declared above
+                Object.keys(driverTrails).forEach(driverId => {
+                    if (!currentDriverIds.has(parseInt(driverId))) {
+                        const trails = driverTrails[driverId];
+                        if (Array.isArray(trails)) {
+                            trails.forEach(trail => trail.setMap(null));
+                        } else if (trails) {
+                            trails.setMap(null);
+                        }
+                        delete driverTrails[driverId];
+                    }
+                });
+                Object.keys(driverOffRouteTrails).forEach(driverId => {
+                    if (!currentDriverIds.has(parseInt(driverId))) {
+                        const trails = driverOffRouteTrails[driverId];
+                        if (Array.isArray(trails)) {
+                            trails.forEach(trail => trail.setMap(null));
+                        } else if (trails) {
+                            trails.setMap(null);
+                        }
+                        delete driverOffRouteTrails[driverId];
+                    }
+                });
+                
                 bounds = new google.maps.LatLngBounds();
 
                 if (drivers.length === 0) {
@@ -463,198 +554,172 @@
                         const position = { lat: driver.latitude, lng: driver.longitude };
                         
                         // Draw trail/path if location history exists
-                        // Separate into on-route (yellow) and off-route (red) segments
-                        if (driver.location_history && driver.location_history.length > 1) {
-                            const allPoints = driver.location_history.map(loc => ({
-                                lat: parseFloat(loc.lat),
-                                lng: parseFloat(loc.lng)
-                            }));
+                        // Use Directions API to follow roads, not straight lines
+                        const allPoints = [];
+                        
+                        // Add location history points
+                        if (driver.location_history && driver.location_history.length > 0) {
+                            console.log(`[Location] Driver ${driver.id} has ${driver.location_history.length} location history points`);
                             
-                            // Add current position to trail
-                            allPoints.push(position);
-                            
+                            driver.location_history
+                                .filter(loc => loc && loc.lat && loc.lng && !isNaN(parseFloat(loc.lat)) && !isNaN(parseFloat(loc.lng)))
+                                .forEach(loc => {
+                                    allPoints.push({
+                                        lat: parseFloat(loc.lat),
+                                        lng: parseFloat(loc.lng)
+                                    });
+                                });
+                        }
+                        
+                        // Add current position to trail if valid
+                        if (position.lat && position.lng && !isNaN(position.lat) && !isNaN(position.lng)) {
+                            // Only add if it's different from the last point
+                            if (allPoints.length === 0 || 
+                                allPoints[allPoints.length - 1].lat !== position.lat || 
+                                allPoints[allPoints.length - 1].lng !== position.lng) {
+                                allPoints.push(position);
+                            }
+                        }
+                        
+                        if (allPoints.length > 1) {
+                            console.log(`[Location] Drawing trail for driver ${driver.id} with ${allPoints.length} points`);
                             // Get route path for this driver's active route
                             const routePath = driver.active_route ? routePaths[driver.active_route.id] : null;
-                            
-                            // Separate points into on-route and off-route
-                            const onRoutePoints = [];
-                            const offRoutePoints = [];
                             const MAX_DISTANCE_FROM_ROUTE = 100; // meters
                             
-                            allPoints.forEach((point, index) => {
-                                let isOnRoute = false;
-                                
-                                if (routePath && routePath.length > 0 && typeof google !== 'undefined' && google.maps && google.maps.geometry) {
-                                    // Check distance to nearest point on route using geometry library
-                                    let minDistance = Infinity;
-                                    const pointLatLng = new google.maps.LatLng(point.lat, point.lng);
-                                    
-                                    for (let i = 0; i < routePath.length; i++) {
-                                        const routePoint = new google.maps.LatLng(routePath[i].lat, routePath[i].lng);
-                                        const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                                            pointLatLng,
-                                            routePoint
-                                        );
-                                        if (distance < minDistance) {
-                                            minDistance = distance;
-                                        }
-                                    }
-                                    
-                                    isOnRoute = minDistance <= MAX_DISTANCE_FROM_ROUTE;
-                                } else {
-                                    // If no route path available or geometry library not loaded, assume on route
-                                    isOnRoute = true;
-                                }
-                                
-                                if (isOnRoute) {
-                                    // If previous point was off-route, add connection point
-                                    if (offRoutePoints.length > 0 && index > 0) {
-                                        const lastOffRoute = offRoutePoints[offRoutePoints.length - 1];
-                                        onRoutePoints.push(lastOffRoute);
-                                    }
-                                    onRoutePoints.push(point);
-                                } else {
-                                    // If previous point was on-route, add connection point
-                                    if (onRoutePoints.length > 0 && index > 0) {
-                                        const lastOnRoute = onRoutePoints[onRoutePoints.length - 1];
-                                        offRoutePoints.push(lastOnRoute);
-                                    }
-                                    offRoutePoints.push(point);
-                                }
-                            });
-                            
-                            // Draw yellow trail for on-route path
-                            if (onRoutePoints.length > 1) {
-                                const onRouteTrail = new google.maps.Polyline({
-                                    path: onRoutePoints,
-                                    geodesic: true,
-                                    strokeColor: '#FFD700', // Yellow
-                                    strokeOpacity: 0.8,
-                                    strokeWeight: 4,
-                                    zIndex: 500
-                                });
-                                
-                                // Default visibility: visible
-                                driverTrailVisibility[driver.id] = driverTrailVisibility[driver.id] !== undefined 
-                                    ? driverTrailVisibility[driver.id] 
-                                    : true;
-                                
-                                if (driverTrailVisibility[driver.id]) {
-                                    onRouteTrail.setMap(map);
-                                }
-                                
-                                driverTrails[driver.id] = onRouteTrail;
-                            }
-                            
-                            // Draw red trail for off-route path
-                            if (offRoutePoints.length > 1) {
-                                const offRouteTrail = new google.maps.Polyline({
-                                    path: offRoutePoints,
-                                    geodesic: true,
-                                    strokeColor: '#FF0000', // Red
-                                    strokeOpacity: 0.8,
-                                    strokeWeight: 4,
-                                    zIndex: 501 // Slightly above yellow to be more visible
-                                });
-                                
-                                // Default visibility: visible
-                                if (driverTrailVisibility[driver.id] !== false) {
-                                    offRouteTrail.setMap(map);
-                                }
-                                
-                                driverOffRouteTrails[driver.id] = offRouteTrail;
-                            }
+                            // Draw trail following roads using Directions API
+                            drawDriverTrailFollowingRoads(driver.id, allPoints, routePath, MAX_DISTANCE_FROM_ROUTE);
+                        } else {
+                            console.log(`[Location] Driver ${driver.id} has insufficient points (${allPoints.length}) for trail`);
                         }
 
-                        // Create custom icon with driver photo (or placeholder) - lazy loading
-                        const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=64');
+                        // Check if marker already exists for this driver
+                        let marker = driverMarkers[driver.id];
+                        const markerSize = 35; // Small size for driver photo
+                        const markerAnchor = markerSize / 2;
                         
-                        // Use placeholder initially for lazy loading
-                        const placeholderUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name.substring(0, 1)) + '&background=FF6B35&color=fff&size=50';
-                        
-                        const marker = new google.maps.Marker({
-                            position: position,
-                            map: map,
-                            icon: {
-                                url: placeholderUrl,
-                                scaledSize: new google.maps.Size(50, 50),
-                                anchor: new google.maps.Point(25, 25),
-                                origin: new google.maps.Point(0, 0)
-                            },
-                            title: driver.name,
-                            zIndex: 1000,
-                            optimized: false
-                        });
-                        
-                        // Lazy load actual photo
-                        if (driver.photo_url) {
-                            const img = new Image();
-                            img.onload = function() {
-                                marker.setIcon({
-                                    url: driverPhotoUrl,
-                                    scaledSize: new google.maps.Size(50, 50),
-                                    anchor: new google.maps.Point(25, 25),
+                        if (marker) {
+                            // Update existing marker position smoothly
+                            const oldPosition = marker.getPosition();
+                            const hasMoved = !oldPosition || 
+                                (Math.abs(oldPosition.lat() - position.lat) > 0.00001 || 
+                                 Math.abs(oldPosition.lng() - position.lng) > 0.00001);
+                            
+                            if (hasMoved) {
+                                // Smooth animation to new position
+                                marker.setPosition(position);
+                            }
+                        } else {
+                            // Create new marker with small driver photo
+                            const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=128');
+                            
+                            // Use placeholder initially for lazy loading
+                            const placeholderUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name.substring(0, 1)) + '&background=FF6B35&color=fff&size=128';
+                            
+                            marker = new google.maps.Marker({
+                                position: position,
+                                map: map,
+                                icon: {
+                                    url: placeholderUrl,
+                                    scaledSize: new google.maps.Size(markerSize, markerSize),
+                                    anchor: new google.maps.Point(markerAnchor, markerAnchor),
                                     origin: new google.maps.Point(0, 0)
-                                });
-                            };
-                            img.onerror = function() {
-                                // Keep placeholder if image fails to load
-                            };
-                            img.src = driverPhotoUrl;
-                        }
-
-                        // Create tooltip content with route information (lazy loading for photo)
-                        const tooltipPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=40');
-                        let tooltipContent = `<div style="padding: 12px; min-width: 250px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                                <img src="${tooltipPhotoUrl}" loading="lazy" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${driver.name}') + '&background=FF6B35&color=fff&size=40'">
-                                <div>
-                                    <h4 style="margin: 0; color: #333; font-size: 1.1em;">${driver.name}</h4>
-                                    ${driver.phone ? `<p style="margin: 3px 0 0 0; color: #666; font-size: 0.85em;"><i class="fas fa-phone"></i> ${driver.phone}</p>` : ''}
-                                </div>
-                            </div>`;
-                        
-                        if (driver.active_route) {
-                            tooltipContent += `
-                                <div style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
-                                    <p style="margin: 5px 0; color: #333; font-weight: 600;"><i class="fas fa-route" style="color: #1a73e8;"></i> ${driver.active_route.name}</p>
-                                    <p style="margin: 5px 0; color: #666; font-size: 0.9em;">${driver.active_route.shipments_count} ${driver.active_route.shipments_count === 1 ? 'carga' : 'cargas'}</p>
-                                    <p style="margin: 5px 0; color: #666; font-size: 0.85em;">Status: <span style="color: ${driver.active_route.status === 'in_progress' ? '#4caf50' : '#ff9800'};">${driver.active_route.status === 'in_progress' ? 'Em Andamento' : 'Agendada'}</span></p>
-                                </div>`;
-                        }
-                        
-                        tooltipContent += `
-                            <p style="margin: 10px 0 0 0; font-size: 0.75em; color: #999; border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px;">
-                                <i class="fas fa-clock"></i> Última atualização: ${new Date(driver.last_update).toLocaleString('pt-BR')}
-                            </p>
-                        </div>`;
-
-                        // Create info window for click
-                        const infoWindow = new google.maps.InfoWindow({
-                            content: tooltipContent
-                        });
-
-                        // Create tooltip that appears on hover
-                        let tooltip = null;
-                        marker.addListener('mouseover', function() {
-                            if (tooltip) tooltip.close();
-                            tooltip = new google.maps.InfoWindow({
-                                content: tooltipContent,
-                                disableAutoPan: true
+                                },
+                                title: driver.name,
+                                zIndex: 1000,
+                                optimized: false,
+                                animation: google.maps.Animation.DROP
                             });
-                            tooltip.open(map, marker);
-                        });
-
-                        marker.addListener('mouseout', function() {
-                            if (tooltip) {
-                                tooltip.close();
-                                tooltip = null;
+                            
+                            // Lazy load actual photo
+                            if (driver.photo_url) {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.onload = function() {
+                                    marker.setIcon({
+                                        url: driverPhotoUrl,
+                                        scaledSize: new google.maps.Size(markerSize, markerSize),
+                                        anchor: new google.maps.Point(markerAnchor, markerAnchor),
+                                        origin: new google.maps.Point(0, 0)
+                                    });
+                                };
+                                img.onerror = function() {
+                                    // Keep placeholder if image fails to load
+                                };
+                                img.src = driverPhotoUrl;
                             }
-                        });
+                            
+                            driverMarkers[driver.id] = marker;
+                        }
 
-                        marker.addListener('click', () => {
-                            infoWindow.open(map, marker);
-                        });
+                        // Create tooltip content and listeners only if marker is new
+                        if (!marker.hasListeners) {
+                            const tooltipPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=40');
+                            let tooltipContent = `<div style="padding: 12px; min-width: 250px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                    <img src="${tooltipPhotoUrl}" loading="lazy" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${driver.name}') + '&background=FF6B35&color=fff&size=40'">
+                                    <div>
+                                        <h4 style="margin: 0; color: #333; font-size: 1.1em;">${driver.name}</h4>
+                                        ${driver.phone ? `<p style="margin: 3px 0 0 0; color: #666; font-size: 0.85em;"><i class="fas fa-phone"></i> ${driver.phone}</p>` : ''}
+                                    </div>
+                                </div>`;
+                            
+                            if (driver.active_route) {
+                                tooltipContent += `
+                                    <div style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
+                                        <p style="margin: 5px 0; color: #333; font-weight: 600;"><i class="fas fa-route" style="color: #1a73e8;"></i> ${driver.active_route.name}</p>
+                                        <p style="margin: 5px 0; color: #666; font-size: 0.9em;">${driver.active_route.shipments_count} ${driver.active_route.shipments_count === 1 ? 'carga' : 'cargas'}</p>
+                                        <p style="margin: 5px 0; color: #666; font-size: 0.85em;">Status: <span style="color: ${driver.active_route.status === 'in_progress' ? '#4caf50' : '#ff9800'};">${driver.active_route.status === 'in_progress' ? 'Em Andamento' : 'Agendada'}</span></p>
+                                    </div>`;
+                            }
+                            
+                            tooltipContent += `
+                                <p style="margin: 10px 0 0 0; font-size: 0.75em; color: #999; border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px;">
+                                    <i class="fas fa-clock"></i> Última atualização: <span class="last-update-time">${new Date(driver.last_update).toLocaleString('pt-BR')}</span>
+                                </p>
+                            </div>`;
+
+                            // Store tooltip content on marker for updates
+                            marker.tooltipContent = tooltipContent;
+
+                            // Create info window for click
+                            const infoWindow = new google.maps.InfoWindow({
+                                content: tooltipContent
+                            });
+
+                            // Create tooltip that appears on hover
+                            let tooltip = null;
+                            marker.addListener('mouseover', function() {
+                                if (tooltip) tooltip.close();
+                                tooltip = new google.maps.InfoWindow({
+                                    content: marker.tooltipContent,
+                                    disableAutoPan: true
+                                });
+                                tooltip.open(map, marker);
+                            });
+
+                            marker.addListener('mouseout', function() {
+                                if (tooltip) {
+                                    tooltip.close();
+                                    tooltip = null;
+                                }
+                            });
+
+                            marker.addListener('click', () => {
+                                infoWindow.setContent(marker.tooltipContent);
+                                infoWindow.open(map, marker);
+                            });
+
+                            marker.hasListeners = true;
+                        } else {
+                            // Update tooltip content with latest information
+                            if (marker.tooltipContent) {
+                                marker.tooltipContent = marker.tooltipContent.replace(
+                                    /<span class="last-update-time">.*?<\/span>/,
+                                    `<span class="last-update-time">${new Date(driver.last_update).toLocaleString('pt-BR')}</span>`
+                                );
+                            }
+                        }
 
                         driverMarkers[driver.id] = marker;
                         bounds.extend(position);
@@ -671,7 +736,10 @@
 
     // Load routes and shipments with route paths (using same logic as route show page)
     function loadRoutesAndShipments() {
-        if (!map || !bounds) return;
+        if (!map || !bounds || typeof google === 'undefined' || typeof google.maps === 'undefined') {
+            console.warn('Google Maps not available - cannot load routes and shipments');
+            return;
+        }
         
         // Clear existing route renderers and shipment markers
         if (window.routeRenderers) {
@@ -923,6 +991,150 @@
         }
     }
 
+    // Draw driver trail following roads (not straight lines)
+    function drawDriverTrailFollowingRoads(driverId, points, routePath, maxDistanceFromRoute) {
+        if (points.length < 2) {
+            console.log(`[Trail] Driver ${driverId}: Not enough points (${points.length})`);
+            return;
+        }
+        
+        console.log(`[Trail] Drawing trail for driver ${driverId} with ${points.length} points`);
+        
+        // Default visibility: visible
+        driverTrailVisibility[driverId] = driverTrailVisibility[driverId] !== undefined 
+            ? driverTrailVisibility[driverId] 
+            : true;
+        
+        // Clear existing trails for this driver only
+        if (driverTrails[driverId]) {
+            if (Array.isArray(driverTrails[driverId])) {
+                driverTrails[driverId].forEach(trail => {
+                    if (trail && trail.setMap) trail.setMap(null);
+                });
+            } else if (driverTrails[driverId] && driverTrails[driverId].setMap) {
+                driverTrails[driverId].setMap(null);
+            }
+        }
+        if (driverOffRouteTrails[driverId]) {
+            if (Array.isArray(driverOffRouteTrails[driverId])) {
+                driverOffRouteTrails[driverId].forEach(trail => {
+                    if (trail && trail.setMap) trail.setMap(null);
+                });
+            } else if (driverOffRouteTrails[driverId] && driverOffRouteTrails[driverId].setMap) {
+                driverOffRouteTrails[driverId].setMap(null);
+            }
+        }
+        
+        // Initialize arrays
+        if (!driverTrails[driverId]) {
+            driverTrails[driverId] = [];
+        }
+        if (!driverOffRouteTrails[driverId]) {
+            driverOffRouteTrails[driverId] = [];
+        }
+        
+        const directionsService = new google.maps.DirectionsService();
+        let processedSegments = 0;
+        const totalSegments = points.length - 1;
+        
+        // Process each segment between consecutive points
+        for (let i = 0; i < points.length - 1; i++) {
+            const startPoint = points[i];
+            const endPoint = points[i + 1];
+            
+            // Check if points are on route
+            let startIsOnRoute = true;
+            let endIsOnRoute = true;
+            
+            if (routePath && routePath.length > 0 && typeof google !== 'undefined' && google.maps && google.maps.geometry) {
+                // Check start point
+                let minDistance = Infinity;
+                const startLatLng = new google.maps.LatLng(startPoint.lat, startPoint.lng);
+                for (let j = 0; j < routePath.length; j++) {
+                    const routePoint = new google.maps.LatLng(routePath[j].lat, routePath[j].lng);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(startLatLng, routePoint);
+                    if (distance < minDistance) minDistance = distance;
+                }
+                startIsOnRoute = minDistance <= maxDistanceFromRoute;
+                
+                // Check end point
+                minDistance = Infinity;
+                const endLatLng = new google.maps.LatLng(endPoint.lat, endPoint.lng);
+                for (let j = 0; j < routePath.length; j++) {
+                    const routePoint = new google.maps.LatLng(routePath[j].lat, routePath[j].lng);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(endLatLng, routePoint);
+                    if (distance < minDistance) minDistance = distance;
+                }
+                endIsOnRoute = minDistance <= maxDistanceFromRoute;
+            }
+            
+            // Determine segment type - if either point is off route, the segment is off route
+            const segmentIsOnRoute = (startIsOnRoute && endIsOnRoute) || (!routePath);
+            
+            // Get road path between these two points using Directions API
+            directionsService.route({
+                origin: startPoint,
+                destination: endPoint,
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC
+            }, function(result, status) {
+                processedSegments++;
+                
+                if (status === 'OK' && result.routes && result.routes[0]) {
+                    // Extract path from route
+                    const path = [];
+                    result.routes[0].legs.forEach(leg => {
+                        leg.steps.forEach(step => {
+                            step.path.forEach(point => {
+                                path.push({
+                                    lat: point.lat(),
+                                    lng: point.lng()
+                                });
+                            });
+                        });
+                    });
+                    
+                    // Draw segment immediately with correct color
+                    if (path.length > 1) {
+                        const trail = new google.maps.Polyline({
+                            path: path,
+                            geodesic: true,
+                            strokeColor: segmentIsOnRoute ? '#FFD700' : '#FF0000', // Yellow or Red
+                            strokeOpacity: 0.8,
+                            strokeWeight: 4,
+                            zIndex: segmentIsOnRoute ? 500 : 501,
+                            map: driverTrailVisibility[driverId] ? map : null
+                        });
+                        
+                        if (segmentIsOnRoute) {
+                            driverTrails[driverId].push(trail);
+                        } else {
+                            driverOffRouteTrails[driverId].push(trail);
+                        }
+                    }
+                } else {
+                    // Fallback: use straight line if Directions API fails
+                    const fallbackPath = [startPoint, endPoint];
+                    const trail = new google.maps.Polyline({
+                        path: fallbackPath,
+                        geodesic: true,
+                        strokeColor: segmentIsOnRoute ? '#FFD700' : '#FF0000',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 4,
+                        zIndex: segmentIsOnRoute ? 500 : 501,
+                        map: driverTrailVisibility[driverId] ? map : null
+                    });
+                    
+                    if (segmentIsOnRoute) {
+                        driverTrails[driverId].push(trail);
+                    } else {
+                        driverOffRouteTrails[driverId].push(trail);
+                    }
+                }
+            });
+        }
+    }
+
     // Focus on specific driver
     function focusDriver(driverId) {
         const marker = driverMarkers[driverId];
@@ -936,20 +1148,47 @@
 
     // Toggle driver trail visibility
     function toggleDriverTrail(driverId) {
-        const trail = driverTrails[driverId];
-        const offRouteTrail = driverOffRouteTrails[driverId];
-        if (!trail && !offRouteTrail) return;
+        const trails = driverTrails[driverId];
+        const offRouteTrails = driverOffRouteTrails[driverId];
+        if ((!trails || (Array.isArray(trails) && trails.length === 0)) && 
+            (!offRouteTrails || (Array.isArray(offRouteTrails) && offRouteTrails.length === 0))) {
+            return;
+        }
         
         // Toggle visibility state
         driverTrailVisibility[driverId] = !driverTrailVisibility[driverId];
         
         // Show or hide trails
         if (driverTrailVisibility[driverId]) {
-            if (trail) trail.setMap(map);
-            if (offRouteTrail) offRouteTrail.setMap(map);
+            if (trails) {
+                if (Array.isArray(trails)) {
+                    trails.forEach(trail => trail.setMap(map));
+                } else {
+                    trails.setMap(map);
+                }
+            }
+            if (offRouteTrails) {
+                if (Array.isArray(offRouteTrails)) {
+                    offRouteTrails.forEach(trail => trail.setMap(map));
+                } else {
+                    offRouteTrails.setMap(map);
+                }
+            }
         } else {
-            if (trail) trail.setMap(null);
-            if (offRouteTrail) offRouteTrail.setMap(null);
+            if (trails) {
+                if (Array.isArray(trails)) {
+                    trails.forEach(trail => trail.setMap(null));
+                } else {
+                    trails.setMap(null);
+                }
+            }
+            if (offRouteTrails) {
+                if (Array.isArray(offRouteTrails)) {
+                    offRouteTrails.forEach(trail => trail.setMap(null));
+                } else {
+                    offRouteTrails.setMap(null);
+                }
+            }
         }
         
         // Update button appearance
@@ -967,43 +1206,167 @@
         }
     }
 
-    // Refresh button
-    document.getElementById('refresh-locations').addEventListener('click', function() {
-        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
-        loadRoutesAndShipments();
-        setTimeout(() => {
-            loadDriverLocations();
-            this.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar';
-        }, 500);
-    });
-
-    // Load Google Maps when page is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadGoogleMaps);
-    } else {
-        loadGoogleMaps();
+    // Check for route deviations and show alerts
+    let lastDeviationAlerts = {};
+    // Stub function - to be implemented
+    function loadRouteDeviationCosts() {
+        // Function not implemented yet
+        // Will calculate costs for route deviations
+        console.log('loadRouteDeviationCosts: Not implemented yet');
     }
+
+    function checkRouteDeviations() {
+        @foreach($activeRoutes as $route)
+            @if($route->status === 'in_progress')
+                fetch('{{ route("monitoring.route.deviation-costs", $route->id) }}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.has_deviation && data.off_route_distance_km > 0.5) {
+                            // Only show alert if we haven't shown one in the last 2 minutes
+                            const routeId = {{ $route->id }};
+                            const now = Date.now();
+                            if (!lastDeviationAlerts[routeId] || (now - lastDeviationAlerts[routeId]) > 120000) {
+                                showRouteDeviationAlert({{ $route->id }}, '{{ $route->name }}', data);
+                                lastDeviationAlerts[routeId] = now;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        // Silently fail
+                    });
+            @endif
+        @endforeach
+    }
+
+    // Show route deviation alert for admin
+    function showRouteDeviationAlert(routeId, routeName, data) {
+        // Remove existing alert for this route
+        const existing = document.querySelector(`.route-deviation-alert[data-route-id="${routeId}"]`);
+        if (existing) existing.remove();
+
+        const alert = document.createElement('div');
+        alert.className = 'route-deviation-alert';
+        alert.setAttribute('data-route-id', routeId);
+        alert.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.5);
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideInLeft 0.3s ease-out;
+        `;
+        alert.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 1.2em;">
+                    <i class="fas fa-exclamation-triangle"></i> Desvio de Rota Detectado!
+                </h4>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; padding: 0; margin-left: 10px;">
+                    &times;
+                </button>
+            </div>
+            <p style="margin: 5px 0; font-size: 0.95em;">
+                <strong>Rota:</strong> ${routeName}
+            </p>
+            <p style="margin: 5px 0; font-size: 0.95em;">
+                Motorista está <strong>${data.off_route_distance_km.toFixed(2)} km</strong> fora da rota planejada.
+            </p>
+            <p style="margin: 5px 0; font-size: 0.9em; opacity: 0.9;">
+                Custo extra estimado: <strong>R$ ${data.total_extra_cost.toFixed(2)}</strong>
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 0.85em; opacity: 0.8;">
+                <i class="fas fa-info-circle"></i> Verifique o mapa para mais detalhes.
+            </p>
+        `;
+
+        document.body.appendChild(alert);
+
+        // Request browser notification permission and show
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Desvio de Rota Detectado', {
+                body: `Rota ${routeName}: Motorista está ${data.off_route_distance_km.toFixed(2)} km fora da rota.`,
+                icon: '/favicon.ico',
+                tag: `route-deviation-${routeId}`,
+                requireInteraction: false,
+            });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification('Desvio de Rota Detectado', {
+                        body: `Rota ${routeName}: Motorista está ${data.off_route_distance_km.toFixed(2)} km fora da rota.`,
+                        icon: '/favicon.ico',
+                        tag: `route-deviation-${routeId}`,
+                    });
+                }
+            });
+        }
+
+        // Auto-remove after 15 seconds
+        setTimeout(() => {
+            if (alert.parentElement) {
+                alert.remove();
+            }
+        }, 15000);
+    }
+
+    // Refresh button
+    const refreshButton = document.getElementById('refresh-locations');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
+                loadRoutesAndShipments();
+                setTimeout(() => {
+                    loadDriverLocations();
+                    if (typeof loadRouteDeviationCosts === 'function') {
+                        loadRouteDeviationCosts();
+                    }
+                    if (typeof checkRouteDeviations === 'function') {
+                        checkRouteDeviations();
+                    }
+                    const btn = this;
+                    if (btn && btn.innerHTML) {
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar';
+                    }
+                }, 1000);
+        });
+    }
+
+    // Google Maps disabled - do not load legacy message anymore (Mapbox now handles initialization)
+    // Left intentionally blank to avoid injecting the old "Google Maps desabilitado" overlay
 
     // Auto-refresh every 30 seconds (only after map is initialized)
     let refreshInterval;
     function startAutoRefresh() {
         if (refreshInterval) clearInterval(refreshInterval);
         refreshInterval = setInterval(() => {
-            if (map) {
+            if (map && typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
                 loadRoutesAndShipments();
                 setTimeout(() => {
                     loadDriverLocations();
-                }, 500);
+                    if (typeof loadRouteDeviationCosts === 'function') {
+                        loadRouteDeviationCosts();
+                    }
+                    if (typeof checkRouteDeviations === 'function') {
+                        checkRouteDeviations();
+                    }
+                }, 1000);
             }
         }, 30000);
     }
 
-    // Start auto-refresh after map initialization
-    const originalInitMap = window.initMap;
-    window.initMap = function() {
-        originalInitMap();
-        startAutoRefresh();
-    };
+    // Start auto-refresh after map initialization (disabled - Google Maps not available)
+    // const originalInitMap = window.initMap;
+    // window.initMap = function() {
+    //     if (originalInitMap) originalInitMap();
+    //     if (map && typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+    //         startAutoRefresh();
+    //     }
+    // };
 </script>
 @endpush
 @endsection

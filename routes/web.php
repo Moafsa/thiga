@@ -27,6 +27,15 @@ Route::post('/driver/login/request-code', [DriverLoginController::class, 'reques
 Route::get('/driver/login/code', [DriverLoginController::class, 'showCodeForm'])->name('driver.login.code');
 Route::post('/driver/login/verify-code', [DriverLoginController::class, 'verifyCode'])->name('driver.login.verify-code');
 
+// Maps API routes (for web frontend - uses session auth)
+Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefix('api/maps')->group(function () {
+    Route::post('/geocode', [App\Http\Controllers\Api\MapsController::class, 'geocode']);
+    Route::post('/reverse-geocode', [App\Http\Controllers\Api\MapsController::class, 'reverseGeocode']);
+    Route::post('/route', [App\Http\Controllers\Api\MapsController::class, 'calculateRoute']);
+    Route::post('/distance', [App\Http\Controllers\Api\MapsController::class, 'calculateDistance']);
+    Route::get('/usage', [App\Http\Controllers\Api\MapsController::class, 'getUsage']);
+});
+
 // Rotas protegidas
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');

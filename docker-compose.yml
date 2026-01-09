@@ -8,6 +8,12 @@ services:
     container_name: tms_saas_app
     restart: unless-stopped
     working_dir: /var/www
+    environment:
+      - MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoidGhpZ2EiLCJhIjoiY21rM3g2b2Q4MDFtYTNtb3UwbnZjdG9nNSJ9.ZT5Ophz4zKLzf0Na5QkHjg
+      - MAPS_PREFER_MAPBOX=true
+      - MAPS_CACHE_ROUTES_HOURS=24
+      - MAPS_CACHE_GEOCODE_DAYS=365
+      - MAPS_DAILY_QUOTA_LIMIT=1000
     volumes:
       - ./:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
@@ -63,6 +69,9 @@ services:
     container_name: tms_saas_queue
     restart: unless-stopped
     working_dir: /var/www
+    environment:
+      - MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoidGhpZ2EiLCJhIjoiY21rM3g2b2Q4MDFtYTNtb3UwbnZjdG9nNSJ9.ZT5Ophz4zKLzf0Na5QkHjg
+      - MAPS_PREFER_MAPBOX=true
     volumes:
       - ./:/var/www
     networks:

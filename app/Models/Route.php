@@ -40,6 +40,9 @@ class Route extends Model
         'route_options',
         'selected_route_option',
         'is_route_locked',
+        'planned_path',
+        'actual_path',
+        'path_updated_at',
         'notes',
         // Time control
         'planned_departure_datetime',
@@ -81,6 +84,9 @@ class Route extends Model
         'settings' => 'array',
         'route_options' => 'array',
         'is_route_locked' => 'boolean',
+        'planned_path' => 'array',
+        'actual_path' => 'array',
+        'path_updated_at' => 'datetime',
     ];
 
     public function tenant(): BelongsTo

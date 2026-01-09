@@ -96,3 +96,4 @@ class FuelPriceSeeder extends Seeder
 
 
 
+

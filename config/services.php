@@ -99,12 +99,41 @@ return [
     | Google Maps Configuration
     |--------------------------------------------------------------------------
     |
-    | Configuration for Google Maps API integration
+    | Configuration for Google Maps API integration (Fallback only)
     |
     */
 
     'google_maps' => [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mapbox Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for Mapbox API integration (Primary provider)
+    |
+    */
+
+    'mapbox' => [
+        'access_token' => env('MAPBOX_ACCESS_TOKEN'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Maps Service Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Unified maps service configuration
+    |
+    */
+
+    'maps' => [
+        'prefer_mapbox' => env('MAPS_PREFER_MAPBOX', true),
+        'cache_routes_hours' => env('MAPS_CACHE_ROUTES_HOURS', 24),
+        'cache_geocode_days' => env('MAPS_CACHE_GEOCODE_DAYS', 365),
+        'daily_quota_limit' => env('MAPS_DAILY_QUOTA_LIMIT', 1000),
     ],
 
 ];

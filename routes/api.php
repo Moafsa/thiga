@@ -50,6 +50,7 @@ Route::prefix('driver')->group(function () {
     });
 });
 
+// Maps API routes moved to web.php for session authentication
 // Protected API routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {

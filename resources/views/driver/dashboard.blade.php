@@ -427,8 +427,7 @@
     }
 
     /* Route Options Styles */
-    .route-options {
-        display: flex;
+    /* Route options styles removed - map no longer displayed */
         gap: 10px;
         margin-bottom: 15px;
         flex-wrap: wrap;
@@ -664,6 +663,77 @@
 @endpush
 
 @section('content')
+<script>
+    // Define global functions IMMEDIATELY so they're available when HTML is rendered
+    // These functions must be defined before the HTML buttons that use them
+    (function() {
+        'use strict';
+        
+        // Helper functions for navigation (defined early)
+        window.detectDevice = function() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+                return 'ios';
+            }
+            if (/android/i.test(ua)) {
+                return 'android';
+            }
+            return 'desktop';
+        };
+        
+        window.getNavigationUrl = function(latitude, longitude, address, app = null) {
+            const appToUse = app || (window.preferredNavApp || 'google');
+            const device = window.detectDevice();
+            const encodedAddress = encodeURIComponent(address || `${latitude},${longitude}`);
+            
+            switch (appToUse) {
+                case 'waze':
+                    return `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes&q=${encodedAddress}`;
+                case 'apple':
+                    if (device === 'ios') {
+                        return `http://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d&t=m`;
+                    } else {
+                        return `https://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d`;
+                    }
+                case 'google':
+                default:
+                    if (device === 'android') {
+                        return `google.navigation:q=${latitude},${longitude}`;
+                    } else if (device === 'ios') {
+                        return `comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`;
+                    } else {
+                        return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+                    }
+            }
+        };
+        
+        // Open navigation (global scope) - defined early
+        window.openNavigation = function(latitude, longitude, address) {
+            if (typeof address === 'undefined') address = null;
+            const url = window.getNavigationUrl(latitude, longitude, address);
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            
+            const device = window.detectDevice();
+            if (device !== 'desktop') {
+                window.location.href = url;
+                setTimeout(function() {
+                    const webUrl = window.getNavigationUrl(latitude, longitude, address, 'google');
+                    if (webUrl !== url) {
+                        window.open(webUrl, '_blank');
+                    }
+                }, 500);
+            } else {
+                link.click();
+            }
+        };
+        
+        // Switch route mode (global scope) - defined early
+        // Route switching removed - map no longer displayed on driver dashboard
+    })();
+</script>
 @if($activeRoute)
     <!-- Route Status Card -->
     <div class="route-status-card">
@@ -701,45 +771,13 @@
     @endif
 
     <!-- Route Map -->
-    @if($activeRoute && (($activeRoute->start_latitude && $activeRoute->start_longitude) || ($driver->current_latitude && $driver->current_longitude) || $shipments->filter(function($s) { return $s->delivery_latitude && $s->delivery_longitude; })->count() > 0))
+    @if($activeRoute && $activeRoute->shipments->isNotEmpty())
     <div class="route-map-container">
-        <h3><i class="fas fa-map"></i> Mapa da Rota</h3>
-        <div class="route-options">
-            <button class="route-option-btn active" onclick="switchRoute('fastest')" id="route-fastest">
-                <i class="fas fa-tachometer-alt"></i> Mais Rápido
-            </button>
-            <button class="route-option-btn" onclick="switchRoute('shortest')" id="route-shortest">
-                <i class="fas fa-route"></i> Mais Curto
-            </button>
-            <button class="route-option-btn" onclick="switchRoute('avoidTolls')" id="route-avoid-tolls">
-                <i class="fas fa-road"></i> Evitar Pedágios
-            </button>
-            <div class="history-controls" style="margin-left: auto;">
-                <div class="nav-settings">
-                    <span><i class="fas fa-cog"></i> Navegação:</span>
-                    <div class="nav-app-selector">
-                        <button class="nav-settings-toggle" onclick="toggleNavAppMenu()" id="nav-app-toggle">
-                            <span id="nav-app-label">Google Maps</span> <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <div class="nav-app-menu" id="nav-app-menu">
-                            <div class="nav-app-option active" onclick="setNavApp('google')">
-                                <i class="fab fa-google"></i> Google Maps
-                            </div>
-                            <div class="nav-app-option" onclick="setNavApp('waze')">
-                                <i class="fas fa-map-marked-alt"></i> Waze
-                            </div>
-                            <div class="nav-app-option" onclick="setNavApp('apple')">
-                                <i class="fas fa-map"></i> Apple Maps
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button class="history-toggle" onclick="toggleRouteHistory()" id="history-toggle">
-                    <i class="fas fa-history"></i> Mostrar Histórico
-                </button>
-            </div>
-        </div>
-        <div id="route-map"></div>
+        <h3>
+            <i class="fas fa-map-marked-alt"></i>
+            Mapa da Rota
+        </h3>
+        <div id="route-map" style="width: 100%; height: 400px; border-radius: 10px; overflow: hidden;"></div>
     </div>
     @endif
 
@@ -787,7 +825,7 @@
             </div>
             
             @if($shipment->delivery_latitude && $shipment->delivery_longitude)
-            <button class="nav-btn" onclick="openNavigation({{ $shipment->delivery_latitude }}, {{ $shipment->delivery_longitude }}, '{{ addslashes($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state) }}')">
+            <button class="nav-btn" onclick="openNavigation({{ $shipment->delivery_latitude }}, {{ $shipment->delivery_longitude }}, {{ json_encode($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state) }})">
                 <i class="fas fa-directions"></i> Abrir Navegação GPS
             </button>
             @endif
@@ -981,11 +1019,79 @@
     let currentShipmentId = null;
     let currentStatus = null;
     let currentRouteMode = 'fastest'; // Default route mode
-    let directionsRenderer = null; // Directions renderer for route drawing
     let historyPolyline = null; // Polyline for location history path
     let locationUpdateInterval = null; // Interval for polling location updates
     let proximityCheckInterval = null; // Interval for proximity checking
     let notifiedShipments = new Set(); // Track shipments that have been notified for proximity
+    let preferredNavApp = 'google'; // Preferred navigation app (google, waze, apple)
+    let showHistory = false; // Whether to show route history
+
+    // Global variables for Mapbox - EXACTLY like routes/show.blade.php
+    @php
+        $driverLat = $driver->current_latitude ?? null;
+        $driverLng = $driver->current_longitude ?? null;
+        $routeOriginLat = ($activeRoute && $activeRoute->start_latitude) ? $activeRoute->start_latitude : null;
+        $routeOriginLng = ($activeRoute && $activeRoute->start_longitude) ? $activeRoute->start_longitude : null;
+        $routeOriginName = ($activeRoute && $activeRoute->branch) ? $activeRoute->branch->name : 'Ponto de Partida';
+        $routeId = ($activeRoute && $activeRoute->id) ? $activeRoute->id : null;
+        $tenantId = auth()->user()->tenant_id ?? null;
+        $driverId = $driver->id ?? null;
+    @endphp
+    window.driverCurrentLat = @json($driverLat);
+    window.driverCurrentLng = @json($driverLng);
+    window.routeOriginLat = @json($routeOriginLat);
+    window.routeOriginLng = @json($routeOriginLng);
+    window.routeOriginName = @json($routeOriginName);
+    window.routeId = @json($routeId);
+    window.tenantId = @json($tenantId);
+    window.driverId = @json($driverId);
+    
+    // Format shipments EXACTLY like routes/show.blade.php
+    @php
+        $shipmentsArray = $shipments->map(function($shipment) {
+            return [
+                'id' => $shipment->id,
+                'tracking_number' => $shipment->tracking_number,
+                'title' => $shipment->title,
+                'pickup_lat' => $shipment->pickup_latitude,
+                'pickup_lng' => $shipment->pickup_longitude,
+                'delivery_lat' => $shipment->delivery_latitude,
+                'delivery_lng' => $shipment->delivery_longitude,
+                'status' => $shipment->status,
+            ];
+        })->values();
+    @endphp
+    window.routeShipments = @json($shipmentsArray);
+    
+    // Debug: Log data availability
+    console.log('Driver Dashboard - Route Data:', {
+        hasActiveRoute: @json($activeRoute ? true : false),
+        routeId: window.routeId,
+        routeOriginLat: window.routeOriginLat,
+        routeOriginLng: window.routeOriginLng,
+        driverLat: window.driverCurrentLat,
+        driverLng: window.driverCurrentLng,
+        shipmentsCount: window.routeShipments ? window.routeShipments.length : 0,
+        shipments: window.routeShipments
+    });
+    
+    // Also keep deliveryLocations for backward compatibility
+    @php
+        $deliveryLocationsArray = $shipments->filter(function($s) {
+            return $s->delivery_latitude && $s->delivery_longitude;
+        })->map(function($shipment) {
+            return [
+                'id' => $shipment->id,
+                'tracking_number' => $shipment->tracking_number,
+                'title' => $shipment->title,
+                'address' => ($shipment->delivery_address ?? '') . ', ' . ($shipment->delivery_city ?? '') . '/' . ($shipment->delivery_state ?? ''),
+                'lat' => floatval($shipment->delivery_latitude),
+                'lng' => floatval($shipment->delivery_longitude),
+                'status' => $shipment->status,
+            ];
+        })->values();
+    @endphp
+    window.deliveryLocations = @json($deliveryLocationsArray);
 
     // Helper function to validate coordinates (must be global to be used in watchPosition)
     function isValidCoordinate(value) {
@@ -1180,7 +1286,7 @@
     // Auto-update location from browser geolocation
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition(function(position) {
-            const routeId = {{ $activeRoute->id ?? 'null' }};
+            const routeId = window.routeId || null;
             
             // Update location on server using web endpoint (session auth)
             fetch('/driver/location/update', {
@@ -1217,24 +1323,25 @@
                 
                 const newPosition = { lat: lat, lng: lng };
                 
-                if (window.driverMarker) {
-                    window.driverMarker.setPosition(newPosition);
-                } else {
-                    // Create marker if it doesn't exist
-                    window.driverMarker = new google.maps.Marker({
-                        position: newPosition,
-                        map: window.routeMap,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 12,
-                            fillColor: '#2196F3',
-                            fillOpacity: 1,
-                            strokeColor: '#FFFFFF',
-                            strokeWeight: 3,
-                        },
-                        title: 'Sua Localização Atual',
-                        zIndex: 1000,
-                        animation: google.maps.Animation.DROP
+                // Update global driver location variables
+                window.driverCurrentLat = lat;
+                window.driverCurrentLng = lng;
+                
+                // Update marker - Mapbox only
+                if (window.driverMarker && window.routeMap) {
+                    if (typeof window.routeMap.updateMarker === 'function') {
+                        // Mapbox - use updateMarker method
+                        window.routeMap.updateMarker(window.driverMarker, newPosition);
+                    } else if (typeof window.driverMarker.setPosition === 'function') {
+                        // Fallback for other map types
+                        window.driverMarker.setPosition(newPosition);
+                    }
+                } else if (window.routeMap && typeof window.routeMap.addMarker === 'function') {
+                    // Create Mapbox marker if it doesn't exist
+                    window.driverMarker = window.routeMap.addMarker(newPosition, {
+                        title: 'Sua Localização',
+                        color: '#2196F3',
+                        size: 28
                     });
                 }
             }
@@ -1254,369 +1361,9 @@
         });
     }
 
-    // Initialize route map
-    function initRouteMap() {
-        const mapContainer = document.getElementById('route-map');
-        if (!mapContainer) return;
+    // Map functionality removed - no longer displaying map on driver dashboard
 
-        const apiKey = '{{ config("services.google_maps.api_key") }}';
-        if (!apiKey) {
-            mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>Google Maps API key não configurada.</p></div>';
-            return;
-        }
-
-        // Load Google Maps API (Directions API is included by default, no need to specify as library)
-        if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=pt-BR&callback=initRouteMapCallback&loading=async`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-            
-            window.initRouteMapCallback = function() {
-                initRouteMap();
-            };
-            return;
-        }
-
-        // Get driver current location (for marker only)
-        const driverLat = {{ $driver->current_latitude ?? 'null' }};
-        const driverLng = {{ $driver->current_longitude ?? 'null' }};
-        
-        // Get route origin (depot/branch) - this is the correct origin for route calculation
-        const routeOriginLat = {{ $activeRoute->start_latitude ?? 'null' }};
-        const routeOriginLng = {{ $activeRoute->start_longitude ?? 'null' }};
-        
-        // Get route options if available
-        @php
-            $routeOptions = $activeRoute->route_options ?? null;
-        @endphp
-        const routeOptions = @json($routeOptions);
-        
-        // Get delivery locations - order by sequential optimization if available
-        @php
-            $shipmentsForMap = $shipments;
-            $optimizedOrder = $activeRoute->settings['sequential_optimized_order'] ?? null;
-            if ($optimizedOrder && is_array($optimizedOrder)) {
-                $shipmentsMap = $shipments->keyBy('id');
-                $orderedShipments = collect();
-                foreach ($optimizedOrder as $shipmentId) {
-                    if ($shipmentsMap->has($shipmentId)) {
-                        $orderedShipments->push($shipmentsMap->get($shipmentId));
-                    }
-                }
-                foreach ($shipments as $shipment) {
-                    if (!in_array($shipment->id, $optimizedOrder)) {
-                        $orderedShipments->push($shipment);
-                    }
-                }
-                $shipmentsForMap = $orderedShipments;
-            }
-            
-            $deliveryLocationsArray = $shipmentsForMap->filter(function($s) {
-                return $s->delivery_latitude && $s->delivery_longitude;
-            })->map(function($shipment) {
-                return [
-                    'id' => $shipment->id,
-                    'tracking_number' => $shipment->tracking_number,
-                    'title' => $shipment->title,
-                    'address' => ($shipment->delivery_address ?? '') . ', ' . ($shipment->delivery_city ?? '') . '/' . ($shipment->delivery_state ?? ''),
-                    'lat' => floatval($shipment->delivery_latitude),
-                    'lng' => floatval($shipment->delivery_longitude),
-                    'status' => $shipment->status,
-                ];
-            })->values();
-        @endphp
-        const deliveryLocations = @json($deliveryLocationsArray);
-
-        // Determine map center - prefer route origin, then driver location, then first delivery
-        let center = { lat: -23.5505, lng: -46.6333 }; // São Paulo default
-        
-        if (isValidCoordinate(routeOriginLat) && isValidCoordinate(routeOriginLng)) {
-            center = { lat: parseFloat(routeOriginLat), lng: parseFloat(routeOriginLng) };
-        } else if (isValidCoordinate(driverLat) && isValidCoordinate(driverLng)) {
-            center = { lat: parseFloat(driverLat), lng: parseFloat(driverLng) };
-        } else if (deliveryLocations.length > 0 && isValidCoordinate(deliveryLocations[0].lat) && isValidCoordinate(deliveryLocations[0].lng)) {
-            center = { lat: parseFloat(deliveryLocations[0].lat), lng: parseFloat(deliveryLocations[0].lng) };
-        }
-
-        // Initialize map
-        window.routeMap = new google.maps.Map(mapContainer, {
-            center: center,
-            zoom: 12,
-            mapTypeId: 'roadmap',
-            disableDefaultUI: false,
-            zoomControl: true,
-            mapTypeControl: true,
-            mapTypeControlOptions: {
-                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-                position: google.maps.ControlPosition.TOP_RIGHT
-            },
-            scaleControl: true,
-            streetViewControl: false,
-            fullscreenControl: true
-        });
-
-        const bounds = new google.maps.LatLngBounds();
-        const markers = [];
-
-        // Add driver location marker (will be updated in real-time)
-        // Always try to create marker if we have any location data
-        if (isValidCoordinate(driverLat) && isValidCoordinate(driverLng)) {
-            const driverPosition = { lat: parseFloat(driverLat), lng: parseFloat(driverLng) };
-            window.driverMarker = new google.maps.Marker({
-                position: driverPosition,
-                map: window.routeMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: '#2196F3',
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 3,
-                },
-                title: 'Sua Localização Atual',
-                zIndex: 1000,
-                animation: google.maps.Animation.DROP
-            });
-
-            const driverInfo = new google.maps.InfoWindow({
-                content: `<div style="padding: 10px; min-width: 200px;">
-                    <h4 style="margin: 0 0 10px 0; color: #2196F3;">Sua Localização</h4>
-                    <p style="margin: 5px 0; color: #666;">Motorista</p>
-                    <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Atualizado: agora</p>
-                </div>`
-            });
-
-            window.driverMarker.addListener('click', function() {
-                driverInfo.open(window.routeMap, window.driverMarker);
-            });
-
-            bounds.extend(driverPosition);
-            markers.push(window.driverMarker);
-            console.log('Initial driver marker created at:', driverPosition);
-        } else {
-            // No initial location - marker will be created when location is received
-            window.driverMarker = null;
-            console.log('No initial driver location, will create marker when location is received');
-        }
-
-        // Add delivery location markers
-        deliveryLocations.forEach(function(shipment, index) {
-            // Validate coordinates before creating marker
-            if (!isValidCoordinate(shipment.lat) || !isValidCoordinate(shipment.lng)) {
-                console.warn('Invalid coordinates for shipment:', shipment);
-                return;
-            }
-            
-            const deliveryPosition = { lat: parseFloat(shipment.lat), lng: parseFloat(shipment.lng) };
-            
-            // Different colors based on status
-            let markerColor = '#4CAF50'; // Green for delivered
-            if (shipment.status === 'pending' || shipment.status === 'scheduled') {
-                markerColor = '#FFC107'; // Yellow for pending
-            } else if (shipment.status === 'picked_up' || shipment.status === 'in_transit') {
-                markerColor = '#2196F3'; // Blue for in transit
-            } else if (shipment.status === 'exception') {
-                markerColor = '#F44336'; // Red for exception
-            }
-
-            const marker = new google.maps.Marker({
-                position: deliveryPosition,
-                map: window.routeMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: markerColor,
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 3,
-                },
-                title: `Entrega: ${shipment.tracking_number}`,
-                label: {
-                    text: String(index + 1),
-                    color: '#FFFFFF',
-                    fontWeight: 'bold',
-                    fontSize: '12px'
-                },
-                zIndex: 500
-            });
-
-            // Escape address for safe use in template string
-            const safeAddress = (shipment.address || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
-            const info = new google.maps.InfoWindow({
-                content: `<div style="padding: 10px; min-width: 250px;">
-                    <h4 style="margin: 0 0 10px 0; color: ${markerColor};">Entrega #${index + 1}</h4>
-                    <p style="margin: 5px 0; color: #666;"><strong>Rastreamento:</strong> ${shipment.tracking_number}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>Descrição:</strong> ${shipment.title}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>Endereço:</strong> ${shipment.address}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>Status:</strong> ${shipment.status}</p>
-                    <button onclick="openNavigation(${shipment.lat}, ${shipment.lng}, ${safeAddress ? "'" + safeAddress + "'" : 'null'}); google.maps.event.clearInstanceListeners(this);" 
-                            style="margin-top: 10px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
-                        <i class="fas fa-directions"></i> Abrir Navegação GPS
-                    </button>
-                </div>`
-            });
-
-            marker.addListener('click', function() {
-                info.open(window.routeMap, marker);
-            });
-
-            bounds.extend(deliveryPosition);
-            markers.push(marker);
-        });
-
-        // Fit bounds to show all markers
-        if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-            // If all markers are at same location, zoom to that location
-            const extendPoint1 = new google.maps.LatLng(bounds.getNorthEast().lat() + 0.01, bounds.getNorthEast().lng() + 0.01);
-            const extendPoint2 = new google.maps.LatLng(bounds.getNorthEast().lat() - 0.01, bounds.getNorthEast().lng() - 0.01);
-            bounds.extend(extendPoint1);
-            bounds.extend(extendPoint2);
-        }
-        
-        // Add route origin marker (depot/branch) if available
-        if (isValidCoordinate(routeOriginLat) && isValidCoordinate(routeOriginLng)) {
-            const originPosition = { lat: parseFloat(routeOriginLat), lng: parseFloat(routeOriginLng) };
-            const originMarker = new google.maps.Marker({
-                position: originPosition,
-                map: window.routeMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: '#9C27B0',
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 3,
-                },
-                title: 'Depósito/Filial',
-                zIndex: 999
-            });
-
-            const originInfo = new google.maps.InfoWindow({
-                content: `<div style="padding: 10px; min-width: 200px;">
-                    <h4 style="margin: 0 0 10px 0; color: #9C27B0;">Ponto de Partida</h4>
-                    <p style="margin: 5px 0; color: #666;">Depósito/Filial</p>
-                </div>`
-            });
-
-            originMarker.addListener('click', function() {
-                originInfo.open(window.routeMap, originMarker);
-            });
-
-            bounds.extend(originPosition);
-            markers.push(originMarker);
-        }
-        
-        // Build waypoints array - EXACTLY like admin dashboard
-        // CRITICAL: waypoints[0] is the origin (depot/branch), rest are delivery destinations
-        const waypoints = [];
-        
-        // Add origin (depot/branch) as first waypoint
-        if (isValidCoordinate(routeOriginLat) && isValidCoordinate(routeOriginLng)) {
-            waypoints.push({ lat: parseFloat(routeOriginLat), lng: parseFloat(routeOriginLng) });
-        }
-        
-        // Add delivery locations as waypoints
-        deliveryLocations.forEach(function(shipment) {
-            if (isValidCoordinate(shipment.lat) && isValidCoordinate(shipment.lng)) {
-                waypoints.push({ lat: parseFloat(shipment.lat), lng: parseFloat(shipment.lng) });
-            }
-        });
-        
-        window.routeMap.fitBounds(bounds, {
-            top: 50,
-            right: 50,
-            bottom: 50,
-            left: 50
-        });
-
-        // Calculate route using Directions API - EXACTLY like admin dashboard
-        if (waypoints.length > 1) {
-            calculateRouteWithDirections(waypoints);
-        }
-        
-        // Load location history and start real-time updates
-        if ({{ $activeRoute->id ?? 'null' }}) {
-            loadRouteHistory();
-            startLocationPolling();
-        }
-    }
-
-    // Calculate route using Google Directions API - EXACTLY like admin dashboard
-    // CRITICAL: waypoints[0] is the origin (depot/branch), rest are delivery destinations
-    // The route MUST return to depot/branch (waypoints[0]) after all deliveries
-    function calculateRouteWithDirections(waypoints) {
-        if (waypoints.length < 2) return;
-
-        const directionsService = new google.maps.DirectionsService();
-        
-        // Initialize directions renderer
-        if (!directionsRenderer) {
-            directionsRenderer = new google.maps.DirectionsRenderer({
-                map: window.routeMap,
-                suppressMarkers: true, // We already have custom markers
-                polylineOptions: {
-                    strokeColor: '#FF6B35',
-                    strokeOpacity: 0.8,
-                    strokeWeight: 5,
-                    icons: [] // Ensure continuous line without dots
-                }
-            });
-        }
-        window.directionsRenderer = directionsRenderer;
-
-        // CRITICAL: waypoints[0] is the origin (depot/branch)
-        // waypoints[1] to waypoints[n] are delivery destinations
-        // Destination MUST ALWAYS be depot/branch (waypoints[0]) - return to origin
-        // Build waypoints array (all delivery destinations, excluding origin)
-        const waypointsArray = waypoints.length > 1 
-            ? waypoints.slice(1).map(wp => ({
-                location: { lat: wp.lat, lng: wp.lng },
-                stopover: true
-            }))
-            : [];
-
-        // Origin is ALWAYS the depot/branch (waypoints[0])
-        const origin = { lat: waypoints[0].lat, lng: waypoints[0].lng };
-        // Destination is ALWAYS the depot/branch (return to origin)
-        const destination = { lat: waypoints[0].lat, lng: waypoints[0].lng };
-
-        const request = {
-            origin: origin,
-            destination: destination,
-            waypoints: waypointsArray.length > 0 ? waypointsArray : undefined,
-            provideRouteAlternatives: false,
-            optimizeWaypoints: false, // Keep original order (already optimized sequentially)
-            travelMode: google.maps.TravelMode.DRIVING,
-            unitSystem: google.maps.UnitSystem.METRIC,
-            language: 'pt-BR',
-            avoidHighways: false,
-            avoidTolls: currentRouteMode === 'avoidTolls'
-        };
-
-        directionsService.route(request, function(result, status) {
-            if (status === 'OK') {
-                directionsRenderer.setDirections(result);
-                updateRouteSummary(result);
-            } else {
-                console.error('Directions request failed:', status);
-                console.error('Request:', request);
-                // Fallback to simple polyline if Directions API fails
-                const routePolyline = new google.maps.Polyline({
-                    path: waypoints,
-                    geodesic: true,
-                    strokeColor: '#FF6B35',
-                    strokeOpacity: 0.8,
-                    strokeWeight: 5,
-                    icons: [], // Ensure continuous line without dots
-                    zIndex: 100
-                });
-                routePolyline.setMap(window.routeMap);
-            }
-        });
-    }
+    // Detect device type
 
     // Detect device type
     function detectDevice() {
@@ -1669,33 +1416,8 @@
         }
     }
 
-    // Open navigation in preferred app
-    function openNavigation(latitude, longitude, address = null) {
-        const url = getNavigationUrl(latitude, longitude, address);
-        
-        // Try to open in app
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        
-        // For mobile apps, try direct link first
-        if (detectDevice() !== 'desktop') {
-            window.location.href = url;
-            
-            // Fallback after delay if app doesn't open
-            setTimeout(() => {
-                // Fallback to web version
-                const webUrl = getNavigationUrl(latitude, longitude, address, 'google');
-                if (webUrl !== url) {
-                    window.open(webUrl, '_blank');
-                }
-            }, 500);
-        } else {
-            // Desktop: open in new tab
-            link.click();
-        }
-    }
+    // openNavigation is already defined at the top of the file
+    // This is kept for backward compatibility but the main definition is at the top
 
     // Set preferred navigation app
     function setNavApp(app) {
@@ -1749,94 +1471,7 @@
         return `${mode}_${origin.lat},${origin.lng}_${destStr}`;
     }
 
-    // Switch route mode
-    function switchRoute(mode) {
-        currentRouteMode = mode;
-        
-        // Update button states
-        document.querySelectorAll('.route-option-btn').forEach(btn => btn.classList.remove('active'));
-        const btnId = 'route-' + mode.replace(/([A-Z])/g, '-$1').toLowerCase();
-        const btn = document.getElementById(btnId);
-        if (btn) btn.classList.add('active');
-        
-        // Clear current route
-        if (directionsRenderer) {
-            directionsRenderer.setMap(null);
-            directionsRenderer = null;
-        }
-        if (window.directionsRenderer) {
-            window.directionsRenderer.setMap(null);
-            window.directionsRenderer = null;
-        }
-        
-        // Reload route with new mode (call the existing route drawing logic)
-        setTimeout(() => {
-            loadRoute();
-        }, 100);
-    }
-
-    // Load route with caching - wrapper to integrate with existing code
-    function loadRoute() {
-        // This will be called after initRouteMap completes
-        const driverLat = {{ $driver->current_latitude ?? 'null' }};
-        const driverLng = {{ $driver->current_longitude ?? 'null' }};
-        
-        if (!driverLat || !driverLng) return;
-        
-        // Re-draw route using the current mode
-        // The existing route drawing code will be modified to respect currentRouteMode
-    }
-
-    // Toggle route history
-    function toggleRouteHistory() {
-        showHistory = !showHistory;
-        const toggleBtn = document.getElementById('history-toggle');
-        
-        if (showHistory) {
-            toggleBtn.classList.add('active');
-            toggleBtn.innerHTML = '<i class="fas fa-history"></i> Ocultar Histórico';
-            loadRouteHistory();
-        } else {
-            toggleBtn.classList.remove('active');
-            toggleBtn.innerHTML = '<i class="fas fa-history"></i> Mostrar Histórico';
-            if (historyPolyline) {
-                historyPolyline.setMap(null);
-            }
-        }
-    }
-
-    // Load route history from API
-    function loadRouteHistory() {
-        const routeId = {{ $activeRoute->id ?? 'null' }};
-        if (!routeId || !window.routeMap) return;
-
-        // Use web route that works with session auth
-        fetch(`/driver/routes/${routeId}/map-data`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.location_history && data.location_history.length > 1) {
-                    const path = data.location_history.map(loc => ({
-                        lat: parseFloat(loc.lat),
-                        lng: parseFloat(loc.lng)
-                    }));
-
-                    if (historyPolyline) {
-                        historyPolyline.setMap(null);
-                    }
-
-                    historyPolyline = new google.maps.Polyline({
-                        path: path,
-                        geodesic: true,
-                        strokeColor: '#2196F3',
-                        strokeOpacity: 0.6,
-                        strokeWeight: 4,
-                        map: window.routeMap,
-                        zIndex: 100
-                    });
-                }
-            })
-            .catch(error => console.error('Error loading route history:', error));
-    }
+    // Route map functions removed - map no longer displayed on driver dashboard
 
     // Poll driver location in real-time
     function startLocationPolling() {
@@ -1872,7 +1507,7 @@
     // Check for route deviation and show alert
     let lastDeviationAlert = null;
     function checkRouteDeviation() {
-        const routeId = {{ $activeRoute->id ?? 'null' }};
+        const routeId = window.routeId || null;
         if (!routeId) return;
 
         fetch(`/monitoring/routes/${routeId}/deviation-costs`)
@@ -1969,13 +1604,8 @@
         }, 10000);
     }
 
-    // Update driver location from server
+    // Update driver location from server - simplified since map is no longer displayed
     function updateDriverLocation() {
-        if (!window.routeMap) {
-            console.warn('Map not initialized yet, skipping location update');
-            return;
-        }
-
         fetch('/driver/location/current', {
             method: 'GET',
             headers: {
@@ -2018,48 +1648,11 @@
                         return;
                     }
                     
-                    const newPosition = {
-                        lat: lat,
-                        lng: lng
-                    };
-
-                    console.log('Updating driver marker to:', newPosition);
-
-                    // Update or create driver marker
-                    if (window.driverMarker && window.routeMap) {
-                        const oldPosition = window.driverMarker.getPosition();
-                        const hasMoved = !oldPosition || 
-                            (Math.abs(oldPosition.lat() - newPosition.lat) > 0.0001 || 
-                             Math.abs(oldPosition.lng() - newPosition.lng) > 0.0001);
-                        
-                        window.driverMarker.setPosition(newPosition);
-                        console.log('Driver marker updated, moved:', hasMoved);
-                        
-                        // Reload history to update path if driver moved
-                        if (hasMoved) {
-                            loadRouteHistory();
-                        }
-                    } else if (window.routeMap) {
-                        console.log('Creating new driver marker');
-                        window.driverMarker = new google.maps.Marker({
-                            position: newPosition,
-                            map: window.routeMap,
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: 12,
-                                fillColor: '#2196F3',
-                                fillOpacity: 1,
-                                strokeColor: '#FFFFFF',
-                                strokeWeight: 3,
-                            },
-                            title: 'Sua Localização Atual',
-                            zIndex: 1000,
-                            animation: google.maps.Animation.DROP
-                        });
-                        
-                        // Load history when marker is first created
-                        loadRouteHistory();
-                    }
+                    // Update global driver location variables (used for proximity checking)
+                    window.driverCurrentLat = lat;
+                    window.driverCurrentLng = lng;
+                    
+                    console.log('Driver location updated:', { lat, lng });
                 } else {
                     console.warn('No location data in response:', data);
                 }
@@ -2067,7 +1660,6 @@
             .catch(error => {
                 console.error('Error fetching driver location:', error);
                 // Don't show alert for location errors, just log them
-                // This prevents spamming alerts every 5 seconds
             });
     }
 
@@ -2085,8 +1677,8 @@
 
     // Check proximity to delivery points
     function checkProximity() {
-        const driverLat = {{ $driver->current_latitude ?? 'null' }};
-        const driverLng = {{ $driver->current_longitude ?? 'null' }};
+        const driverLat = @json($driver->current_latitude ?? null);
+        const driverLng = @json($driver->current_longitude ?? null);
         @php
             $proximityLocationsArray = $shipments->filter(function($s) {
                 return $s->delivery_latitude && $s->delivery_longitude && !in_array($s->status, ['delivered', 'exception', 'cancelled']);
@@ -2128,13 +1720,15 @@
 
         const notification = document.createElement('div');
         notification.className = 'proximity-notification';
+        const navLat = parseFloat(shipment.lat) || 0;
+        const navLng = parseFloat(shipment.lng) || 0;
         notification.innerHTML = `
             <button class="close-notification" onclick="this.parentElement.remove()">&times;</button>
             <h4><i class="fas fa-map-marker-alt"></i> Próximo do Destino!</h4>
             <p><strong>${shipment.tracking_number}</strong></p>
             <p>${shipment.title}</p>
             <p>Distância: ${(distance * 1000).toFixed(0)} metros</p>
-            <button onclick="openNavigation(${shipment.lat}, ${shipment.lng}); this.parentElement.remove();" 
+            <button onclick="window.openNavigation(${navLat}, ${navLng}); this.parentElement.remove();" 
                     style="margin-top: 10px; padding: 8px 16px; background: white; color: #4CAF50; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600;">
                 <i class="fas fa-directions"></i> Abrir Navegação
             </button>
@@ -2173,110 +1767,9 @@
         }
     }
 
-    // Update route summary panel
-    function updateRouteSummary(response) {
-        const route = response.routes[0];
-        const mapContainer = document.getElementById('route-map');
-        
-        // Remove existing summary
-        const existingSummary = mapContainer.querySelector('.route-summary');
-        if (existingSummary) {
-            existingSummary.remove();
-        }
-        
-        let totalDistance = 0;
-        let totalDuration = 0;
-        route.legs.forEach(function(leg) {
-            totalDistance += leg.distance.value;
-            totalDuration += leg.duration.value;
-        });
-        
-        const modeLabels = {
-            'fastest': 'Mais Rápido',
-            'shortest': 'Mais Curto',
-            'avoidTolls': 'Evitar Pedágios'
-        };
-        
-        const summaryPanel = document.createElement('div');
-        summaryPanel.className = 'route-summary';
-        summaryPanel.style.cssText = 'margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 8px; color: #fff; font-size: 0.9em;';
-        summaryPanel.innerHTML = `
-            <div><strong>Distância Total:</strong> ${(totalDistance / 1000).toFixed(2)} km</div>
-            <div><strong>Tempo Estimado:</strong> ${Math.round(totalDuration / 60)} minutos</div>
-            <div><strong>Modo:</strong> ${modeLabels[currentRouteMode] || currentRouteMode}</div>
-        `;
-        
-        mapContainer.appendChild(summaryPanel);
-    }
+    // updateRouteSummary function removed - map no longer displayed on driver dashboard
 
-    // Enhanced loadRoute function that works with the existing code
-    window.loadRoute = function() {
-        if (!window.routeMap) {
-            initRouteMap();
-            return;
-        }
-        
-        // Force re-draw of route by clearing and re-initializing
-        if (window.directionsRenderer) {
-            window.directionsRenderer.setMap(null);
-            window.directionsRenderer = null;
-        }
-        if (directionsRenderer) {
-            directionsRenderer.setMap(null);
-            directionsRenderer = null;
-        }
-        
-        // Re-run the route drawing logic
-        const routeOriginLat = {{ $activeRoute->start_latitude ?? 'null' }};
-        const routeOriginLng = {{ $activeRoute->start_longitude ?? 'null' }};
-        const driverLat = {{ $driver->current_latitude ?? 'null' }};
-        const driverLng = {{ $driver->current_longitude ?? 'null' }};
-        
-        // Need at least route origin or driver location, and delivery locations
-        const hasOrigin = (routeOriginLat && routeOriginLng) || (driverLat && driverLng);
-        if (!hasOrigin) return;
-        
-        // Trigger re-initialization by calling initRouteMap again
-        // This will use the currentRouteMode global variable
-        initRouteMap();
-    };
-
-    // Initialize navigation app preference on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Auto-detect and set best navigation app based on device
-        const device = detectDevice();
-        if (device === 'ios' && !localStorage.getItem('preferredNavApp')) {
-            preferredNavApp = 'apple';
-            localStorage.setItem('preferredNavApp', 'apple');
-            document.getElementById('nav-app-label').textContent = 'Apple Maps';
-        } else if (!localStorage.getItem('preferredNavApp')) {
-            preferredNavApp = 'google';
-            localStorage.setItem('preferredNavApp', 'google');
-        } else {
-            preferredNavApp = localStorage.getItem('preferredNavApp');
-        }
-        
-        // Update label
-        const labels = {
-            'google': 'Google Maps',
-            'waze': 'Waze',
-            'apple': 'Apple Maps'
-        };
-        const labelEl = document.getElementById('nav-app-label');
-        if (labelEl) {
-            labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
-        }
-        
-        // Update active option in menu
-        document.querySelectorAll('.nav-app-option').forEach(opt => {
-            const app = opt.getAttribute('onclick').match(/'(\w+)'/)[1];
-            if (app === preferredNavApp) {
-                opt.classList.add('active');
-            } else {
-                opt.classList.remove('active');
-            }
-        });
-    });
+    // loadRoute function removed - map no longer displayed on driver dashboard
 
     // Initialize navigation app preference on page load
     document.addEventListener('DOMContentLoaded', function() {
@@ -2305,47 +1798,259 @@
             labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
         }
         
-        // Update active option in menu
-        document.querySelectorAll('.nav-app-option').forEach(opt => {
-            const onclickAttr = opt.getAttribute('onclick');
-            if (onclickAttr) {
-                const match = onclickAttr.match(/'(\w+)'/);
-                if (match) {
-                    const app = match[1];
-                    if (app === preferredNavApp) {
-                        opt.classList.add('active');
-                    } else {
-                        opt.classList.remove('active');
-                    }
-                }
-            }
-        });
+        // Update active option in menu - removed since navigation menu is handled by event listeners
     });
 
-    // Initialize map when page loads
-    @php
-        $hasRouteOrigin = $activeRoute && $activeRoute->start_latitude && $activeRoute->start_longitude;
-        $hasDriverLocation = $driver->current_latitude && $driver->current_longitude;
-        $hasDeliveryLocations = $shipments->filter(function($s) { 
-            return $s->delivery_latitude && $s->delivery_longitude; 
-        })->count() > 0;
-        $shouldShowMap = $activeRoute && ($hasRouteOrigin || $hasDriverLocation || $hasDeliveryLocations);
-    @endphp
-    @if($shouldShowMap)
-    document.addEventListener('DOMContentLoaded', function() {
-        initRouteMap();
+    // Initialize route map with Mapbox (similar to routes/show.blade.php)
+    let routeMap;
+    
+    async function initRouteMapWithMapbox() {
+        // Prevent multiple initializations
+        if (window.routeMapInitialized) {
+            console.log('Map already initialized, skipping...');
+            return;
+        }
         
-        // Start proximity checking after map loads
-        setTimeout(() => {
+        const mapContainer = document.getElementById('route-map');
+        if (!mapContainer || typeof MapboxHelper === 'undefined') {
+            console.error('MapboxHelper not available');
+            return;
+        }
+
+        let center = [-46.6333, -23.5505]; // São Paulo default [lng, lat]
+        if (window.routeOriginLat && window.routeOriginLng) {
+            center = [parseFloat(window.routeOriginLng), parseFloat(window.routeOriginLat)];
+        } else if (window.driverCurrentLat && window.driverCurrentLng) {
+            center = [parseFloat(window.driverCurrentLng), parseFloat(window.driverCurrentLat)];
+        }
+
+        const authToken = document.querySelector('meta[name="api-token"]')?.content || localStorage.getItem('auth_token');
+        
+        routeMap = new MapboxHelper('route-map', {
+            center: center,
+            zoom: 12,
+            accessToken: window.mapboxAccessToken,
+            apiBaseUrl: '/api/maps',
+            authToken: authToken,
+            onLoad: async (map) => {
+                window.routeMapInitialized = true; // Mark as initialized
+                window.routeMap = routeMap; // Make it globally available
+                await addRouteMarkersAndPolyline();
+            }
+        });
+
+        async function addRouteMarkersAndPolyline() {
+            console.log('Adding markers and route...', {
+                routeOriginLat: window.routeOriginLat,
+                routeOriginLng: window.routeOriginLng,
+                driverLat: window.driverCurrentLat,
+                driverLng: window.driverCurrentLng,
+                shipmentsCount: window.routeShipments?.length || 0,
+                shipments: window.routeShipments
+            });
+            
+            // Origin marker (depot/branch)
+            if (window.routeOriginLat && window.routeOriginLng) {
+                routeMap.addMarker({
+                    lat: parseFloat(window.routeOriginLat),
+                    lng: parseFloat(window.routeOriginLng)
+                }, {
+                    title: window.routeOriginName || 'Ponto de Partida',
+                    color: '#FF6B35',
+                    size: 32
+                });
+            }
+
+            // Driver's current location marker
+            if (window.driverCurrentLat && window.driverCurrentLng) {
+                window.driverMarker = routeMap.addMarker({
+                    lat: parseFloat(window.driverCurrentLat),
+                    lng: parseFloat(window.driverCurrentLng)
+                }, {
+                    title: 'Sua Localização',
+                    color: '#2196F3',
+                    size: 28
+                });
+            }
+
+            // Shipment markers
+            if (!window.routeShipments || window.routeShipments.length === 0) {
+                console.warn('No shipments found for route');
+                // Fit bounds to show at least origin and driver location
+                const positions = [];
+                if (window.routeOriginLat && window.routeOriginLng) {
+                    positions.push({ lat: parseFloat(window.routeOriginLat), lng: parseFloat(window.routeOriginLng) });
+                }
+                if (window.driverCurrentLat && window.driverCurrentLng) {
+                    positions.push({ lat: parseFloat(window.driverCurrentLat), lng: parseFloat(window.driverCurrentLng) });
+                }
+                if (positions.length > 0) routeMap.fitBounds(positions);
+                return;
+            }
+            
+            window.routeShipments.forEach(shipment => {
+                if (shipment.pickup_lat && shipment.pickup_lng) {
+                    routeMap.addMarker({
+                        lat: parseFloat(shipment.pickup_lat),
+                        lng: parseFloat(shipment.pickup_lng)
+                    }, {
+                        title: `Coleta: ${shipment.tracking_number}`,
+                        color: '#2196F3',
+                        size: 24
+                    });
+                }
+                
+                if (shipment.delivery_lat && shipment.delivery_lng) {
+                    routeMap.addMarker({
+                        lat: parseFloat(shipment.delivery_lat),
+                        lng: parseFloat(shipment.delivery_lng)
+                    }, {
+                        title: `Entrega: ${shipment.tracking_number}`,
+                        color: '#4CAF50',
+                        size: 28
+                    });
+                }
+            });
+
+            // Draw route
+            if (window.routeOriginLat && window.routeOriginLng && window.routeShipments.length > 0) {
+                const origin = {
+                    lat: parseFloat(window.routeOriginLat),
+                    lng: parseFloat(window.routeOriginLng)
+                };
+                
+                // Filter shipments with valid delivery coordinates
+                const deliveries = window.routeShipments
+                    .filter(s => {
+                        const hasCoords = s.delivery_lat && s.delivery_lng && 
+                                         !isNaN(parseFloat(s.delivery_lat)) && 
+                                         !isNaN(parseFloat(s.delivery_lng));
+                        if (!hasCoords) {
+                            console.warn('Shipment without valid delivery coordinates:', {
+                                id: s.id,
+                                tracking_number: s.tracking_number,
+                                delivery_lat: s.delivery_lat,
+                                delivery_lng: s.delivery_lng
+                            });
+                        }
+                        return hasCoords;
+                    })
+                    .map(s => ({ 
+                        lat: parseFloat(s.delivery_lat), 
+                        lng: parseFloat(s.delivery_lng),
+                        tracking_number: s.tracking_number,
+                        id: s.id
+                    }));
+                
+                console.log('Route drawing data:', {
+                    origin,
+                    totalShipments: window.routeShipments.length,
+                    deliveriesCount: deliveries.length,
+                    deliveries
+                });
+                
+                if (deliveries.length > 0) {
+                    // For routes with multiple deliveries, create a sequential route
+                    // Origin -> Delivery 1 -> Delivery 2 -> ... -> Last Delivery -> Return to Origin
+                    const waypoints = deliveries; // All deliveries as waypoints
+                    const returnDestination = origin; // Return to origin
+                    
+                    console.log('Drawing route with return to base:', { 
+                        origin, 
+                        destination: returnDestination,
+                        waypointsCount: waypoints.length
+                    });
+                    
+                    try {
+                        await routeMap.drawRoute(origin, returnDestination, waypoints, {
+                            color: '#FF6B35',
+                            width: 6
+                        });
+                        console.log('Route drawn successfully with', deliveries.length, 'delivery points and return to base');
+                    } catch (error) {
+                        console.error('Route drawing error:', error);
+                    }
+                } else {
+                    console.error('No valid delivery coordinates found!');
+                }
+            } else {
+                console.warn('Cannot draw route - missing data:', {
+                    hasOrigin: !!(window.routeOriginLat && window.routeOriginLng),
+                    hasShipments: window.routeShipments?.length > 0
+                });
+            }
+
+            // Fit bounds to show all markers
+            const positions = [];
+            if (window.routeOriginLat && window.routeOriginLng) {
+                positions.push({ lat: parseFloat(window.routeOriginLat), lng: parseFloat(window.routeOriginLng) });
+            }
+            if (window.driverCurrentLat && window.driverCurrentLng) {
+                positions.push({ lat: parseFloat(window.driverCurrentLat), lng: parseFloat(window.driverCurrentLng) });
+            }
+            window.routeShipments.forEach(s => {
+                if (s.pickup_lat && s.pickup_lng) positions.push({ lat: parseFloat(s.pickup_lat), lng: parseFloat(s.pickup_lng) });
+                if (s.delivery_lat && s.delivery_lng) positions.push({ lat: parseFloat(s.delivery_lat), lng: parseFloat(s.delivery_lng) });
+            });
+            if (positions.length > 0) routeMap.fitBounds(positions);
+        }
+    }
+    
+    // Initialize map when page loads
+    function initRouteMap() {
+        const mapContainer = document.getElementById('route-map');
+        if (!mapContainer) return;
+
+        // Use Mapbox if available
+        if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
+            if (!window.mapboxRouteMapInitialized) {
+                console.log('Using Mapbox for route map on driver dashboard');
+                window.mapboxRouteMapInitialized = true;
+            }
+            initRouteMapWithMapbox();
+            return;
+        }
+        
+        // Fallback: Show message if Mapbox not available
+        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Mapa não disponível</p><p style="font-size: 0.9em; opacity: 0.8;">Mapbox não configurado.</p></div>';
+    }
+
+    // Initialize map when page loads (only once and only if route map container exists)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            const mapContainer = document.getElementById('route-map');
+            if (mapContainer && !window.routeMapInitialized && !window.routeMapInitializing) {
+                window.routeMapInitializing = true;
+                setTimeout(() => {
+                    initRouteMap();
+                }, 500); // Small delay to ensure MapboxHelper is loaded
+            }
+        });
+    } else {
+        const mapContainer = document.getElementById('route-map');
+        if (mapContainer && !window.routeMapInitialized && !window.routeMapInitializing) {
+            window.routeMapInitializing = true;
+            setTimeout(() => {
+                initRouteMap();
+            }, 500);
+        }
+    }
+    
+    // Start proximity checking after map loads (driver-specific)
+    setTimeout(() => {
+        if (typeof startProximityChecking === 'function') {
             startProximityChecking();
-        }, 2000);
-    });
+        }
+    }, 2000);
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
-        stopProximityChecking();
-        stopLocationPolling();
+        if (typeof stopProximityChecking === 'function') {
+            stopProximityChecking();
+        }
+        if (typeof stopLocationPolling === 'function') {
+            stopLocationPolling();
+        }
     });
-    @endif
 </script>
 @endpush

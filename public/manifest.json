@@ -34,14 +34,12 @@
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Acessar o dashboard principal",
-      "url": "/dashboard",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
       "name": "Nova Carga",
       "short_name": "Nova Carga",
       "description": "Criar uma nova carga",
-      "url": "/shipments/create",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ]

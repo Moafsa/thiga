@@ -315,7 +315,7 @@ class GoogleMapsService
      * @param \App\Models\Vehicle|null $vehicle Vehicle to calculate toll prices
      * @return array|null
      */
-    protected function getRouteWithOptions(
+    public function getRouteWithOptions(
         float $originLat,
         float $originLng,
         float $destinationLat,

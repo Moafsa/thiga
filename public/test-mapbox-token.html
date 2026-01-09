@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Mapbox Token</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+</head>
+<body>
+    <h1>Test Mapbox Token</h1>
+    <div id="results" style="padding: 20px; font-family: monospace;"></div>
+    <div id="map" style="width: 100%; height: 400px;"></div>
+
+    <script>
+        const results = document.getElementById('results');
+        const token = 'pk.eyJ1IjoidGhpZ2EiLCJhIjoiY21rM3g2b2Q4MDFtYTNtb3UwbnZjdG9nNSJ9.ZT5Ophz4zKLzf0Na5QkHjg';
+        
+        function log(message) {
+            results.innerHTML += '<div>' + message + '</div>';
+            console.log(message);
+        }
+
+        log('🔍 Testing Mapbox Token...');
+        log('Token: ' + token.substring(0, 20) + '...');
+
+        // Test 1: Check if mapboxgl is loaded
+        if (typeof mapboxgl !== 'undefined') {
+            log('✅ mapboxgl loaded');
+        } else {
+            log('❌ mapboxgl NOT loaded');
+        }
+
+        // Test 2: Try to initialize map
+        try {
+            mapboxgl.accessToken = token;
+            
+            const map = new mapboxgl.Map({
+                container: 'map',
+                center: [-46.6333, -23.5505], // São Paulo
+                zoom: 10,
+                style: 'mapbox://styles/mapbox/streets-v12'
+            });
+
+            map.on('load', () => {
+                log('✅ Map loaded successfully!');
+                log('✅ Token is VALID and working!');
+            });
+
+            map.on('error', (e) => {
+                log('❌ Map error: ' + e.error?.message || 'Unknown error');
+            });
+        } catch (error) {
+            log('❌ Error initializing map: ' + error.message);
+        }
+
+        // Test 3: Check window.mapboxAccessToken
+        log('---');
+        log('Checking window.mapboxAccessToken: ' + (window.mapboxAccessToken || 'NOT SET'));
+        
+        // Test 4: Check meta tag
+        const metaTag = document.querySelector('meta[name="mapbox-access-token"]');
+        log('Checking meta tag: ' + (metaTag ? metaTag.getAttribute('content')?.substring(0, 20) + '...' : 'NOT FOUND'));
+    </script>
+</body>
+</html>

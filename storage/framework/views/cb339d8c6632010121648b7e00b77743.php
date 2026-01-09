@@ -425,8 +425,7 @@
     }
 
     /* Route Options Styles */
-    .route-options {
-        display: flex;
+    /* Route options styles removed - map no longer displayed */
         gap: 10px;
         margin-bottom: 15px;
         flex-wrap: wrap;
@@ -477,6 +476,22 @@
         background: rgba(33, 150, 243, 0.3);
         border-color: #2196F3;
         color: #2196F3;
+    }
+
+    /* Route Deviation Alert Styles */
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .route-deviation-alert {
+        animation: slideInRight 0.3s ease-out;
     }
 
     /* Notification Styles */
@@ -646,6 +661,77 @@
 <?php $__env->stopPush(); ?>
 
 <?php $__env->startSection('content'); ?>
+<script>
+    // Define global functions IMMEDIATELY so they're available when HTML is rendered
+    // These functions must be defined before the HTML buttons that use them
+    (function() {
+        'use strict';
+        
+        // Helper functions for navigation (defined early)
+        window.detectDevice = function() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+                return 'ios';
+            }
+            if (/android/i.test(ua)) {
+                return 'android';
+            }
+            return 'desktop';
+        };
+        
+        window.getNavigationUrl = function(latitude, longitude, address, app = null) {
+            const appToUse = app || (window.preferredNavApp || 'google');
+            const device = window.detectDevice();
+            const encodedAddress = encodeURIComponent(address || `${latitude},${longitude}`);
+            
+            switch (appToUse) {
+                case 'waze':
+                    return `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes&q=${encodedAddress}`;
+                case 'apple':
+                    if (device === 'ios') {
+                        return `http://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d&t=m`;
+                    } else {
+                        return `https://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d`;
+                    }
+                case 'google':
+                default:
+                    if (device === 'android') {
+                        return `google.navigation:q=${latitude},${longitude}`;
+                    } else if (device === 'ios') {
+                        return `comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`;
+                    } else {
+                        return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+                    }
+            }
+        };
+        
+        // Open navigation (global scope) - defined early
+        window.openNavigation = function(latitude, longitude, address) {
+            if (typeof address === 'undefined') address = null;
+            const url = window.getNavigationUrl(latitude, longitude, address);
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            
+            const device = window.detectDevice();
+            if (device !== 'desktop') {
+                window.location.href = url;
+                setTimeout(function() {
+                    const webUrl = window.getNavigationUrl(latitude, longitude, address, 'google');
+                    if (webUrl !== url) {
+                        window.open(webUrl, '_blank');
+                    }
+                }, 500);
+            } else {
+                link.click();
+            }
+        };
+        
+        // Switch route mode (global scope) - defined early
+        // Route switching removed - map no longer displayed on driver dashboard
+    })();
+</script>
 <?php if($activeRoute): ?>
     <!-- Route Status Card -->
     <div class="route-status-card">
@@ -677,52 +763,20 @@
             </span>
         </div>
         <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
-            Última atualização: <?php echo e($driver->last_location_update ? $driver->last_location_update->diffForHumans() : 'Nunca'); ?>
+            Última atualização: <?php echo e((isset($driver->attributes["last_location_update"]) && $driver->attributes["last_location_update"]) ? \Carbon\Carbon::parse($driver->attributes["last_location_update"])->diffForHumans() : "Nunca"); ?>
 
         </p>
     </div>
     <?php endif; ?>
 
     <!-- Route Map -->
-    <?php if($activeRoute && (($driver->current_latitude && $driver->current_longitude) || $shipments->filter(function($s) { return $s->delivery_latitude && $s->delivery_longitude; })->count() > 0)): ?>
+    <?php if($activeRoute && $activeRoute->shipments->isNotEmpty()): ?>
     <div class="route-map-container">
-        <h3><i class="fas fa-map"></i> Mapa da Rota</h3>
-        <div class="route-options">
-            <button class="route-option-btn active" onclick="switchRoute('fastest')" id="route-fastest">
-                <i class="fas fa-tachometer-alt"></i> Mais Rápido
-            </button>
-            <button class="route-option-btn" onclick="switchRoute('shortest')" id="route-shortest">
-                <i class="fas fa-route"></i> Mais Curto
-            </button>
-            <button class="route-option-btn" onclick="switchRoute('avoidTolls')" id="route-avoid-tolls">
-                <i class="fas fa-road"></i> Evitar Pedágios
-            </button>
-            <div class="history-controls" style="margin-left: auto;">
-                <div class="nav-settings">
-                    <span><i class="fas fa-cog"></i> Navegação:</span>
-                    <div class="nav-app-selector">
-                        <button class="nav-settings-toggle" onclick="toggleNavAppMenu()" id="nav-app-toggle">
-                            <span id="nav-app-label">Google Maps</span> <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <div class="nav-app-menu" id="nav-app-menu">
-                            <div class="nav-app-option active" onclick="setNavApp('google')">
-                                <i class="fab fa-google"></i> Google Maps
-                            </div>
-                            <div class="nav-app-option" onclick="setNavApp('waze')">
-                                <i class="fas fa-map-marked-alt"></i> Waze
-                            </div>
-                            <div class="nav-app-option" onclick="setNavApp('apple')">
-                                <i class="fas fa-map"></i> Apple Maps
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button class="history-toggle" onclick="toggleRouteHistory()" id="history-toggle">
-                    <i class="fas fa-history"></i> Mostrar Histórico
-                </button>
-            </div>
-        </div>
-        <div id="route-map"></div>
+        <h3>
+            <i class="fas fa-map-marked-alt"></i>
+            Mapa da Rota
+        </h3>
+        <div id="route-map" style="width: 100%; height: 400px; border-radius: 10px; overflow: hidden;"></div>
     </div>
     <?php endif; ?>
 
@@ -775,28 +829,52 @@
             </div>
             
             <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
-            <button class="nav-btn" onclick="openNavigation(<?php echo e($shipment->delivery_latitude); ?>, <?php echo e($shipment->delivery_longitude); ?>, '<?php echo e(addslashes($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state)); ?>')">
+            <button class="nav-btn" onclick="openNavigation(<?php echo e($shipment->delivery_latitude); ?>, <?php echo e($shipment->delivery_longitude); ?>, <?php echo e(json_encode($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state)); ?>)">
                 <i class="fas fa-directions"></i> Abrir Navegação GPS
             </button>
             <?php endif; ?>
             
+            
+            <?php if($shipment->deliveryProofs && $shipment->deliveryProofs->count() > 0): ?>
+            <div class="proof-photos" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h4 style="color: var(--cor-acento); font-size: 0.9em; margin-bottom: 10px;">
+                    <i class="fas fa-camera"></i> Fotos de Comprovante
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
+                    <?php $__currentLoopData = $shipment->deliveryProofs; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $proof): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <?php $__currentLoopData = $proof->photo_urls; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $photoUrl): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <?php if($photoUrl): ?>
+                                <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-principal); border: 2px solid <?php echo e($proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50'); ?>;">
+                                    <img src="<?php echo e($photoUrl); ?>" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('<?php echo e($photoUrl); ?>', '<?php echo e($proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega'); ?>', '<?php echo e($proof->delivery_time->format('d/m/Y H:i')); ?>')">
+                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 5px; font-size: 0.7em; color: white; text-align: center;">
+                                        <?php echo e($proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega'); ?>
+
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            
             <div class="shipment-actions">
                 <?php if($shipment->status === 'pending' || $shipment->status === 'scheduled'): ?>
-                <button class="btn-action pickup" onclick="updateShipmentStatus(<?php echo e($shipment->id); ?>, 'picked_up')">
-                    <i class="fas fa-hand-holding"></i> Coletado
-                </button>
+                    <?php if(($shipment->shipment_type ?? 'delivery') === 'pickup'): ?>
+                        <button class="btn-action pickup" onclick="updateShipmentStatus(<?php echo e($shipment->id); ?>, 'picked_up')">
+                            <i class="fas fa-hand-holding"></i> Coletado
+                        </button>
+                    <?php else: ?>
+                        <button class="btn-action delivered" onclick="updateShipmentStatus(<?php echo e($shipment->id); ?>, 'delivered')">
+                            <i class="fas fa-check-circle"></i> Entregue
+                        </button>
+                    <?php endif; ?>
                 <?php endif; ?>
                 
                 <?php if($shipment->status === 'picked_up'): ?>
-                <button class="btn-action delivered" onclick="updateShipmentStatus(<?php echo e($shipment->id); ?>, 'delivered')">
-                    <i class="fas fa-check-circle"></i> Entregue
-                </button>
-                <?php endif; ?>
-                
-                <?php if(in_array($shipment->status, ['pending', 'scheduled', 'picked_up', 'in_transit'])): ?>
-                <button class="btn-action exception" onclick="showExceptionModal(<?php echo e($shipment->id); ?>)">
-                    <i class="fas fa-exclamation-triangle"></i> Exceção
-                </button>
+                    <button class="btn-action delivered" onclick="updateShipmentStatus(<?php echo e($shipment->id); ?>, 'delivered')">
+                        <i class="fas fa-check-circle"></i> Entregue
+                    </button>
                 <?php endif; ?>
             </div>
         </div>
@@ -951,6 +1029,85 @@
 <script>
     let currentShipmentId = null;
     let currentStatus = null;
+    let currentRouteMode = 'fastest'; // Default route mode
+    let historyPolyline = null; // Polyline for location history path
+    let locationUpdateInterval = null; // Interval for polling location updates
+    let proximityCheckInterval = null; // Interval for proximity checking
+    let notifiedShipments = new Set(); // Track shipments that have been notified for proximity
+    let preferredNavApp = 'google'; // Preferred navigation app (google, waze, apple)
+    let showHistory = false; // Whether to show route history
+
+    // Global variables for Mapbox - EXACTLY like routes/show.blade.php
+    <?php
+        $driverLat = $driver->current_latitude ?? null;
+        $driverLng = $driver->current_longitude ?? null;
+        $routeOriginLat = ($activeRoute && $activeRoute->start_latitude) ? $activeRoute->start_latitude : null;
+        $routeOriginLng = ($activeRoute && $activeRoute->start_longitude) ? $activeRoute->start_longitude : null;
+        $routeOriginName = ($activeRoute && $activeRoute->branch) ? $activeRoute->branch->name : 'Ponto de Partida';
+        $routeId = ($activeRoute && $activeRoute->id) ? $activeRoute->id : null;
+        $tenantId = auth()->user()->tenant_id ?? null;
+        $driverId = $driver->id ?? null;
+    ?>
+    window.driverCurrentLat = <?php echo json_encode($driverLat, 15, 512) ?>;
+    window.driverCurrentLng = <?php echo json_encode($driverLng, 15, 512) ?>;
+    window.routeOriginLat = <?php echo json_encode($routeOriginLat, 15, 512) ?>;
+    window.routeOriginLng = <?php echo json_encode($routeOriginLng, 15, 512) ?>;
+    window.routeOriginName = <?php echo json_encode($routeOriginName, 15, 512) ?>;
+    window.routeId = <?php echo json_encode($routeId, 15, 512) ?>;
+    window.tenantId = <?php echo json_encode($tenantId, 15, 512) ?>;
+    window.driverId = <?php echo json_encode($driverId, 15, 512) ?>;
+    
+    // Format shipments EXACTLY like routes/show.blade.php
+    <?php
+        $shipmentsArray = $shipments->map(function($shipment) {
+            return [
+                'id' => $shipment->id,
+                'tracking_number' => $shipment->tracking_number,
+                'title' => $shipment->title,
+                'pickup_lat' => $shipment->pickup_latitude,
+                'pickup_lng' => $shipment->pickup_longitude,
+                'delivery_lat' => $shipment->delivery_latitude,
+                'delivery_lng' => $shipment->delivery_longitude,
+                'status' => $shipment->status,
+            ];
+        })->values();
+    ?>
+    window.routeShipments = <?php echo json_encode($shipmentsArray, 15, 512) ?>;
+    
+    // Debug: Log data availability
+    console.log('Driver Dashboard - Route Data:', {
+        hasActiveRoute: <?php echo json_encode($activeRoute ? true : false, 15, 512) ?>,
+        routeId: window.routeId,
+        routeOriginLat: window.routeOriginLat,
+        routeOriginLng: window.routeOriginLng,
+        driverLat: window.driverCurrentLat,
+        driverLng: window.driverCurrentLng,
+        shipmentsCount: window.routeShipments ? window.routeShipments.length : 0,
+        shipments: window.routeShipments
+    });
+    
+    // Also keep deliveryLocations for backward compatibility
+    <?php
+        $deliveryLocationsArray = $shipments->filter(function($s) {
+            return $s->delivery_latitude && $s->delivery_longitude;
+        })->map(function($shipment) {
+            return [
+                'id' => $shipment->id,
+                'tracking_number' => $shipment->tracking_number,
+                'title' => $shipment->title,
+                'address' => ($shipment->delivery_address ?? '') . ', ' . ($shipment->delivery_city ?? '') . '/' . ($shipment->delivery_state ?? ''),
+                'lat' => floatval($shipment->delivery_latitude),
+                'lng' => floatval($shipment->delivery_longitude),
+                'status' => $shipment->status,
+            ];
+        })->values();
+    ?>
+    window.deliveryLocations = <?php echo json_encode($deliveryLocationsArray, 15, 512) ?>;
+
+    // Helper function to validate coordinates (must be global to be used in watchPosition)
+    function isValidCoordinate(value) {
+        return value !== null && value !== undefined && !isNaN(value) && isFinite(value);
+    }
 
     function updateShipmentStatus(shipmentId, status) {
         currentShipmentId = shipmentId;
@@ -973,6 +1130,27 @@
         document.getElementById('photoPreview').style.display = 'none';
         document.getElementById('proofPhoto').value = '';
         document.getElementById('statusForm').reset();
+    }
+
+    function openPhotoModal(photoUrl, type, date) {
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        modal.innerHTML = `
+            <div style="position: relative; max-width: 90%; max-height: 90%;">
+                <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.5em;">&times;</button>
+                <img src="${photoUrl}" alt="${type}" style="max-width: 100%; max-height: 90vh; border-radius: 10px;">
+                <div style="color: white; text-align: center; margin-top: 10px;">
+                    <p style="margin: 5px 0;">${type} - ${date}</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
     }
 
     function previewPhoto(input) {
@@ -1012,17 +1190,37 @@
     }
     
     function submitForm(formData, shipmentId) {
-        fetch(`/api/driver/shipments/${shipmentId}/status`, {
+        fetch(`/driver/shipments/${shipmentId}/status`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
             },
             body: formData
         })
-        .then(response => response.json())
+        .then(async response => {
+            // Check if response is JSON before trying to parse
+            const contentType = response.headers.get('content-type') || '';
+            const isJson = contentType.includes('application/json');
+            
+            if (!response.ok) {
+                if (isJson) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || errorData.message || 'Erro ao atualizar status');
+                } else {
+                    // Server returned HTML error page, don't try to parse as JSON
+                    throw new Error('Erro ao atualizar status. Tente novamente.');
+                }
+            }
+            
+            if (!isJson) {
+                throw new Error('Resposta inválida do servidor. Tente novamente.');
+            }
+            
+            return response.json();
+        })
         .then(data => {
             if (data.message) {
-                alert('Status atualizado com sucesso!');
+                alert(data.message);
                 window.location.reload();
             } else {
                 alert('Erro ao atualizar status: ' + (data.error || 'Erro desconhecido'));
@@ -1030,7 +1228,7 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Erro ao atualizar status. Tente novamente.');
+            alert(error.message || 'Erro ao atualizar status. Tente novamente.');
         });
     }
 
@@ -1043,7 +1241,14 @@
                     'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Erro ao iniciar rota');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.message) {
                     window.location.reload();
@@ -1053,7 +1258,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erro ao iniciar rota. Tente novamente.');
+                alert('Erro ao iniciar rota: ' + error.message);
             });
         }
     }
@@ -1067,7 +1272,14 @@
                     'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Erro ao finalizar rota');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.message) {
                     window.location.reload();
@@ -1077,15 +1289,18 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erro ao finalizar rota. Tente novamente.');
+                alert('Erro ao finalizar rota: ' + error.message);
             });
         }
     }
 
-    // Auto-update location
+    // Auto-update location from browser geolocation
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition(function(position) {
-            fetch('/api/driver/location/update', {
+            const routeId = window.routeId || null;
+            
+            // Update location on server using web endpoint (session auth)
+            fetch('/driver/location/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1095,340 +1310,71 @@
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
                     accuracy: position.coords.accuracy,
-                    route_id: <?php echo e($activeRoute->id ?? 'null'); ?>,
+                    route_id: routeId,
                 })
-            }).catch(err => console.error('Error updating location:', err));
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Location updated on server:', data);
+            })
+            .catch(err => {
+                console.error('Error updating location on server:', err);
+            });
             
-            // Update map if it exists
-            if (window.routeMap && window.driverMarker) {
-                const newPosition = { lat: position.coords.latitude, lng: position.coords.longitude };
-                window.driverMarker.setPosition(newPosition);
-                window.routeMap.setCenter(newPosition);
+            // Update map marker immediately for better UX
+            if (window.routeMap) {
+                const lat = parseFloat(position.coords.latitude);
+                const lng = parseFloat(position.coords.longitude);
+                
+                // Validate coordinates before using
+                if (!isValidCoordinate(lat) || !isValidCoordinate(lng)) {
+                    console.warn('Invalid geolocation coordinates:', position.coords);
+                    return;
+                }
+                
+                const newPosition = { lat: lat, lng: lng };
+                
+                // Update global driver location variables
+                window.driverCurrentLat = lat;
+                window.driverCurrentLng = lng;
+                
+                // Update marker - Mapbox only
+                if (window.driverMarker && window.routeMap) {
+                    if (typeof window.routeMap.updateMarker === 'function') {
+                        // Mapbox - use updateMarker method
+                        window.routeMap.updateMarker(window.driverMarker, newPosition);
+                    } else if (typeof window.driverMarker.setPosition === 'function') {
+                        // Fallback for other map types
+                        window.driverMarker.setPosition(newPosition);
+                    }
+                } else if (window.routeMap && typeof window.routeMap.addMarker === 'function') {
+                    // Create Mapbox marker if it doesn't exist
+                    window.driverMarker = window.routeMap.addMarker(newPosition, {
+                        title: 'Sua Localização',
+                        color: '#2196F3',
+                        size: 28
+                    });
+                }
             }
         }, function(error) {
             console.error('Geolocation error:', error);
+            if (error.code === 1) {
+                console.warn('Geolocation permission denied');
+            } else if (error.code === 2) {
+                console.warn('Geolocation position unavailable');
+            } else if (error.code === 3) {
+                console.warn('Geolocation timeout');
+            }
         }, {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 10000, // Increased timeout
             maximumAge: 0
         });
     }
 
-    // Initialize route map
-    function initRouteMap() {
-        const mapContainer = document.getElementById('route-map');
-        if (!mapContainer) return;
+    // Map functionality removed - no longer displaying map on driver dashboard
 
-        const apiKey = '<?php echo e(config("services.google_maps.api_key")); ?>';
-        if (!apiKey) {
-            mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>Google Maps API key não configurada.</p></div>';
-            return;
-        }
-
-        // Load Google Maps API with Directions library
-        if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places,directions&language=pt-BR&callback=initRouteMapCallback`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-            
-            window.initRouteMapCallback = function() {
-                initRouteMap();
-            };
-            return;
-        }
-
-        // Get driver current location
-        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
-        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
-        
-        // Get delivery locations
-        <?php
-            $deliveryLocationsArray = $shipments->filter(function($s) {
-                return $s->delivery_latitude && $s->delivery_longitude;
-            })->map(function($shipment) {
-                return [
-                    'id' => $shipment->id,
-                    'tracking_number' => $shipment->tracking_number,
-                    'title' => $shipment->title,
-                    'address' => ($shipment->delivery_address ?? '') . ', ' . ($shipment->delivery_city ?? '') . '/' . ($shipment->delivery_state ?? ''),
-                    'lat' => floatval($shipment->delivery_latitude),
-                    'lng' => floatval($shipment->delivery_longitude),
-                    'status' => $shipment->status,
-                ];
-            })->values();
-        ?>
-        const deliveryLocations = <?php echo json_encode($deliveryLocationsArray, 15, 512) ?>;
-
-        // Determine map center
-        let center = { lat: -23.5505, lng: -46.6333 }; // São Paulo default
-        
-        if (driverLat && driverLng) {
-            center = { lat: driverLat, lng: driverLng };
-        } else if (deliveryLocations.length > 0) {
-            center = { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng };
-        }
-
-        // Initialize map
-        window.routeMap = new google.maps.Map(mapContainer, {
-            center: center,
-            zoom: 12,
-            mapTypeId: 'roadmap',
-            disableDefaultUI: false,
-            zoomControl: true,
-            mapTypeControl: true,
-            mapTypeControlOptions: {
-                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-                position: google.maps.ControlPosition.TOP_RIGHT
-            },
-            scaleControl: true,
-            streetViewControl: false,
-            fullscreenControl: true
-        });
-
-        const bounds = new google.maps.LatLngBounds();
-        const markers = [];
-
-        // Add driver location marker
-        if (driverLat && driverLng) {
-            const driverPosition = { lat: driverLat, lng: driverLng };
-            window.driverMarker = new google.maps.Marker({
-                position: driverPosition,
-                map: window.routeMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 10,
-                    fillColor: '#2196F3',
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 3,
-                },
-                title: 'Sua Localização Atual',
-                zIndex: 1000
-            });
-
-            const driverInfo = new google.maps.InfoWindow({
-                content: `<div style="padding: 10px; min-width: 200px;">
-                    <h4 style="margin: 0 0 10px 0; color: #2196F3;">Sua Localização</h4>
-                    <p style="margin: 5px 0; color: #666;">Motorista</p>
-                </div>`
-            });
-
-            window.driverMarker.addListener('click', function() {
-                driverInfo.open(window.routeMap, window.driverMarker);
-            });
-
-            bounds.extend(driverPosition);
-            markers.push(window.driverMarker);
-        }
-
-        // Add delivery location markers
-        deliveryLocations.forEach(function(shipment, index) {
-            const deliveryPosition = { lat: shipment.lat, lng: shipment.lng };
-            
-            // Different colors based on status
-            let markerColor = '#4CAF50'; // Green for delivered
-            if (shipment.status === 'pending' || shipment.status === 'scheduled') {
-                markerColor = '#FFC107'; // Yellow for pending
-            } else if (shipment.status === 'picked_up' || shipment.status === 'in_transit') {
-                markerColor = '#2196F3'; // Blue for in transit
-            } else if (shipment.status === 'exception') {
-                markerColor = '#F44336'; // Red for exception
-            }
-
-            const marker = new google.maps.Marker({
-                position: deliveryPosition,
-                map: window.routeMap,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                    fillColor: markerColor,
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 3,
-                },
-                title: `Entrega: ${shipment.tracking_number}`,
-                label: {
-                    text: String(index + 1),
-                    color: '#FFFFFF',
-                    fontWeight: 'bold',
-                    fontSize: '12px'
-                },
-                zIndex: 500
-            });
-
-            // Escape address for safe use in template string
-            const safeAddress = (shipment.address || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
-            const info = new google.maps.InfoWindow({
-                content: `<div style="padding: 10px; min-width: 250px;">
-                    <h4 style="margin: 0 0 10px 0; color: ${markerColor};">Entrega #${index + 1}</h4>
-                    <p style="margin: 5px 0; color: #666;"><strong>Rastreamento:</strong> ${shipment.tracking_number}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>Descrição:</strong> ${shipment.title}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>Endereço:</strong> ${shipment.address}</p>
-                    <p style="margin: 5px 0; color: #666;"><strong>Status:</strong> ${shipment.status}</p>
-                    <button onclick="openNavigation(${shipment.lat}, ${shipment.lng}, ${safeAddress ? "'" + safeAddress + "'" : 'null'}); google.maps.event.clearInstanceListeners(this);" 
-                            style="margin-top: 10px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
-                        <i class="fas fa-directions"></i> Abrir Navegação GPS
-                    </button>
-                </div>`
-            });
-
-            marker.addListener('click', function() {
-                info.open(window.routeMap, marker);
-            });
-
-            bounds.extend(deliveryPosition);
-            markers.push(marker);
-        });
-
-        // Fit bounds to show all markers
-        if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-            // If all markers are at same location, zoom to that location
-            const extendPoint1 = new google.maps.LatLng(bounds.getNorthEast().lat() + 0.01, bounds.getNorthEast().lng() + 0.01);
-            const extendPoint2 = new google.maps.LatLng(bounds.getNorthEast().lat() - 0.01, bounds.getNorthEast().lng() - 0.01);
-            bounds.extend(extendPoint1);
-            bounds.extend(extendPoint2);
-        }
-        
-        window.routeMap.fitBounds(bounds);
-
-        // Draw route if we have driver location and delivery locations
-        if (driverLat && driverLng && deliveryLocations.length > 0) {
-            const origin = { lat: driverLat, lng: driverLng };
-            const cacheKey = getCacheKey(currentRouteMode, origin, deliveryLocations);
-            
-            // Check cache (5 minute TTL)
-            const cached = localStorage.getItem('route_cache_' + cacheKey);
-            if (cached) {
-                try {
-                    const cachedData = JSON.parse(cached);
-                    if (Date.now() - cachedData.timestamp < 300000) { // 5 minutes
-                        if (!directionsRenderer) {
-                            directionsRenderer = new google.maps.DirectionsRenderer({
-                                map: window.routeMap,
-                                suppressMarkers: true,
-                                polylineOptions: {
-                                    strokeColor: '#FF6B35',
-                                    strokeWeight: 5,
-                                    strokeOpacity: 0.8
-                                }
-                            });
-                        }
-                        window.directionsRenderer = directionsRenderer;
-                        directionsRenderer.setDirections(cachedData.response);
-                        updateRouteSummary(cachedData.response);
-                        return; // Use cached route
-                    }
-                } catch (e) {
-                    console.warn('Error reading cached route:', e);
-                }
-            }
-
-            const directionsService = new google.maps.DirectionsService();
-            if (!directionsRenderer) {
-                directionsRenderer = new google.maps.DirectionsRenderer({
-                    map: window.routeMap,
-                    suppressMarkers: true,
-                    polylineOptions: {
-                        strokeColor: '#FF6B35',
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8
-                    }
-                });
-            }
-            window.directionsRenderer = directionsRenderer;
-
-            // Create waypoints from delivery locations (limit to 23 waypoints max for Google Maps API)
-            const waypoints = deliveryLocations.slice(0, 23).map(function(shipment) {
-                return {
-                    location: { lat: shipment.lat, lng: shipment.lng },
-                    stopover: true
-                };
-            });
-
-            // Determine destination (last delivery point or same as origin if only one waypoint)
-            let destination;
-            if (deliveryLocations.length > 1 && waypoints.length > 0) {
-                destination = { lat: deliveryLocations[deliveryLocations.length - 1].lat, lng: deliveryLocations[deliveryLocations.length - 1].lng };
-            } else if (waypoints.length > 0) {
-                destination = { lat: waypoints[0].location.lat, lng: waypoints[0].location.lng };
-            } else {
-                destination = { lat: driverLat, lng: driverLng };
-            }
-
-            // Build route request with mode support
-            const routeRequest = {
-                origin: origin,
-                destination: destination,
-                waypoints: waypoints.length > 1 ? waypoints.slice(0, -1) : [],
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-                optimizeWaypoints: false
-            };
-
-            // Add route preferences based on mode
-            if (currentRouteMode === 'avoidTolls') {
-                routeRequest.avoidTolls = true;
-            }
-
-            // Request directions
-            directionsService.route(routeRequest, function(response, status) {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(response);
-                    
-                    // Cache the route
-                    try {
-                        const routeData = {
-                            response: response,
-                            timestamp: Date.now()
-                        };
-                        localStorage.setItem('route_cache_' + cacheKey, JSON.stringify(routeData));
-                    } catch (e) {
-                        console.warn('Could not cache route:', e);
-                    }
-                    
-                    updateRouteSummary(response);
-                } else {
-                    console.warn('Directions request failed due to ' + status);
-                    // Still show markers even if route calculation fails
-                }
-            });
-        } else if (deliveryLocations.length > 1 && !driverLat) {
-            // If no driver location but multiple delivery points, draw route between delivery points
-            const directionsService = new google.maps.DirectionsService();
-            const directionsRenderer = new google.maps.DirectionsRenderer({
-                map: window.routeMap,
-                suppressMarkers: true,
-                polylineOptions: {
-                    strokeColor: '#FF6B35',
-                    strokeWeight: 5,
-                    strokeOpacity: 0.8
-                }
-            });
-
-            const waypoints = deliveryLocations.slice(1, 24).map(function(shipment) {
-                return {
-                    location: { lat: shipment.lat, lng: shipment.lng },
-                    stopover: true
-                };
-            });
-
-            directionsService.route({
-                origin: { lat: deliveryLocations[0].lat, lng: deliveryLocations[0].lng },
-                destination: { lat: deliveryLocations[deliveryLocations.length - 1].lat, lng: deliveryLocations[deliveryLocations.length - 1].lng },
-                waypoints: waypoints.slice(0, -1),
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-                optimizeWaypoints: false
-            }, function(response, status) {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(response);
-                }
-            });
-        }
-    }
+    // Detect device type
 
     // Detect device type
     function detectDevice() {
@@ -1481,33 +1427,8 @@
         }
     }
 
-    // Open navigation in preferred app
-    function openNavigation(latitude, longitude, address = null) {
-        const url = getNavigationUrl(latitude, longitude, address);
-        
-        // Try to open in app
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        
-        // For mobile apps, try direct link first
-        if (detectDevice() !== 'desktop') {
-            window.location.href = url;
-            
-            // Fallback after delay if app doesn't open
-            setTimeout(() => {
-                // Fallback to web version
-                const webUrl = getNavigationUrl(latitude, longitude, address, 'google');
-                if (webUrl !== url) {
-                    window.open(webUrl, '_blank');
-                }
-            }, 500);
-        } else {
-            // Desktop: open in new tab
-            link.click();
-        }
-    }
+    // openNavigation is already defined at the top of the file
+    // This is kept for backward compatibility but the main definition is at the top
 
     // Set preferred navigation app
     function setNavApp(app) {
@@ -1561,86 +1482,196 @@
         return `${mode}_${origin.lat},${origin.lng}_${destStr}`;
     }
 
-    // Switch route mode
-    function switchRoute(mode) {
-        currentRouteMode = mode;
+    // Route map functions removed - map no longer displayed on driver dashboard
+
+    // Poll driver location in real-time
+    function startLocationPolling() {
+        console.log('Starting location polling...');
         
-        // Update button states
-        document.querySelectorAll('.route-option-btn').forEach(btn => btn.classList.remove('active'));
-        const btnId = 'route-' + mode.replace(/([A-Z])/g, '-$1').toLowerCase();
-        const btn = document.getElementById(btnId);
-        if (btn) btn.classList.add('active');
-        
-        // Clear current route
-        if (directionsRenderer) {
-            directionsRenderer.setMap(null);
+        // Clear any existing interval
+        if (locationUpdateInterval) {
+            clearInterval(locationUpdateInterval);
         }
-        
-        // Reload route with new mode (call the existing route drawing logic)
-        setTimeout(() => {
-            loadRoute();
-        }, 100);
-    }
 
-    // Load route with caching - wrapper to integrate with existing code
-    function loadRoute() {
-        // This will be called after initRouteMap completes
-        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
-        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
-        
-        if (!driverLat || !driverLng) return;
-        
-        // Re-draw route using the current mode
-        // The existing route drawing code will be modified to respect currentRouteMode
-    }
-
-    // Toggle route history
-    function toggleRouteHistory() {
-        showHistory = !showHistory;
-        const toggleBtn = document.getElementById('history-toggle');
-        
-        if (showHistory) {
-            toggleBtn.classList.add('active');
-            toggleBtn.innerHTML = '<i class="fas fa-history"></i> Ocultar Histórico';
-            loadRouteHistory();
-        } else {
-            toggleBtn.classList.remove('active');
-            toggleBtn.innerHTML = '<i class="fas fa-history"></i> Mostrar Histórico';
-            if (historyPolyline) {
-                historyPolyline.setMap(null);
+        // Poll every 5 seconds (more frequent for real-time tracking)
+        locationUpdateInterval = setInterval(function() {
+            updateDriverLocation();
+            // Check for route deviation every 30 seconds
+            if (!window.lastDeviationCheck || (Date.now() - window.lastDeviationCheck) > 30000) {
+                checkRouteDeviation();
+                window.lastDeviationCheck = Date.now();
             }
+        }, 5000);
+
+        // Also update immediately
+        updateDriverLocation();
+    }
+
+    // Stop location polling
+    function stopLocationPolling() {
+        if (locationUpdateInterval) {
+            clearInterval(locationUpdateInterval);
+            locationUpdateInterval = null;
         }
     }
 
-    // Load route history from API
-    function loadRouteHistory() {
-        const routeId = <?php echo e($activeRoute->id ?? 'null'); ?>;
-        if (!routeId || !window.routeMap) return;
+    // Check for route deviation and show alert
+    let lastDeviationAlert = null;
+    function checkRouteDeviation() {
+        const routeId = window.routeId || null;
+        if (!routeId) return;
 
-        fetch(`/api/driver/location/history?route_id=${routeId}&minutes=1440`)
+        fetch(`/monitoring/routes/${routeId}/deviation-costs`)
             .then(response => response.json())
             .then(data => {
-                if (data.locations && data.locations.length > 1) {
-                    const path = data.locations.map(loc => ({
-                        lat: parseFloat(loc.latitude),
-                        lng: parseFloat(loc.longitude)
-                    }));
-
-                    if (historyPolyline) {
-                        historyPolyline.setMap(null);
+                if (data.has_deviation && data.off_route_distance_km > 0.5) {
+                    // Only show alert if we haven't shown one in the last 2 minutes
+                    const now = Date.now();
+                    if (!lastDeviationAlert || (now - lastDeviationAlert) > 120000) {
+                        showRouteDeviationAlert(data);
+                        lastDeviationAlert = now;
                     }
-
-                    historyPolyline = new google.maps.Polyline({
-                        path: path,
-                        geodesic: true,
-                        strokeColor: '#2196F3',
-                        strokeOpacity: 0.5,
-                        strokeWeight: 3,
-                        map: window.routeMap
-                    });
                 }
             })
-            .catch(error => console.error('Error loading route history:', error));
+            .catch(error => {
+                // Silently fail - don't spam console
+            });
+    }
+
+    // Show route deviation alert
+    function showRouteDeviationAlert(data) {
+        // Remove existing alert
+        const existing = document.querySelector('.route-deviation-alert');
+        if (existing) existing.remove();
+
+        const alert = document.createElement('div');
+        alert.className = 'route-deviation-alert';
+        alert.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.5);
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        alert.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 1.2em;">
+                    <i class="fas fa-exclamation-triangle"></i> Desvio de Rota Detectado!
+                </h4>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; padding: 0; margin-left: 10px;">
+                    &times;
+                </button>
+            </div>
+            <p style="margin: 5px 0; font-size: 0.95em;">
+                Você está <strong>${data.off_route_distance_km.toFixed(2)} km</strong> fora da rota planejada.
+            </p>
+            <p style="margin: 5px 0; font-size: 0.9em; opacity: 0.9;">
+                Custo extra estimado: <strong>R$ ${data.total_extra_cost.toFixed(2)}</strong>
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 0.85em; opacity: 0.8;">
+                <i class="fas fa-info-circle"></i> Retorne à rota planejada para evitar custos extras.
+            </p>
+        `;
+
+        document.body.appendChild(alert);
+
+        // Request browser notification permission and show
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Desvio de Rota Detectado', {
+                body: `Você está ${data.off_route_distance_km.toFixed(2)} km fora da rota. Retorne à rota planejada.`,
+                icon: '/favicon.ico',
+                tag: 'route-deviation',
+                requireInteraction: false,
+            });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification('Desvio de Rota Detectado', {
+                        body: `Você está ${data.off_route_distance_km.toFixed(2)} km fora da rota. Retorne à rota planejada.`,
+                        icon: '/favicon.ico',
+                        tag: 'route-deviation',
+                    });
+                }
+            });
+        }
+
+        // Vibrate if supported
+        if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 200]);
+        }
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (alert.parentElement) {
+                alert.remove();
+            }
+        }, 10000);
+    }
+
+    // Update driver location from server - simplified since map is no longer displayed
+    function updateDriverLocation() {
+        fetch('/driver/location/current', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+                'Accept': 'application/json',
+            }
+        })
+            .then(async response => {
+                // Check if response is JSON before trying to parse
+                const contentType = response.headers.get('content-type') || '';
+                const isJson = contentType.includes('application/json');
+                
+                if (!response.ok) {
+                    if (isJson) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+                    } else {
+                        const text = await response.text();
+                        throw new Error(`Server error (${response.status}): Received HTML instead of JSON`);
+                    }
+                }
+                
+                if (!isJson) {
+                    throw new Error('Invalid response format: Expected JSON but received ' + contentType);
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                console.log('Location data received:', data);
+                
+                if (data.driver && data.driver.current_location) {
+                    const lat = parseFloat(data.driver.current_location.lat);
+                    const lng = parseFloat(data.driver.current_location.lng);
+                    
+                    // Validate coordinates before using
+                    if (!isValidCoordinate(lat) || !isValidCoordinate(lng)) {
+                        console.warn('Invalid coordinates received:', data.driver.current_location);
+                        return;
+                    }
+                    
+                    // Update global driver location variables (used for proximity checking)
+                    window.driverCurrentLat = lat;
+                    window.driverCurrentLng = lng;
+                    
+                    console.log('Driver location updated:', { lat, lng });
+                } else {
+                    console.warn('No location data in response:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching driver location:', error);
+                // Don't show alert for location errors, just log them
+            });
     }
 
     // Calculate distance using Haversine formula (returns km)
@@ -1657,8 +1688,8 @@
 
     // Check proximity to delivery points
     function checkProximity() {
-        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
-        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
+        const driverLat = <?php echo json_encode($driver->current_latitude ?? null, 15, 512) ?>;
+        const driverLng = <?php echo json_encode($driver->current_longitude ?? null, 15, 512) ?>;
         <?php
             $proximityLocationsArray = $shipments->filter(function($s) {
                 return $s->delivery_latitude && $s->delivery_longitude && !in_array($s->status, ['delivered', 'exception', 'cancelled']);
@@ -1700,13 +1731,15 @@
 
         const notification = document.createElement('div');
         notification.className = 'proximity-notification';
+        const navLat = parseFloat(shipment.lat) || 0;
+        const navLng = parseFloat(shipment.lng) || 0;
         notification.innerHTML = `
             <button class="close-notification" onclick="this.parentElement.remove()">&times;</button>
             <h4><i class="fas fa-map-marker-alt"></i> Próximo do Destino!</h4>
             <p><strong>${shipment.tracking_number}</strong></p>
             <p>${shipment.title}</p>
             <p>Distância: ${(distance * 1000).toFixed(0)} metros</p>
-            <button onclick="openNavigation(${shipment.lat}, ${shipment.lng}); this.parentElement.remove();" 
+            <button onclick="window.openNavigation(${navLat}, ${navLng}); this.parentElement.remove();" 
                     style="margin-top: 10px; padding: 8px 16px; background: white; color: #4CAF50; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600;">
                 <i class="fas fa-directions"></i> Abrir Navegação
             </button>
@@ -1745,102 +1778,9 @@
         }
     }
 
-    // Update route summary panel
-    function updateRouteSummary(response) {
-        const route = response.routes[0];
-        const mapContainer = document.getElementById('route-map');
-        
-        // Remove existing summary
-        const existingSummary = mapContainer.querySelector('.route-summary');
-        if (existingSummary) {
-            existingSummary.remove();
-        }
-        
-        let totalDistance = 0;
-        let totalDuration = 0;
-        route.legs.forEach(function(leg) {
-            totalDistance += leg.distance.value;
-            totalDuration += leg.duration.value;
-        });
-        
-        const modeLabels = {
-            'fastest': 'Mais Rápido',
-            'shortest': 'Mais Curto',
-            'avoidTolls': 'Evitar Pedágios'
-        };
-        
-        const summaryPanel = document.createElement('div');
-        summaryPanel.className = 'route-summary';
-        summaryPanel.style.cssText = 'margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 8px; color: #fff; font-size: 0.9em;';
-        summaryPanel.innerHTML = `
-            <div><strong>Distância Total:</strong> ${(totalDistance / 1000).toFixed(2)} km</div>
-            <div><strong>Tempo Estimado:</strong> ${Math.round(totalDuration / 60)} minutos</div>
-            <div><strong>Modo:</strong> ${modeLabels[currentRouteMode] || currentRouteMode}</div>
-        `;
-        
-        mapContainer.appendChild(summaryPanel);
-    }
+    // updateRouteSummary function removed - map no longer displayed on driver dashboard
 
-    // Enhanced loadRoute function that works with the existing code
-    window.loadRoute = function() {
-        if (!window.routeMap) {
-            initRouteMap();
-            return;
-        }
-        
-        // Force re-draw of route by clearing and re-initializing
-        if (window.directionsRenderer) {
-            window.directionsRenderer.setMap(null);
-            window.directionsRenderer = null;
-        }
-        
-        // Re-run the route drawing logic
-        const driverLat = <?php echo e($driver->current_latitude ?? 'null'); ?>;
-        const driverLng = <?php echo e($driver->current_longitude ?? 'null'); ?>;
-        
-        if (!driverLat || !driverLng) return;
-        
-        // Trigger re-initialization by calling initRouteMap again
-        // This will use the currentRouteMode global variable
-        initRouteMap();
-    };
-
-    // Initialize navigation app preference on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Auto-detect and set best navigation app based on device
-        const device = detectDevice();
-        if (device === 'ios' && !localStorage.getItem('preferredNavApp')) {
-            preferredNavApp = 'apple';
-            localStorage.setItem('preferredNavApp', 'apple');
-            document.getElementById('nav-app-label').textContent = 'Apple Maps';
-        } else if (!localStorage.getItem('preferredNavApp')) {
-            preferredNavApp = 'google';
-            localStorage.setItem('preferredNavApp', 'google');
-        } else {
-            preferredNavApp = localStorage.getItem('preferredNavApp');
-        }
-        
-        // Update label
-        const labels = {
-            'google': 'Google Maps',
-            'waze': 'Waze',
-            'apple': 'Apple Maps'
-        };
-        const labelEl = document.getElementById('nav-app-label');
-        if (labelEl) {
-            labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
-        }
-        
-        // Update active option in menu
-        document.querySelectorAll('.nav-app-option').forEach(opt => {
-            const app = opt.getAttribute('onclick').match(/'(\w+)'/)[1];
-            if (app === preferredNavApp) {
-                opt.classList.add('active');
-            } else {
-                opt.classList.remove('active');
-            }
-        });
-    });
+    // loadRoute function removed - map no longer displayed on driver dashboard
 
     // Initialize navigation app preference on page load
     document.addEventListener('DOMContentLoaded', function() {
@@ -1869,46 +1809,260 @@
             labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
         }
         
-        // Update active option in menu
-        document.querySelectorAll('.nav-app-option').forEach(opt => {
-            const onclickAttr = opt.getAttribute('onclick');
-            if (onclickAttr) {
-                const match = onclickAttr.match(/'(\w+)'/);
-                if (match) {
-                    const app = match[1];
-                    if (app === preferredNavApp) {
-                        opt.classList.add('active');
-                    } else {
-                        opt.classList.remove('active');
-                    }
-                }
-            }
-        });
+        // Update active option in menu - removed since navigation menu is handled by event listeners
     });
 
-    // Initialize map when page loads
-    <?php
-        $hasDriverLocation = $driver->current_latitude && $driver->current_longitude;
-        $hasDeliveryLocations = $shipments->filter(function($s) { 
-            return $s->delivery_latitude && $s->delivery_longitude; 
-        })->count() > 0;
-        $shouldShowMap = $activeRoute && ($hasDriverLocation || $hasDeliveryLocations);
-    ?>
-    <?php if($shouldShowMap): ?>
-    document.addEventListener('DOMContentLoaded', function() {
-        initRouteMap();
+    // Initialize route map with Mapbox (similar to routes/show.blade.php)
+    let routeMap;
+    
+    async function initRouteMapWithMapbox() {
+        // Prevent multiple initializations
+        if (window.routeMapInitialized) {
+            console.log('Map already initialized, skipping...');
+            return;
+        }
         
-        // Start proximity checking after map loads
-        setTimeout(() => {
+        const mapContainer = document.getElementById('route-map');
+        if (!mapContainer || typeof MapboxHelper === 'undefined') {
+            console.error('MapboxHelper not available');
+            return;
+        }
+
+        let center = [-46.6333, -23.5505]; // São Paulo default [lng, lat]
+        if (window.routeOriginLat && window.routeOriginLng) {
+            center = [parseFloat(window.routeOriginLng), parseFloat(window.routeOriginLat)];
+        } else if (window.driverCurrentLat && window.driverCurrentLng) {
+            center = [parseFloat(window.driverCurrentLng), parseFloat(window.driverCurrentLat)];
+        }
+
+        const authToken = document.querySelector('meta[name="api-token"]')?.content || localStorage.getItem('auth_token');
+        
+        routeMap = new MapboxHelper('route-map', {
+            center: center,
+            zoom: 12,
+            accessToken: window.mapboxAccessToken,
+            apiBaseUrl: '/api/maps',
+            authToken: authToken,
+            onLoad: async (map) => {
+                window.routeMapInitialized = true; // Mark as initialized
+                window.routeMap = routeMap; // Make it globally available
+                await addRouteMarkersAndPolyline();
+            }
+        });
+
+        async function addRouteMarkersAndPolyline() {
+            console.log('Adding markers and route...', {
+                routeOriginLat: window.routeOriginLat,
+                routeOriginLng: window.routeOriginLng,
+                driverLat: window.driverCurrentLat,
+                driverLng: window.driverCurrentLng,
+                shipmentsCount: window.routeShipments?.length || 0,
+                shipments: window.routeShipments
+            });
+            
+            // Origin marker (depot/branch)
+            if (window.routeOriginLat && window.routeOriginLng) {
+                routeMap.addMarker({
+                    lat: parseFloat(window.routeOriginLat),
+                    lng: parseFloat(window.routeOriginLng)
+                }, {
+                    title: window.routeOriginName || 'Ponto de Partida',
+                    color: '#FF6B35',
+                    size: 32
+                });
+            }
+
+            // Driver's current location marker
+            if (window.driverCurrentLat && window.driverCurrentLng) {
+                window.driverMarker = routeMap.addMarker({
+                    lat: parseFloat(window.driverCurrentLat),
+                    lng: parseFloat(window.driverCurrentLng)
+                }, {
+                    title: 'Sua Localização',
+                    color: '#2196F3',
+                    size: 28
+                });
+            }
+
+            // Shipment markers
+            if (!window.routeShipments || window.routeShipments.length === 0) {
+                console.warn('No shipments found for route');
+                // Fit bounds to show at least origin and driver location
+                const positions = [];
+                if (window.routeOriginLat && window.routeOriginLng) {
+                    positions.push({ lat: parseFloat(window.routeOriginLat), lng: parseFloat(window.routeOriginLng) });
+                }
+                if (window.driverCurrentLat && window.driverCurrentLng) {
+                    positions.push({ lat: parseFloat(window.driverCurrentLat), lng: parseFloat(window.driverCurrentLng) });
+                }
+                if (positions.length > 0) routeMap.fitBounds(positions);
+                return;
+            }
+            
+            window.routeShipments.forEach(shipment => {
+                if (shipment.pickup_lat && shipment.pickup_lng) {
+                    routeMap.addMarker({
+                        lat: parseFloat(shipment.pickup_lat),
+                        lng: parseFloat(shipment.pickup_lng)
+                    }, {
+                        title: `Coleta: ${shipment.tracking_number}`,
+                        color: '#2196F3',
+                        size: 24
+                    });
+                }
+                
+                if (shipment.delivery_lat && shipment.delivery_lng) {
+                    routeMap.addMarker({
+                        lat: parseFloat(shipment.delivery_lat),
+                        lng: parseFloat(shipment.delivery_lng)
+                    }, {
+                        title: `Entrega: ${shipment.tracking_number}`,
+                        color: '#4CAF50',
+                        size: 28
+                    });
+                }
+            });
+
+            // Draw route
+            if (window.routeOriginLat && window.routeOriginLng && window.routeShipments.length > 0) {
+                const origin = {
+                    lat: parseFloat(window.routeOriginLat),
+                    lng: parseFloat(window.routeOriginLng)
+                };
+                
+                // Filter shipments with valid delivery coordinates
+                const deliveries = window.routeShipments
+                    .filter(s => {
+                        const hasCoords = s.delivery_lat && s.delivery_lng && 
+                                         !isNaN(parseFloat(s.delivery_lat)) && 
+                                         !isNaN(parseFloat(s.delivery_lng));
+                        if (!hasCoords) {
+                            console.warn('Shipment without valid delivery coordinates:', {
+                                id: s.id,
+                                tracking_number: s.tracking_number,
+                                delivery_lat: s.delivery_lat,
+                                delivery_lng: s.delivery_lng
+                            });
+                        }
+                        return hasCoords;
+                    })
+                    .map(s => ({ 
+                        lat: parseFloat(s.delivery_lat), 
+                        lng: parseFloat(s.delivery_lng),
+                        tracking_number: s.tracking_number,
+                        id: s.id
+                    }));
+                
+                console.log('Route drawing data:', {
+                    origin,
+                    totalShipments: window.routeShipments.length,
+                    deliveriesCount: deliveries.length,
+                    deliveries
+                });
+                
+                if (deliveries.length > 0) {
+                    // For routes with multiple deliveries, create a sequential route
+                    // Origin -> Delivery 1 -> Delivery 2 -> ... -> Last Delivery -> Return to Origin
+                    const waypoints = deliveries; // All deliveries as waypoints
+                    const returnDestination = origin; // Return to origin
+                    
+                    console.log('Drawing route with return to base:', { 
+                        origin, 
+                        destination: returnDestination,
+                        waypointsCount: waypoints.length
+                    });
+                    
+                    try {
+                        await routeMap.drawRoute(origin, returnDestination, waypoints, {
+                            color: '#FF6B35',
+                            width: 6
+                        });
+                        console.log('Route drawn successfully with', deliveries.length, 'delivery points and return to base');
+                    } catch (error) {
+                        console.error('Route drawing error:', error);
+                    }
+                } else {
+                    console.error('No valid delivery coordinates found!');
+                }
+            } else {
+                console.warn('Cannot draw route - missing data:', {
+                    hasOrigin: !!(window.routeOriginLat && window.routeOriginLng),
+                    hasShipments: window.routeShipments?.length > 0
+                });
+            }
+
+            // Fit bounds to show all markers
+            const positions = [];
+            if (window.routeOriginLat && window.routeOriginLng) {
+                positions.push({ lat: parseFloat(window.routeOriginLat), lng: parseFloat(window.routeOriginLng) });
+            }
+            if (window.driverCurrentLat && window.driverCurrentLng) {
+                positions.push({ lat: parseFloat(window.driverCurrentLat), lng: parseFloat(window.driverCurrentLng) });
+            }
+            window.routeShipments.forEach(s => {
+                if (s.pickup_lat && s.pickup_lng) positions.push({ lat: parseFloat(s.pickup_lat), lng: parseFloat(s.pickup_lng) });
+                if (s.delivery_lat && s.delivery_lng) positions.push({ lat: parseFloat(s.delivery_lat), lng: parseFloat(s.delivery_lng) });
+            });
+            if (positions.length > 0) routeMap.fitBounds(positions);
+        }
+    }
+    
+    // Initialize map when page loads
+    function initRouteMap() {
+        const mapContainer = document.getElementById('route-map');
+        if (!mapContainer) return;
+
+        // Use Mapbox if available
+        if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
+            if (!window.mapboxRouteMapInitialized) {
+                console.log('Using Mapbox for route map on driver dashboard');
+                window.mapboxRouteMapInitialized = true;
+            }
+            initRouteMapWithMapbox();
+            return;
+        }
+        
+        // Fallback: Show message if Mapbox not available
+        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Mapa não disponível</p><p style="font-size: 0.9em; opacity: 0.8;">Mapbox não configurado.</p></div>';
+    }
+
+    // Initialize map when page loads (only once and only if route map container exists)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            const mapContainer = document.getElementById('route-map');
+            if (mapContainer && !window.routeMapInitialized && !window.routeMapInitializing) {
+                window.routeMapInitializing = true;
+                setTimeout(() => {
+                    initRouteMap();
+                }, 500); // Small delay to ensure MapboxHelper is loaded
+            }
+        });
+    } else {
+        const mapContainer = document.getElementById('route-map');
+        if (mapContainer && !window.routeMapInitialized && !window.routeMapInitializing) {
+            window.routeMapInitializing = true;
+            setTimeout(() => {
+                initRouteMap();
+            }, 500);
+        }
+    }
+    
+    // Start proximity checking after map loads (driver-specific)
+    setTimeout(() => {
+        if (typeof startProximityChecking === 'function') {
             startProximityChecking();
-        }, 2000);
-    });
+        }
+    }, 2000);
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
-        stopProximityChecking();
+        if (typeof stopProximityChecking === 'function') {
+            stopProximityChecking();
+        }
+        if (typeof stopLocationPolling === 'function') {
+            stopLocationPolling();
+        }
     });
-    <?php endif; ?>
 </script>
 <?php $__env->stopPush(); ?>
 <?php echo $__env->make('driver.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/driver/dashboard.blade.php ENDPATH**/ ?>

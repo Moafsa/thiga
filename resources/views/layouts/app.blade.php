@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#FF6B35">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TMS SaaS">
@@ -26,6 +28,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Mapbox GL JS -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
     
     @livewireStyles
     
@@ -505,6 +511,19 @@
             @yield('content')
         </main>
     </div>
+    
+    <!-- Mapbox Access Token - MUST be before scripts -->
+    <meta name="mapbox-access-token" content="{{ config('services.mapbox.access_token') }}">
+    <script>
+        window.mapboxAccessToken = '{{ config('services.mapbox.access_token') }}';
+        console.log('Mapbox token set:', window.mapboxAccessToken ? window.mapboxAccessToken.substring(0, 20) + '...' : 'NOT SET');
+    </script>
+    
+    <!-- Mapbox Helper -->
+    <script src="{{ asset('js/mapbox-helper.js') }}"></script>
+    <script src="{{ asset('js/route-map-mapbox.js') }}"></script>
+    <script src="{{ asset('js/monitoring-mapbox.js') }}"></script>
+    <script src="{{ asset('js/realtime-tracking.js') }}"></script>
     
     @livewireScripts
     @stack('scripts')

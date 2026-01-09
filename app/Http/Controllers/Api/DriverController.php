@@ -327,6 +327,23 @@ class DriverController extends Controller
             'metadata' => $request->except(['latitude', 'longitude', 'accuracy', 'speed', 'heading', 'is_moving', 'route_id', 'shipment_id']),
         ]);
 
+        // Broadcast location update event for real-time tracking
+        try {
+            event(new \App\Events\DriverLocationUpdated(
+            $driver,
+            $request->latitude,
+            $request->longitude,
+            $request->route_id,
+            $request->shipment_id,
+            $request->speed,
+            $request->heading,
+            $request->is_moving ?? false
+            ));
+        } catch (\Exception $e) {
+            // Silently fail if broadcasting is not configured
+            Log::warning('Failed to broadcast driver location update', ['error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'message' => 'Location updated successfully',
             'location' => [

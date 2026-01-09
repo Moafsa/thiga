@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#245a49">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TMS Motorista">
@@ -17,6 +19,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Mapbox GL JS -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
     
     <style>
         /* Variables */
@@ -331,6 +337,20 @@
         }
     </script>
 
+    <!-- Mapbox Access Token - MUST be before scripts -->
+    <meta name="mapbox-access-token" content="{{ config('services.mapbox.access_token') }}">
+    <script>
+        window.mapboxAccessToken = '{{ config('services.mapbox.access_token') }}';
+    </script>
+    
+    <!-- Laravel Echo (for real-time tracking) -->
+    <script src="{{ asset('js/echo.js') }}"></script>
+    
+    <!-- Mapbox Helper -->
+    <script src="{{ asset('js/mapbox-helper.js') }}"></script>
+    <script src="{{ asset('js/driver-route-map.js') }}"></script>
+    <script src="{{ asset('js/realtime-tracking.js') }}"></script>
+    
     @stack('scripts')
 </body>
 </html>

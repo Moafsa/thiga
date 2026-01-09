@@ -13,6 +13,7 @@ use App\Models\CteXml;
 use App\Models\Client;
 use App\Services\CteXmlParserService;
 use App\Services\GoogleMapsService;
+use App\Services\MapsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -324,7 +325,7 @@ class RouteController extends Controller
             }
 
             // Determine start address coordinates
-            $googleMapsService = app(GoogleMapsService::class);
+            $mapsService = app(MapsService::class);
             $startLat = null;
             $startLng = null;
             $startAddressType = $validated['start_address_type'] ?? 'branch';
@@ -342,7 +343,7 @@ class RouteController extends Controller
                             $branch->state,
                         ])));
                         
-                        $geocoded = $googleMapsService->geocode($fullAddress);
+                        $geocoded = $mapsService->geocode($fullAddress);
                         if ($geocoded) {
                             $branch->update([
                                 'latitude' => $geocoded['latitude'],
@@ -370,7 +371,7 @@ class RouteController extends Controller
                     $validated['start_zip_code'] ?? '',
                 ])));
                 
-                $geocoded = $googleMapsService->geocode($fullAddress);
+                $geocoded = $mapsService->geocode($fullAddress);
                 if ($geocoded) {
                     $startLat = $geocoded['latitude'];
                     $startLng = $geocoded['longitude'];
@@ -508,7 +509,7 @@ class RouteController extends Controller
     protected function processXmlFiles(array $files, $tenant, CteXmlParserService $xmlParser, Route $route): array
     {
         $createdShipments = [];
-        $googleMapsService = app(GoogleMapsService::class);
+        $mapsService = app(MapsService::class);
         $failedFiles = [];
 
         foreach ($files as $index => $file) {
@@ -565,7 +566,7 @@ class RouteController extends Controller
                 $deliveryCoords = null;
                 
                 if ($pickupFullAddress) {
-                    $pickupCoords = $googleMapsService->geocode($pickupFullAddress);
+                    $pickupCoords = $mapsService->geocode($pickupFullAddress);
                     if ($pickupCoords) {
                         \Log::info('Pickup address geocoded', [
                             'address' => $pickupFullAddress,
@@ -579,7 +580,7 @@ class RouteController extends Controller
                 }
                 
                 if ($deliveryFullAddress) {
-                    $deliveryCoords = $googleMapsService->geocode($deliveryFullAddress);
+                    $deliveryCoords = $mapsService->geocode($deliveryFullAddress);
                     if ($deliveryCoords) {
                         \Log::info('Delivery address geocoded', [
                             'address' => $deliveryFullAddress,
@@ -648,8 +649,12 @@ class RouteController extends Controller
                 
                 \Log::info('Shipment created from XML', [
                     'shipment_id' => $shipment->id,
+                    'tracking_number' => $trackingNumber,
                     'access_key' => $cteData['access_key'] ?? 'N/A',
                     'has_delivery_coords' => !empty($deliveryCoords),
+                    'delivery_latitude' => $shipment->delivery_latitude,
+                    'delivery_longitude' => $shipment->delivery_longitude,
+                    'delivery_address' => $deliveryFullAddress,
                 ]);
                 
                 // Save XML to MinIO (with fallback to database)
@@ -727,7 +732,7 @@ class RouteController extends Controller
     protected function processCteXmlNumbers(array $xmlNumbers, $tenant, CteXmlParserService $xmlParser, Route $route): array
     {
         $createdShipments = [];
-        $googleMapsService = app(GoogleMapsService::class);
+        $mapsService = app(MapsService::class);
         $failedNumbers = [];
 
         foreach ($xmlNumbers as $xmlNumber) {
@@ -820,7 +825,7 @@ class RouteController extends Controller
                 $deliveryCoords = null;
 
                 if ($pickupFullAddress) {
-                    $pickupCoords = $googleMapsService->geocode($pickupFullAddress);
+                    $pickupCoords = $mapsService->geocode($pickupFullAddress);
                     if ($pickupCoords) {
                         \Log::info('Pickup address geocoded', [
                             'address' => $pickupFullAddress,
@@ -834,7 +839,7 @@ class RouteController extends Controller
                 }
 
                 if ($deliveryFullAddress) {
-                    $deliveryCoords = $googleMapsService->geocode($deliveryFullAddress);
+                    $deliveryCoords = $mapsService->geocode($deliveryFullAddress);
                     if ($deliveryCoords) {
                         \Log::info('Delivery address geocoded', [
                             'address' => $deliveryFullAddress,
@@ -903,9 +908,13 @@ class RouteController extends Controller
 
                 \Log::info('Shipment created from CT-e XML number', [
                     'shipment_id' => $shipment->id,
+                    'tracking_number' => $trackingNumber,
                     'xml_number' => $xmlNumber,
                     'access_key' => $cteData['access_key'] ?? 'N/A',
                     'has_delivery_coords' => !empty($deliveryCoords),
+                    'delivery_latitude' => $shipment->delivery_latitude,
+                    'delivery_longitude' => $shipment->delivery_longitude,
+                    'delivery_address' => $deliveryFullAddress,
                 ]);
 
                 // Get XML path from CteXml or save if needed
@@ -985,7 +994,7 @@ class RouteController extends Controller
     protected function processAddresses(array $addresses, $tenant, Route $route): array
     {
         $createdShipments = [];
-        $googleMapsService = app(GoogleMapsService::class);
+        $mapsService = app(MapsService::class);
         
         \Log::info('processAddresses called', [
             'addresses_count' => count($addresses),
@@ -1052,9 +1061,10 @@ class RouteController extends Controller
                     $pickupAddress['zip_code'] ?? '',
                 ])));
                 // Use branch coordinates if available
+                $mapsServiceForAddresses = app(MapsService::class);
                 $pickupCoords = $branch->latitude && $branch->longitude 
                     ? ['latitude' => $branch->latitude, 'longitude' => $branch->longitude]
-                    : $googleMapsService->geocode($pickupFullAddress);
+                    : $mapsServiceForAddresses->geocode($pickupFullAddress);
             } else {
                 // Fallback: use delivery address as pickup if no branch
                 $pickupFullAddress = trim(implode(', ', array_filter([
@@ -1063,7 +1073,7 @@ class RouteController extends Controller
                     $deliveryAddress['state'] ?? '',
                     $deliveryAddress['zip_code'] ?? '',
                 ])));
-                $pickupCoords = $googleMapsService->geocode($pickupFullAddress);
+                $pickupCoords = $mapsServiceForAddresses->geocode($pickupFullAddress);
             }
             
             $deliveryFullAddress = trim(implode(', ', array_filter([
@@ -1073,7 +1083,8 @@ class RouteController extends Controller
                 $deliveryAddress['zip_code'] ?? '',
             ])));
             
-            $deliveryCoords = $googleMapsService->geocode($deliveryFullAddress);
+            $mapsServiceForAddresses = app(MapsService::class);
+            $deliveryCoords = $mapsServiceForAddresses->geocode($deliveryFullAddress);
             
             // Create or find receiver client
             $receiverClient = $this->findOrCreateClient($tenant, [
@@ -1572,7 +1583,8 @@ class RouteController extends Controller
             return;
         }
 
-        $googleMapsService = app(GoogleMapsService::class);
+        // Use MapsService (Mapbox first, Google as fallback) instead of GoogleMapsService directly
+        $mapsService = app(\App\Services\MapsService::class);
         $totalDistance = 0; // in meters
         $totalDuration = 0; // in seconds
         $waypoints = [];
@@ -1589,7 +1601,8 @@ class RouteController extends Controller
                 ])));
                 
                 if ($pickupAddress) {
-                    $geocoded = $googleMapsService->geocode($pickupAddress);
+                    $mapsServiceForGeocode = app(MapsService::class);
+                    $geocoded = $mapsServiceForGeocode->geocode($pickupAddress);
                     if ($geocoded) {
                         $shipment->update([
                             'pickup_latitude' => $geocoded['latitude'],
@@ -1609,7 +1622,8 @@ class RouteController extends Controller
                 ])));
                 
                 if ($deliveryAddress) {
-                    $geocoded = $googleMapsService->geocode($deliveryAddress);
+                    $mapsServiceForGeocode = app(MapsService::class);
+                    $geocoded = $mapsServiceForGeocode->geocode($deliveryAddress);
                     if ($geocoded) {
                         $shipment->update([
                             'delivery_latitude' => $geocoded['latitude'],
@@ -1637,7 +1651,7 @@ class RouteController extends Controller
         if (count($waypoints) >= 2) {
             // Calculate distance between consecutive waypoints
             for ($i = 0; $i < count($waypoints) - 1; $i++) {
-                $distance = $googleMapsService->calculateDistance(
+                $distance = $mapsService->calculateDistance(
                     $waypoints[$i]['lat'],
                     $waypoints[$i]['lng'],
                     $waypoints[$i + 1]['lat'],
@@ -2113,7 +2127,8 @@ class RouteController extends Controller
                 $validated['state'],
             ])));
             
-            $geocoded = $googleMapsService->geocode($fullAddress);
+            $mapsServiceForBranch = app(MapsService::class);
+            $geocoded = $mapsServiceForBranch->geocode($fullAddress);
             
             $branch = Branch::create([
                 'tenant_id' => $tenant->id,

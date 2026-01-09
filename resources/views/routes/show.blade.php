@@ -908,8 +908,7 @@
     // Initialize route map
     @if($route->shipments->isNotEmpty())
     let routeMap;
-    let routeMarkers = [];
-    let routePolyline;
+    // routeMarkers and routePolyline moved to route-map-mapbox.js to avoid duplicate declarations
     let directionsRenderer;
     let availableRoutes = [];
     let currentRouteIndex = 0;
@@ -917,6 +916,228 @@
     let driverMarker = null; // Marker for driver's real-time location
     let driverLocationInterval = null; // Interval for updating driver location
     let driverHistoryPolyline = null; // Polyline for driver's path history
+    
+    // Global variables for Mapbox
+    @php
+        $routeOriginLat = $route->start_latitude ?? null;
+        $routeOriginLng = $route->start_longitude ?? null;
+        $routeOriginName = $route->branch->name ?? 'Ponto de Partida';
+        $routeIdValue = $route->id;
+    @endphp
+    window.routeOriginLat = @json($routeOriginLat);
+    window.routeOriginLng = @json($routeOriginLng);
+    window.routeOriginName = @json($routeOriginName);
+    window.routeId = @json($routeIdValue);
+    
+    @php
+        $shipmentsForMap = $route->shipments;
+        $optimizedOrder = $route->settings['sequential_optimized_order'] ?? null;
+        if ($optimizedOrder && is_array($optimizedOrder)) {
+            $shipmentsMap = $shipments->keyBy('id');
+            $orderedShipments = collect();
+            foreach ($optimizedOrder as $shipmentId) {
+                if ($shipmentsMap->has($shipmentId)) {
+                    $orderedShipments->push($shipmentsMap->get($shipmentId));
+                }
+            }
+            foreach ($shipments as $shipment) {
+                if (!in_array($shipment->id, $optimizedOrder)) {
+                    $orderedShipments->push($shipment);
+                }
+            }
+            $shipmentsForMap = $orderedShipments;
+        }
+        
+        $shipmentsArray = $shipmentsForMap->map(function($shipment) {
+            return [
+                'id' => $shipment->id,
+                'tracking_number' => $shipment->tracking_number,
+                'pickup_lat' => $shipment->pickup_latitude,
+                'pickup_lng' => $shipment->pickup_longitude,
+                'delivery_lat' => $shipment->delivery_latitude,
+                'delivery_lng' => $shipment->delivery_longitude,
+            ];
+        })->values();
+    @endphp
+    window.routeShipments = @json($shipmentsArray);
+    
+    // Initialize route map with Mapbox
+    async function initRouteMapWithMapbox() {
+        // Prevent multiple initializations
+        if (window.routeMapInitialized) {
+            console.log('Map already initialized, skipping...');
+            return;
+        }
+        
+        const mapContainer = document.getElementById('route-map');
+        if (!mapContainer || typeof MapboxHelper === 'undefined') {
+            console.error('MapboxHelper not available');
+            return;
+        }
+
+        let center = [-46.6333, -23.5505];
+        if (window.routeOriginLat && window.routeOriginLng) {
+            center = [parseFloat(window.routeOriginLng), parseFloat(window.routeOriginLat)];
+        }
+
+        const authToken = document.querySelector('meta[name="api-token"]')?.content || localStorage.getItem('auth_token');
+        
+        routeMap = new MapboxHelper('route-map', {
+            center: center,
+            zoom: 12,
+            accessToken: window.mapboxAccessToken,
+            apiBaseUrl: '/api/maps',
+            authToken: authToken,
+            onLoad: async (map) => {
+                window.routeMapInitialized = true; // Mark as initialized
+                await addRouteMarkersAndPolyline();
+            }
+        });
+
+        async function addRouteMarkersAndPolyline() {
+            console.log('Adding markers and route...', {
+                routeOriginLat: window.routeOriginLat,
+                routeOriginLng: window.routeOriginLng,
+                shipmentsCount: window.routeShipments?.length || 0,
+                shipments: window.routeShipments
+            });
+            
+            // Origin marker
+            if (window.routeOriginLat && window.routeOriginLng) {
+                routeMap.addMarker({
+                    lat: parseFloat(window.routeOriginLat),
+                    lng: parseFloat(window.routeOriginLng)
+                }, {
+                    title: window.routeOriginName,
+                    color: '#FF6B35',
+                    size: 32
+                });
+            }
+
+            // Shipment markers
+            if (!window.routeShipments || window.routeShipments.length === 0) {
+                console.warn('No shipments found for route');
+                return;
+            }
+            
+            window.routeShipments.forEach(shipment => {
+                if (shipment.pickup_lat && shipment.pickup_lng) {
+                    routeMap.addMarker({
+                        lat: parseFloat(shipment.pickup_lat),
+                        lng: parseFloat(shipment.pickup_lng)
+                    }, {
+                        title: `Coleta: ${shipment.tracking_number}`,
+                        color: '#2196F3',
+                        size: 24
+                    });
+                }
+                
+                if (shipment.delivery_lat && shipment.delivery_lng) {
+                    routeMap.addMarker({
+                        lat: parseFloat(shipment.delivery_lat),
+                        lng: parseFloat(shipment.delivery_lng)
+                    }, {
+                        title: `Entrega: ${shipment.tracking_number}`,
+                        color: '#4CAF50',
+                        size: 28
+                    });
+                }
+            });
+
+            // Draw route
+            if (window.routeOriginLat && window.routeOriginLng && window.routeShipments.length > 0) {
+                const origin = {
+                    lat: parseFloat(window.routeOriginLat),
+                    lng: parseFloat(window.routeOriginLng)
+                };
+                
+                // Filter shipments with valid delivery coordinates
+                const deliveries = window.routeShipments
+                    .filter(s => {
+                        const hasCoords = s.delivery_lat && s.delivery_lng && 
+                                         !isNaN(parseFloat(s.delivery_lat)) && 
+                                         !isNaN(parseFloat(s.delivery_lng));
+                        if (!hasCoords) {
+                            console.warn('Shipment without valid delivery coordinates:', {
+                                id: s.id,
+                                tracking_number: s.tracking_number,
+                                delivery_lat: s.delivery_lat,
+                                delivery_lng: s.delivery_lng
+                            });
+                        }
+                        return hasCoords;
+                    })
+                    .map(s => ({ 
+                        lat: parseFloat(s.delivery_lat), 
+                        lng: parseFloat(s.delivery_lng),
+                        tracking_number: s.tracking_number,
+                        id: s.id
+                    }));
+                
+                console.log('Route drawing data:', {
+                    origin,
+                    totalShipments: window.routeShipments.length,
+                    deliveriesCount: deliveries.length,
+                    deliveries,
+                    shipmentsWithoutCoords: window.routeShipments.filter(s => !s.delivery_lat || !s.delivery_lng).map(s => ({
+                        id: s.id,
+                        tracking_number: s.tracking_number
+                    }))
+                });
+                
+                if (deliveries.length > 0) {
+                    // For routes with multiple deliveries, create a sequential route
+                    // Origin -> Delivery 1 -> Delivery 2 -> ... -> Last Delivery -> Return to Origin
+                    // All deliveries become waypoints, and origin becomes the final destination (return)
+                    const waypoints = deliveries; // All deliveries as waypoints
+                    const returnDestination = origin; // Return to origin
+                    
+                    console.log('Drawing route with return to base:', { 
+                        origin, 
+                        destination: returnDestination,
+                        waypointsCount: waypoints.length,
+                        waypoints: waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng, tracking: wp.tracking_number }))
+                    });
+                    
+                    try {
+                        await routeMap.drawRoute(origin, returnDestination, waypoints, {
+                            color: '#FF6B35',
+                            width: 6
+                        });
+                        console.log('Route drawn successfully with', deliveries.length, 'delivery points and return to base');
+                    } catch (error) {
+                        console.error('Route drawing error:', error);
+                        console.error('Error details:', error.message, error.stack);
+                    }
+                } else {
+                    console.error('No valid delivery coordinates found!');
+                    console.error('All shipments:', window.routeShipments.map(s => ({
+                        id: s.id,
+                        tracking_number: s.tracking_number,
+                        delivery_lat: s.delivery_lat,
+                        delivery_lng: s.delivery_lng,
+                        hasCoords: !!(s.delivery_lat && s.delivery_lng)
+                    })));
+                }
+            } else {
+                console.warn('Cannot draw route - missing data:', {
+                    hasOrigin: !!(window.routeOriginLat && window.routeOriginLng),
+                    hasShipments: window.routeShipments?.length > 0
+                });
+            }
+
+            // Fit bounds
+            const positions = [];
+            if (window.routeOriginLat && window.routeOriginLng) {
+                positions.push({ lat: parseFloat(window.routeOriginLat), lng: parseFloat(window.routeOriginLng) });
+            }
+            window.routeShipments.forEach(s => {
+                if (s.pickup_lat && s.pickup_lng) positions.push({ lat: parseFloat(s.pickup_lat), lng: parseFloat(s.pickup_lng) });
+                if (s.delivery_lat && s.delivery_lng) positions.push({ lat: parseFloat(s.delivery_lat), lng: parseFloat(s.delivery_lng) });
+            });
+            if (positions.length > 0) routeMap.fitBounds(positions);
+        }
+    }
     
     // Map style configurations
     const mapStyles = {
@@ -1011,19 +1232,34 @@
             return;
         }
 
-        // Load Google Maps API with Directions library
-        if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=pt-BR&callback=initRouteMapCallback&loading=async`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-            
-            window.initRouteMapCallback = function() {
-                initRouteMap();
-            };
+        // Google Maps disabled - use Mapbox instead
+        if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
+            // Initialize with Mapbox (log only once)
+            if (!window.mapboxRouteMapInitialized) {
+                console.log('Using Mapbox for route map');
+                window.mapboxRouteMapInitialized = true;
+            }
+            initRouteMapWithMapbox();
             return;
         }
+        
+        // Fallback: Show message if Mapbox not available
+        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Migrando para Mapbox...</p><p style="font-size: 0.9em; opacity: 0.8;">O mapa será restaurado em breve.</p></div>';
+        return;
+        
+        // OLD GOOGLE MAPS CODE - DISABLED
+        // if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+        //     const script = document.createElement('script');
+        //     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=pt-BR&callback=initRouteMapCallback&loading=async`;
+        //     script.async = true;
+        //     script.defer = true;
+        //     document.head.appendChild(script);
+        //     
+        //     window.initRouteMapCallback = function() {
+        //         initRouteMap();
+        //     };
+        //     return;
+        // }
 
         // Initialize map
         const center = @if($route->start_latitude && $route->start_longitude)
@@ -1603,11 +1839,17 @@
         if (infoEl) infoEl.style.display = 'block';
     }
 
-    // Initialize map when page loads
+    // Initialize map when page loads (only once)
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initRouteMap);
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!window.routeMapInitialized && !window.routeMapInitializing) {
+                initRouteMap();
+            }
+        });
     } else {
-        initRouteMap();
+        if (!window.routeMapInitialized && !window.routeMapInitializing) {
+            initRouteMap();
+        }
     }
 
     // Cleanup on page unload
