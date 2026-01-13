@@ -27,6 +27,18 @@ Route::post('/driver/login/request-code', [DriverLoginController::class, 'reques
 Route::get('/driver/login/code', [DriverLoginController::class, 'showCodeForm'])->name('driver.login.code');
 Route::post('/driver/login/verify-code', [DriverLoginController::class, 'verifyCode'])->name('driver.login.verify-code');
 
+// Client login routes
+Route::get('/client/login/phone', [App\Http\Controllers\Auth\ClientLoginController::class, 'showPhoneForm'])->name('client.login.phone');
+Route::post('/client/login/request-code', [App\Http\Controllers\Auth\ClientLoginController::class, 'requestCode'])->name('client.login.request-code');
+Route::get('/client/login/code', [App\Http\Controllers\Auth\ClientLoginController::class, 'showCodeForm'])->name('client.login.code');
+Route::post('/client/login/verify-code', [App\Http\Controllers\Auth\ClientLoginController::class, 'verifyCode'])->name('client.login.verify-code');
+
+// Salesperson login routes
+Route::get('/salesperson/login/phone', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'showPhoneForm'])->name('salesperson.login.phone');
+Route::post('/salesperson/login/request-code', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'requestCode'])->name('salesperson.login.request-code');
+Route::get('/salesperson/login/code', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'showCodeForm'])->name('salesperson.login.code');
+Route::post('/salesperson/login/verify-code', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'verifyCode'])->name('salesperson.login.verify-code');
+
 // Maps API routes (for web frontend - uses session auth)
 Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefix('api/maps')->group(function () {
     Route::post('/geocode', [App\Http\Controllers\Api\MapsController::class, 'geocode']);
@@ -157,6 +169,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\DriverExpenseController::class, 'index'])->name('index');
         Route::get('/reports', [App\Http\Controllers\DriverExpenseController::class, 'reports'])->name('reports');
         Route::get('/{expense}', [App\Http\Controllers\DriverExpenseController::class, 'show'])->name('show');
+        Route::get('/{expense}/edit', [App\Http\Controllers\DriverExpenseController::class, 'edit'])->name('edit');
+        Route::put('/{expense}', [App\Http\Controllers\DriverExpenseController::class, 'update'])->name('update');
         Route::post('/{expense}/approve', [App\Http\Controllers\DriverExpenseController::class, 'approve'])->name('approve');
         Route::post('/{expense}/reject', [App\Http\Controllers\DriverExpenseController::class, 'reject'])->name('reject');
         Route::get('/statistics/data', [App\Http\Controllers\DriverExpenseController::class, 'statistics'])->name('statistics');
@@ -182,6 +196,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{driver}/edit', [App\Http\Controllers\DriverController::class, 'edit'])->name('edit');
         Route::put('/{driver}', [App\Http\Controllers\DriverController::class, 'update'])->name('update');
         Route::delete('/{driver}', [App\Http\Controllers\DriverController::class, 'destroy'])->name('destroy');
+        Route::delete('/photos/{photo}', [App\Http\Controllers\DriverController::class, 'deletePhoto'])->name('photos.delete');
     });
     
     // Vehicles routes
@@ -233,6 +248,25 @@ Route::middleware('auth')->group(function () {
         Route::post('/wallet/expenses', [App\Http\Controllers\DriverWalletController::class, 'storeExpense'])->name('wallet.expenses.store');
         Route::delete('/wallet/expenses/{expense}', [App\Http\Controllers\DriverWalletController::class, 'deleteExpense'])->name('wallet.expenses.delete');
         Route::get('/wallet/export', [App\Http\Controllers\DriverWalletController::class, 'exportPdf'])->name('wallet.export');
+        
+        // Route history routes
+        Route::get('/route-history', [App\Http\Controllers\DriverDashboardController::class, 'getRouteHistory'])->name('route-history');
+        Route::get('/statistics', [App\Http\Controllers\DriverDashboardController::class, 'getDriverStatistics'])->name('statistics');
+    });
+    
+    // Client Dashboard routes
+    Route::prefix('client')->name('client.')->group(function () {
+        Route::get('/dashboard', [App\Http\Controllers\ClientDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/request-proposal', [App\Http\Controllers\ClientDashboardController::class, 'requestProposal'])->name('request-proposal');
+        Route::post('/request-proposal', [App\Http\Controllers\ClientDashboardController::class, 'storeProposalRequest'])->name('store-proposal-request');
+        Route::get('/shipments', [App\Http\Controllers\ClientDashboardController::class, 'shipments'])->name('shipments');
+        Route::get('/shipments/{shipment}', [App\Http\Controllers\ClientDashboardController::class, 'showShipment'])->name('shipments.show');
+        Route::get('/proposals', [App\Http\Controllers\ClientDashboardController::class, 'proposals'])->name('proposals');
+        Route::get('/proposals/{proposal}', [App\Http\Controllers\ClientDashboardController::class, 'showProposal'])->name('proposals.show');
+        Route::post('/proposals/{proposal}/accept', [App\Http\Controllers\ClientDashboardController::class, 'acceptProposal'])->name('proposals.accept');
+        Route::post('/proposals/{proposal}/reject', [App\Http\Controllers\ClientDashboardController::class, 'rejectProposal'])->name('proposals.reject');
+        Route::get('/invoices', [App\Http\Controllers\ClientDashboardController::class, 'invoices'])->name('invoices');
+        Route::get('/invoices/{invoice}', [App\Http\Controllers\ClientDashboardController::class, 'showInvoice'])->name('invoices.show');
     });
     
     // Monitoring routes (Admin/Manager)

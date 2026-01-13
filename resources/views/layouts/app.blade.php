@@ -418,6 +418,12 @@
             </div>
             
             <div class="sidebar-item">
+                <a href="{{ route('clients.index') }}" class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" data-tooltip="Clientes">
+                    <i class="fas fa-user-friends"></i>
+                </a>
+            </div>
+            
+            <div class="sidebar-item">
                 <a href="{{ route('proposals.index') }}" class="sidebar-link {{ request()->routeIs('proposals.*') ? 'active' : '' }}" data-tooltip="Propostas">
                     <i class="fas fa-file-contract"></i>
                 </a>

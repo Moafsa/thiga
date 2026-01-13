@@ -69,6 +69,21 @@
     </a>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(76, 175, 80, 0.3);">
+        <i class="fas fa-check-circle mr-2"></i>
+        {{ session('success') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-error" style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(244, 67, 54, 0.3);">
+        @foreach($errors->all() as $error)
+            <div><i class="fas fa-exclamation-circle mr-2"></i>{{ $error }}</div>
+        @endforeach
+    </div>
+@endif
+
 <div class="drivers-grid">
     @forelse($drivers as $driver)
         <div class="driver-card">

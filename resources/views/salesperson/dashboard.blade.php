@@ -38,13 +38,23 @@
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Page Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Dashboard do Vendedor</h1>
-            <p class="text-gray-600 mt-2">Bem-vindo, {{ $salesperson->name }}</p>
+        <div class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Dashboard do Vendedor</h1>
+                <p class="text-gray-600 mt-2">Bem-vindo, {{ $salesperson->name }}</p>
+            </div>
+            <form method="GET" action="{{ route('salesperson.dashboard') }}" class="flex gap-2">
+                <select name="period" onchange="this.form.submit()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white">
+                    <option value="week" {{ $period === 'week' ? 'selected' : '' }}>Esta Semana</option>
+                    <option value="month" {{ $period === 'month' ? 'selected' : '' }}>Este Mês</option>
+                    <option value="year" {{ $period === 'year' ? 'selected' : '' }}>Este Ano</option>
+                    <option value="all" {{ $period === 'all' ? 'selected' : '' }}>Todos</option>
+                </select>
+            </form>
         </div>
 
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center justify-between">
                     <div>
@@ -81,11 +91,50 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-gray-500">Valor Total</p>
+                        <p class="text-sm font-medium text-gray-500">Valor Total Aceito</p>
                         <p class="text-3xl font-bold text-gray-900 mt-2">R$ {{ number_format($stats['total_value'], 2, ',', '.') }}</p>
                     </div>
                     <div class="bg-purple-100 p-3 rounded-full">
                         <i class="fas fa-dollar-sign text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commissions and Clients Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-green-100">Comissões Totais</p>
+                        <p class="text-3xl font-bold mt-2">R$ {{ number_format($stats['total_commissions'], 2, ',', '.') }}</p>
+                        <p class="text-xs text-green-100 mt-1">Taxa: {{ number_format($stats['commission_rate'], 2, ',', '.') }}%</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-3 rounded-full">
+                        <i class="fas fa-money-bill-wave text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-md p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-indigo-100">Comissões do Período</p>
+                        <p class="text-3xl font-bold mt-2">R$ {{ number_format($stats['period_commissions'], 2, ',', '.') }}</p>
+                        <p class="text-xs text-indigo-100 mt-1">Valor: R$ {{ number_format($stats['period_value'], 2, ',', '.') }}</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-3 rounded-full">
+                        <i class="fas fa-chart-line text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Clientes Ativos</p>
+                        <p class="text-3xl font-bold text-gray-900 mt-2">{{ $stats['clients_count'] }}</p>
+                    </div>
+                    <div class="bg-teal-100 p-3 rounded-full">
+                        <i class="fas fa-users text-teal-600 text-2xl"></i>
                     </div>
                 </div>
             </div>
@@ -253,16 +302,58 @@
             </div>
         </div>
 
-        <!-- Discount Info -->
+        <!-- Clients Section -->
+        @if($clients->count() > 0)
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">
+                    <i class="fas fa-users text-green-600 mr-2"></i>
+                    Meus Clientes ({{ $clients->count() }})
+                </h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($clients->take(6) as $client)
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <h3 class="font-semibold text-gray-900">{{ $client->name }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">
+                        <i class="fas fa-phone mr-1"></i>{{ $client->phone ?? 'N/A' }}
+                    </p>
+                    <p class="text-sm text-gray-600">
+                        <i class="fas fa-envelope mr-1"></i>{{ $client->email ?? 'N/A' }}
+                    </p>
+                </div>
+                @endforeach
+            </div>
+            @if($clients->count() > 6)
+            <div class="mt-4 text-center">
+                <a href="{{ route('clients.index') }}" class="text-green-600 hover:text-green-800 font-medium">
+                    Ver todos os clientes <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            @endif
+        </div>
+        @endif
+
+        <!-- Salesperson Info -->
         <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
             <div class="flex items-start">
                 <i class="fas fa-info-circle text-blue-600 text-2xl mr-4"></i>
                 <div>
                     <h3 class="text-lg font-semibold text-blue-900 mb-2">Informações do Vendedor</h3>
-                    <p class="text-blue-800">
-                        <strong>Desconto Máximo Permitido:</strong> {{ number_format($salesperson->max_discount_percentage, 2, ',', '.') }}%<br>
-                        <strong>Taxa de Comissão:</strong> {{ number_format($salesperson->commission_rate, 2, ',', '.') }}%
-                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-blue-800">
+                        <div>
+                            <strong>Desconto Máximo Permitido:</strong> {{ number_format($salesperson->max_discount_percentage, 2, ',', '.') }}%
+                        </div>
+                        <div>
+                            <strong>Taxa de Comissão:</strong> {{ number_format($salesperson->commission_rate, 2, ',', '.') }}%
+                        </div>
+                        <div>
+                            <strong>Total de Comissões:</strong> R$ {{ number_format($stats['total_commissions'], 2, ',', '.') }}
+                        </div>
+                        <div>
+                            <strong>Comissões do Período:</strong> R$ {{ number_format($stats['period_commissions'], 2, ',', '.') }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

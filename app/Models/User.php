@@ -75,6 +75,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the client profile associated with the user.
+     */
+    public function client()
+    {
+        return $this->hasOne(Client::class);
+    }
+
+    /**
+     * Get all client assignments for the user (multi-tenant support).
+     */
+    public function clientAssignments()
+    {
+        return $this->hasMany(ClientUser::class);
+    }
+
+    /**
      * Check if user is admin of tenant.
      */
     public function isTenantAdmin(): bool

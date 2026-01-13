@@ -426,6 +426,34 @@
                             @endif
                         </p>
                     @endif
+                    
+                    {{-- Display delivery proofs with photos in timeline --}}
+                    @if($shipment->deliveryProofs && $shipment->deliveryProofs->count() > 0)
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <h5 style="color: var(--cor-acento); font-size: 0.85em; margin-bottom: 8px;">
+                            <i class="fas fa-camera"></i> Comprovantes
+                        </h5>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 8px;">
+                            @foreach($shipment->deliveryProofs as $proof)
+                                @foreach($proof->photo_urls as $photoUrl)
+                                    @if($photoUrl)
+                                        <div style="position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--cor-principal); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
+                                            <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : 'N/A' }}', '{{ addslashes($proof->description ?? '') }}')">
+                                        </div>
+                                    @endif
+                                @endforeach
+                            @endforeach
+                        </div>
+                        @foreach($shipment->deliveryProofs as $proof)
+                            @if($proof->delivery_time)
+                                <p style="color: rgba(245, 245, 245, 0.6); font-size: 0.75em; margin-top: 5px;">
+                                    <i class="fas fa-{{ $proof->proof_type === 'pickup' ? 'hand-holding' : 'check-circle' }}"></i> 
+                                    {{ $proof->proof_type === 'pickup' ? 'Coletado' : 'Entregue' }} em {{ $proof->delivery_time->format('d/m/Y H:i') }}
+                                </p>
+                            @endif
+                        @endforeach
+                    </div>
+                    @endif
                 </div>
             </div>
             @endif
@@ -805,6 +833,132 @@
         @endforeach
     </div>
 </div>
+
+<!-- Driver Expenses Section -->
+@if($route->driverExpenses && $route->driverExpenses->count() > 0)
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-receipt"></i>
+        Gastos do Motorista ({{ $route->driverExpenses->count() }})
+    </h3>
+    <div style="display: grid; gap: 15px;">
+        @foreach($route->driverExpenses->sortByDesc('expense_date') as $expense)
+            <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid {{ $expense->status === 'approved' ? '#4caf50' : ($expense->status === 'rejected' ? '#f44336' : '#ffc107') }};">
+                <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 15px;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <h4 style="color: var(--cor-texto-claro); margin: 0; font-size: 1.1em;">
+                                {{ $expense->description }}
+                            </h4>
+                            <span class="status-badge {{ $expense->status }}" style="font-size: 0.85em;">
+                                {{ $expense->status_label }}
+                            </span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;">
+                            <div>
+                                <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Tipo:</span>
+                                <span style="color: var(--cor-texto-claro); font-weight: 600; margin-left: 5px;">
+                                    {{ $expense->expense_type_label }}
+                                </span>
+                            </div>
+                            <div>
+                                <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Data:</span>
+                                <span style="color: var(--cor-texto-claro); font-weight: 600; margin-left: 5px;">
+                                    {{ $expense->expense_date->format('d/m/Y') }}
+                                </span>
+                            </div>
+                            @if($expense->payment_method)
+                            <div>
+                                <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Pagamento:</span>
+                                <span style="color: var(--cor-texto-claro); font-weight: 600; margin-left: 5px;">
+                                    {{ $expense->payment_method }}
+                                </span>
+                            </div>
+                            @endif
+                        </div>
+                        @php
+                            $receiptImages = $expense->receipt_images ?? [];
+                        @endphp
+                        @if(!empty($receiptImages))
+                        <div style="margin-top: 15px;">
+                            <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 8px;">
+                                <i class="fas fa-image"></i> Comprovantes ({{ count($receiptImages) }})
+                            </p>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                @foreach($receiptImages as $index => $imageUrl)
+                                    <div style="width: 60px; height: 60px; border-radius: 6px; overflow: hidden; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; transition: transform 0.2s, border-color 0.2s;" 
+                                         onmouseover="this.style.transform='scale(1.1)'; this.style.borderColor='var(--cor-acento)'" 
+                                         onmouseout="this.style.transform='scale(1)'; this.style.borderColor='rgba(255,255,255,0.1)'"
+                                         onclick="openExpenseImageModalAll(@json($receiptImages), {{ $index }})">
+                                        <img src="{{ $imageUrl }}" alt="Comprovante {{ $index + 1 }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'">
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                    <div style="text-align: right; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;">
+                        <div>
+                            <span style="color: var(--cor-acento); font-weight: 600; font-size: 1.5em;">
+                                R$ {{ number_format($expense->amount, 2, ',', '.') }}
+                            </span>
+                        </div>
+                        <a href="{{ route('driver-expenses.show', $expense) }}" class="btn-secondary" style="padding: 8px 16px; white-space: nowrap;">
+                            <i class="fas fa-eye"></i> Ver Detalhes
+                        </a>
+                    </div>
+                </div>
+                @if($expense->notes)
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <p style="color: rgba(245, 245, 245, 0.8); font-size: 0.9em; margin: 0;">
+                        <i class="fas fa-sticky-note"></i> {{ $expense->notes }}
+                    </p>
+                </div>
+                @endif
+                @if($expense->status === 'rejected' && $expense->rejection_reason)
+                <div style="margin-top: 15px; padding: 12px; background-color: rgba(244, 67, 54, 0.1); border-radius: 5px; border-left: 3px solid #f44336;">
+                    <p style="color: #f44336; font-size: 0.9em; margin: 0;">
+                        <i class="fas fa-times-circle"></i> <strong>Motivo da Rejeição:</strong> {{ $expense->rejection_reason }}
+                    </p>
+                </div>
+                @endif
+            </div>
+        @endforeach
+    </div>
+    @php
+        $totalExpenses = $route->driverExpenses->sum('amount');
+        $approvedExpenses = $route->driverExpenses->where('status', 'approved')->sum('amount');
+        $pendingExpenses = $route->driverExpenses->where('status', 'pending')->sum('amount');
+    @endphp
+    @if($totalExpenses > 0)
+    <div style="margin-top: 25px; padding: 20px; background: linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(33, 150, 243, 0.1) 100%); border-radius: 10px; border-left: 4px solid #2196F3;">
+        <h4 style="color: #2196F3; margin-bottom: 15px; font-size: 1.1em;">
+            <i class="fas fa-calculator"></i> Resumo dos Gastos
+        </h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Total Geral</p>
+                <p style="color: var(--cor-texto-claro); font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ {{ number_format($totalExpenses, 2, ',', '.') }}
+                </p>
+            </div>
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Aprovados</p>
+                <p style="color: #4caf50; font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ {{ number_format($approvedExpenses, 2, ',', '.') }}
+                </p>
+            </div>
+            <div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 0;">Pendentes</p>
+                <p style="color: #ffc107; font-size: 1.3em; font-weight: 600; margin: 5px 0 0 0;">
+                    R$ {{ number_format($pendingExpenses, 2, ',', '.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+    @endif
+</div>
+@endif
 
 <!-- CT-e XML Files Section -->
 @php
@@ -1877,6 +2031,111 @@
                 modal.remove();
             }
         };
+    }
+
+    function openExpenseImageModal(imageUrl, currentIndex, totalImages) {
+        openExpenseImageModalAll([imageUrl], 0);
+    }
+
+    function openExpenseImageModalAll(imageUrls, startIndex) {
+        if (!imageUrls || imageUrls.length === 0) return;
+        
+        let currentIndex = Math.max(0, Math.min(startIndex || 0, imageUrls.length - 1));
+        
+        const modal = document.createElement('div');
+        modal.className = 'image-modal';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        
+        function updateImage() {
+            if (currentIndex < 0 || currentIndex >= imageUrls.length) return;
+            
+            const imageContainer = modal.querySelector('.image-container');
+            if (imageContainer) {
+                imageContainer.innerHTML = `
+                    <img src="${imageUrls[currentIndex]}" alt="Comprovante ${currentIndex + 1}" style="max-width: 100%; max-height: 90vh; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                    <div style="color: white; text-align: center; margin-top: 15px;">
+                        <p style="margin: 0; font-weight: 600;">Comprovante ${currentIndex + 1} de ${imageUrls.length}</p>
+                    </div>
+                `;
+                
+                // Update navigation buttons
+                const prevBtn = modal.querySelector('.nav-btn-prev');
+                const nextBtn = modal.querySelector('.nav-btn-next');
+                if (prevBtn) prevBtn.style.display = imageUrls.length > 1 && currentIndex > 0 ? 'flex' : 'none';
+                if (nextBtn) nextBtn.style.display = imageUrls.length > 1 && currentIndex < imageUrls.length - 1 ? 'flex' : 'none';
+            }
+        }
+        
+        modal.innerHTML = `
+            <div style="position: relative; max-width: 90%; max-height: 90%; text-align: center; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                <button onclick="this.closest('.image-modal').remove(); document.removeEventListener('keydown', handleKeyPress);" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.5em; z-index: 10001;">&times;</button>
+                ${imageUrls.length > 1 ? `
+                    <button class="nav-btn-prev" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.2); color: white; border: none; padding: 15px; border-radius: 50%; cursor: pointer; font-size: 1.5em; z-index: 10001; display: ${currentIndex > 0 ? 'flex' : 'none'}; align-items: center; justify-content: center; width: 50px; height: 50px;">&lt;</button>
+                    <button class="nav-btn-next" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.2); color: white; border: none; padding: 15px; border-radius: 50%; cursor: pointer; font-size: 1.5em; z-index: 10001; display: ${currentIndex < imageUrls.length - 1 ? 'flex' : 'none'}; align-items: center; justify-content: center; width: 50px; height: 50px;">&gt;</button>
+                ` : ''}
+                <div class="image-container"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        updateImage();
+        
+        // Navigation buttons
+        const prevBtn = modal.querySelector('.nav-btn-prev');
+        const nextBtn = modal.querySelector('.nav-btn-next');
+        
+        if (prevBtn) {
+            prevBtn.onclick = function(e) {
+                e.stopPropagation();
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateImage();
+                }
+            };
+        }
+        
+        if (nextBtn) {
+            nextBtn.onclick = function(e) {
+                e.stopPropagation();
+                if (currentIndex < imageUrls.length - 1) {
+                    currentIndex++;
+                    updateImage();
+                }
+            };
+        }
+        
+        // Keyboard navigation
+        const handleKeyPress = (e) => {
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                e.preventDefault();
+                currentIndex--;
+                updateImage();
+            } else if (e.key === 'ArrowRight' && currentIndex < imageUrls.length - 1) {
+                e.preventDefault();
+                currentIndex++;
+                updateImage();
+            } else if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleKeyPress);
+            }
+        };
+        
+        document.addEventListener('keydown', handleKeyPress);
+        
+        modal.onclick = function(e) {
+            if (e.target === modal || (e.target.classList && e.target.classList.contains('image-modal'))) {
+                modal.remove();
+                document.removeEventListener('keydown', handleKeyPress);
+            }
+        };
+        
+        // Prevent image click from closing modal
+        const imgContainer = modal.querySelector('.image-container');
+        if (imgContainer) {
+            imgContainer.onclick = function(e) {
+                e.stopPropagation();
+            };
+        }
     }
 </script>
 @endpush

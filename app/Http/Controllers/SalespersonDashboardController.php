@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Proposal;
 use App\Models\Client;
 use App\Models\FreightTable;
+use App\Models\Shipment;
 use App\Services\FreightCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class SalespersonDashboardController extends Controller
 {
@@ -22,7 +24,7 @@ class SalespersonDashboardController extends Controller
     /**
      * Display salesperson dashboard
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         $tenant = $user->tenant;
@@ -39,12 +41,41 @@ class SalespersonDashboardController extends Controller
                 ->with('error', 'Usuário não é um vendedor cadastrado.');
         }
 
+        // Get period filter from request
+        $period = $request->get('period', 'month');
+        $startDate = $this->getStartDateForPeriod($period);
+        $endDate = $request->get('end_date') ? Carbon::parse($request->get('end_date')) : now();
+
         // Get recent proposals
         $recentProposals = Proposal::where('salesperson_id', $salesperson->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->with('client')
             ->get();
+
+        // Calculate total value and commissions
+        $totalValue = Proposal::where('salesperson_id', $salesperson->id)
+            ->where('status', 'accepted')
+            ->sum('final_value');
+        
+        $commissionRate = $salesperson->commission_rate ?? 0;
+        $totalCommissions = ($totalValue * $commissionRate) / 100;
+
+        // Get period-specific stats
+        $periodProposalsQuery = Proposal::where('salesperson_id', $salesperson->id);
+        if ($startDate) {
+            $periodProposalsQuery->where('created_at', '>=', $startDate);
+        }
+        $periodAcceptedValue = (clone $periodProposalsQuery)
+            ->where('status', 'accepted')
+            ->sum('final_value');
+        $periodCommissions = ($periodAcceptedValue * $commissionRate) / 100;
+
+        // Get clients count
+        $clientsCount = Client::where('salesperson_id', $salesperson->id)
+            ->where('tenant_id', $tenant->id)
+            ->active()
+            ->count();
 
         // Get statistics
         $stats = [
@@ -55,9 +86,12 @@ class SalespersonDashboardController extends Controller
             'accepted_proposals' => Proposal::where('salesperson_id', $salesperson->id)
                 ->where('status', 'accepted')
                 ->count(),
-            'total_value' => Proposal::where('salesperson_id', $salesperson->id)
-                ->where('status', 'accepted')
-                ->sum('final_value'),
+            'total_value' => $totalValue,
+            'total_commissions' => $totalCommissions,
+            'period_value' => $periodAcceptedValue,
+            'period_commissions' => $periodCommissions,
+            'clients_count' => $clientsCount,
+            'commission_rate' => $commissionRate,
         ];
 
         // Get available destinations for calculator
@@ -67,7 +101,44 @@ class SalespersonDashboardController extends Controller
             ->distinct()
             ->get();
 
-        return view('salesperson.dashboard', compact('salesperson', 'recentProposals', 'stats', 'destinations'));
+        // Get clients list
+        $clients = Client::where('salesperson_id', $salesperson->id)
+            ->where('tenant_id', $tenant->id)
+            ->active()
+            ->orderBy('name')
+            ->get();
+
+        // Get proposals by status for charts
+        $proposalsByStatus = Proposal::where('salesperson_id', $salesperson->id)
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        return view('salesperson.dashboard', compact(
+            'salesperson', 
+            'recentProposals', 
+            'stats', 
+            'destinations',
+            'clients',
+            'proposalsByStatus',
+            'period',
+            'startDate',
+            'endDate'
+        ));
+    }
+
+    /**
+     * Get start date for period filter
+     */
+    protected function getStartDateForPeriod(string $period): ?Carbon
+    {
+        return match($period) {
+            'week' => Carbon::now()->startOfWeek(),
+            'month' => Carbon::now()->startOfMonth(),
+            'year' => Carbon::now()->startOfYear(),
+            'all' => null,
+            default => Carbon::now()->startOfMonth(),
+        };
     }
 
     /**

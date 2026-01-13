@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\ClientAddress;
 use App\Models\Salesperson;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,7 +28,7 @@ class ClientController extends Controller
         }
 
         $query = Client::where('tenant_id', $tenant->id)
-            ->with(['salesperson', 'addresses']);
+            ->with(['salesperson', 'addresses', 'user']);
 
         // Filters
         if ($request->filled('search')) {
@@ -83,13 +84,19 @@ class ClientController extends Controller
             ->orderBy('name')
             ->get();
 
+        $users = User::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->whereDoesntHave('client')
+            ->orderBy('name')
+            ->get();
+
         $states = [
             'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
             'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
             'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
         ];
 
-        return view('clients.create', compact('salespeople', 'states'));
+        return view('clients.create', compact('salespeople', 'users', 'states'));
     }
 
     /**
@@ -104,6 +111,7 @@ class ClientController extends Controller
             'cnpj' => 'nullable|string|max:18',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
+            'user_id' => 'nullable|exists:users,id',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|size:2',
@@ -168,6 +176,15 @@ class ClientController extends Controller
             ->orderBy('name')
             ->get();
 
+        $users = User::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->where(function($query) use ($client) {
+                $query->whereDoesntHave('client')
+                      ->orWhere('id', $client->user_id);
+            })
+            ->orderBy('name')
+            ->get();
+
         $states = [
             'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
             'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
@@ -176,7 +193,7 @@ class ClientController extends Controller
 
         $client->load('addresses');
 
-        return view('clients.edit', compact('client', 'salespeople', 'states'));
+        return view('clients.edit', compact('client', 'salespeople', 'users', 'states'));
     }
 
     /**
@@ -191,6 +208,7 @@ class ClientController extends Controller
             'cnpj' => 'nullable|string|max:18',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
+            'user_id' => 'nullable|exists:users,id',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|size:2',

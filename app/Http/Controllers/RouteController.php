@@ -1210,7 +1210,7 @@ class RouteController extends Controller
         try {
             $this->authorizeAccess($route);
 
-            $route->load(['branch', 'driver', 'vehicle', 'shipments.senderClient', 'shipments.receiverClient', 'shipments.fiscalDocuments', 'shipments.deliveryProofs']);
+            $route->load(['branch', 'driver', 'vehicle', 'shipments.senderClient', 'shipments.receiverClient', 'shipments.fiscalDocuments', 'shipments.deliveryProofs', 'driverExpenses.driver']);
             
             // Recalculate metrics if not set and route is not locked
             // If route is locked, use selected route option data

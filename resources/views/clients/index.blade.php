@@ -221,10 +221,21 @@
                 @endif
             </div>
 
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center;">
-                <span class="status-badge" style="background-color: {{ $client->is_active ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $client->is_active ? '#4caf50' : '#f44336' }};">
-                    {{ $client->is_active ? 'Ativo' : 'Inativo' }}
-                </span>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <span class="status-badge" style="background-color: {{ $client->is_active ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $client->is_active ? '#4caf50' : '#f44336' }};">
+                        {{ $client->is_active ? 'Ativo' : 'Inativo' }}
+                    </span>
+                    @if($client->user_id)
+                        <span class="status-badge" style="background-color: rgba(33, 150, 243, 0.2); color: #2196F3;" title="Cliente pode fazer login no dashboard">
+                            <i class="fas fa-sign-in-alt"></i> Login Ativo
+                        </span>
+                    @else
+                        <span class="status-badge" style="background-color: rgba(158, 158, 158, 0.2); color: #9e9e9e;" title="Cliente não pode fazer login - vincule um usuário">
+                            <i class="fas fa-lock"></i> Sem Login
+                        </span>
+                    @endif
+                </div>
                 @if($client->addresses->count() > 0)
                     <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
                         {{ $client->addresses->count() }} {{ $client->addresses->count() === 1 ? 'endereço' : 'endereços' }}

@@ -126,6 +126,46 @@
             <label><input type="checkbox" name="is_active" value="1" {{ old('is_active', $driver->is_active) ? 'checked' : '' }}> Ativo</label>
         </div>
     </div>
+    
+    <!-- Documents Section -->
+    <div style="background-color: var(--cor-principal); padding: 25px; border-radius: 10px; margin-top: 30px; margin-bottom: 30px;">
+        <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+            <i class="fas fa-file-alt"></i> Documentos do Motorista
+        </h3>
+        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 20px;">
+            Você pode anexar fotos da CNH, comprovantes de endereço, certificados de cursos, etc.
+        </p>
+        
+        <div id="documents-container">
+            <div class="document-upload-item" style="margin-bottom: 15px; padding: 15px; background-color: var(--cor-secundaria); border-radius: 8px;">
+                <div style="display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 15px; align-items: end;">
+                    <div>
+                        <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Tipo de Documento</label>
+                        <select name="document_types[0]" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                            <option value="cnh">CNH (Carteira de Motorista)</option>
+                            <option value="address_proof">Comprovante de Endereço</option>
+                            <option value="certificate">Certificado de Curso</option>
+                            <option value="document">Outro Documento</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Arquivo (imagem ou PDF)</label>
+                        <input type="file" name="documents[]" accept="image/jpeg,image/png,image/jpg,application/pdf" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                    </div>
+                    <div>
+                        <button type="button" class="btn-secondary" onclick="removeDocumentItem(this)" style="background-color: #f44336;">
+                            <i class="fas fa-trash"></i> Remover
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button type="button" class="btn-secondary" onclick="addDocumentItem()" style="margin-top: 15px;">
+            <i class="fas fa-plus"></i> Adicionar Documento
+        </button>
+    </div>
+    
     <div style="display: flex; gap: 15px; justify-content: flex-end;">
         <a href="{{ route('drivers.show', $driver) }}" class="btn-secondary">Cancelar</a>
         <button type="submit" class="btn-primary">Atualizar Motorista</button>
@@ -305,6 +345,47 @@
             closeCameraModal();
         }
     });
+    
+    // Document upload management
+    let documentIndex = 1;
+    
+    function addDocumentItem() {
+        const container = document.getElementById('documents-container');
+        const newItem = document.createElement('div');
+        newItem.className = 'document-upload-item';
+        newItem.style.cssText = 'margin-bottom: 15px; padding: 15px; background-color: var(--cor-secundaria); border-radius: 8px;';
+        newItem.innerHTML = `
+            <div style="display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 15px; align-items: end;">
+                <div>
+                    <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Tipo de Documento</label>
+                    <select name="document_types[${documentIndex}]" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <option value="cnh">CNH (Carteira de Motorista)</option>
+                        <option value="address_proof">Comprovante de Endereço</option>
+                        <option value="certificate">Certificado de Curso</option>
+                        <option value="document">Outro Documento</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Arquivo (imagem ou PDF)</label>
+                    <input type="file" name="documents[]" accept="image/jpeg,image/png,image/jpg,application/pdf" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                </div>
+                <div>
+                    <button type="button" class="btn-secondary" onclick="removeDocumentItem(this)" style="background-color: #f44336;">
+                        <i class="fas fa-trash"></i> Remover
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newItem);
+        documentIndex++;
+    }
+    
+    function removeDocumentItem(button) {
+        const item = button.closest('.document-upload-item');
+        if (item) {
+            item.remove();
+        }
+    }
 </script>
 @endpush
 @endsection

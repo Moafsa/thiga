@@ -8,7 +8,9 @@ use App\Models\DriverPhoto;
 use App\Models\DriverExpense;
 use App\Models\LocationTracking;
 use App\Models\Vehicle;
+use App\Models\DriverRouteHistory;
 use App\Services\DriverPhotoService;
+use App\Services\RouteHistoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -650,18 +652,26 @@ class DriverDashboardController extends Controller
                 return response()->json(['error' => 'Shipment not found'], 404);
             }
 
+            // Find shipment - check both direct driver_id and route's driver_id
             $shipment = \App\Models\Shipment::where('id', $shipmentId)
-                ->where('driver_id', $driver->id)
+                ->where(function($query) use ($driver) {
+                    $query->where('driver_id', $driver->id)
+                          ->orWhereHas('route', function($q) use ($driver) {
+                              $q->where('driver_id', $driver->id);
+                          });
+                })
                 ->first();
 
             if (!$shipment) {
-                // Check shipment's actual driver_id
-                $actualShipment = \App\Models\Shipment::where('id', $shipmentId)->first();
+                // Check shipment's actual driver_id and route
+                $actualShipment = \App\Models\Shipment::where('id', $shipmentId)->with('route')->first();
                 Log::warning('Shipment not found for driver', [
                     'shipment_id' => $shipmentId,
                     'driver_id' => $driver->id,
                     'user_id' => $user->id,
                     'shipment_driver_id' => $actualShipment ? $actualShipment->driver_id : null,
+                    'route_driver_id' => $actualShipment && $actualShipment->route ? $actualShipment->route->driver_id : null,
+                    'route_id' => $actualShipment ? $actualShipment->route_id : null,
                 ]);
                 return response()->json(['error' => 'Shipment not found or does not belong to this driver'], 404);
             }
@@ -671,72 +681,51 @@ class DriverDashboardController extends Controller
             if ($request->hasFile('photo')) {
                 try {
                     $photo = $request->file('photo');
-                    Log::info('Photo file received', [
+                    
+                    // Optimize image before upload (reduce file size significantly)
+                    $optimizedData = $this->optimizeImage($photo, 1920, 1920, 85);
+                    $originalSize = $photo->getSize();
+                    $optimizedSize = strlen($optimizedData);
+                    
+                    Log::info('Photo file received and optimized', [
                         'shipment_id' => $shipmentId,
                         'original_name' => $photo->getClientOriginalName(),
-                        'size' => $photo->getSize(),
+                        'original_size' => $originalSize,
+                        'optimized_size' => $optimizedSize,
+                        'reduction' => round((1 - $optimizedSize / $originalSize) * 100, 1) . '%',
                         'mime_type' => $photo->getMimeType(),
                     ]);
                     
-                    $extension = $photo->getClientOriginalExtension();
-                    $filename = 'proof_' . time() . '_' . uniqid() . '.' . $extension;
+                    $filename = 'proof_' . time() . '_' . uniqid() . '.jpg'; // Always use jpg after optimization
                     $path = "delivery_proofs/{$shipment->tenant_id}/{$shipment->id}/{$filename}";
                     
-                    // Get file contents
-                    $fileContents = file_get_contents($photo->getRealPath());
-                    Log::debug('File contents read', [
-                        'path' => $path,
-                        'size' => strlen($fileContents),
-                    ]);
-                    
-                    // Check MinIO configuration
+                    // Check MinIO configuration once
                     $minioConfig = config('filesystems.disks.minio');
-                    Log::debug('MinIO config check', [
-                        'has_config' => !empty($minioConfig),
-                        'has_bucket' => isset($minioConfig['bucket']),
-                        'has_endpoint' => isset($minioConfig['endpoint']),
+                    if (empty($minioConfig) || !isset($minioConfig['bucket']) || (!isset($minioConfig['endpoint']) && !isset($minioConfig['url']))) {
+                        Log::error('MinIO configuration is missing or incomplete');
+                        throw new \Exception('MinIO não está configurado corretamente. Verifique as configurações do sistema.');
+                    }
+                    
+                    // Upload optimized image to MinIO directly
+                    Storage::disk('minio')->put($path, $optimizedData, 'public');
+                    
+                    // Don't verify with exists() - trust that put() worked and avoid extra request
+                    // If there's an error, it will throw an exception
+                    
+                    Log::info('Photo uploaded to MinIO successfully', [
+                        'path' => $path,
+                        'original_size' => $originalSize,
+                        'optimized_size' => $optimizedSize,
                     ]);
                     
-                    // Try MinIO first, fallback to public
-                    $disk = 'minio';
-                    $uploaded = false;
-                    try {
-                        Log::info('Attempting MinIO upload', ['path' => $path]);
-                        Storage::disk('minio')->put($path, $fileContents);
-                        $uploaded = true;
-                        Log::info('Photo uploaded to MinIO successfully', [
-                            'path' => $path,
-                            'disk' => 'minio',
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::warning('MinIO upload failed, using public disk fallback', [
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString(),
-                        ]);
-                        $disk = 'public';
-                        try {
-                            Storage::disk('public')->put($path, $fileContents);
-                            $uploaded = true;
-                            Log::info('Photo uploaded to public disk successfully', [
-                                'path' => $path,
-                                'disk' => 'public',
-                            ]);
-                        } catch (\Exception $publicException) {
-                            Log::error('Public disk upload also failed', [
-                                'error' => $publicException->getMessage(),
-                                'trace' => $publicException->getTraceAsString(),
-                            ]);
-                            throw $publicException;
-                        }
-                    }
-                    
-                    if ($uploaded) {
-                        $photoPath = $path;
-                        Log::info('Photo upload completed', [
-                            'path' => $photoPath,
-                            'disk' => $disk,
-                        ]);
-                    }
+                    $photoPath = $path;
+                } catch (\Aws\S3\Exception\S3Exception $e) {
+                    Log::error('S3/MinIO exception during upload', [
+                        'shipment_id' => $shipmentId,
+                        'error' => $e->getMessage(),
+                        'code' => $e->getAwsErrorCode(),
+                    ]);
+                    return response()->json(['error' => 'Erro ao conectar com MinIO: ' . $e->getMessage()], 500);
                 } catch (\Exception $e) {
                     Log::error('Error uploading delivery proof photo', [
                         'shipment_id' => $shipmentId,
@@ -761,47 +750,136 @@ class DriverDashboardController extends Controller
                 $updateData['notes'] = $request->notes;
             }
 
-            if ($request->status === 'picked_up') {
-                $updateData['picked_up_at'] = now();
+            // Check if columns exist before trying to update them
+            $shipmentTable = $shipment->getTable();
+            if (\Illuminate\Support\Facades\Schema::hasColumn($shipmentTable, 'picked_up_at')) {
+                if ($request->status === 'picked_up') {
+                    $updateData['picked_up_at'] = now();
+                }
             }
 
-            if ($request->status === 'delivered') {
-                $updateData['delivered_at'] = now();
+            if (\Illuminate\Support\Facades\Schema::hasColumn($shipmentTable, 'delivered_at')) {
+                if ($request->status === 'delivered') {
+                    $updateData['delivered_at'] = now();
+                }
             }
 
-            $shipment->update($updateData);
-
-            // Create delivery proof if photo or location is provided
-            if ($photoPath || $request->notes || ($request->latitude && $request->longitude)) {
-                $proofData = [
-                    'tenant_id' => $shipment->tenant_id,
+            // Update shipment status first
+            try {
+                $shipment->update($updateData);
+                Log::info('Shipment status updated', [
                     'shipment_id' => $shipment->id,
-                    'driver_id' => $driver->id,
-                    'proof_type' => $request->status === 'delivered' ? 'delivery' : ($request->status === 'picked_up' ? 'pickup' : 'other'),
-                    'description' => $request->notes,
-                    'status' => 'pending',
-                    'delivery_time' => now(),
-                ];
+                    'status' => $request->status,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error updating shipment status', [
+                    'shipment_id' => $shipment->id,
+                    'update_data' => $updateData,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e; // Re-throw as this is critical
+            }
 
-                // Always try to get location from shipment if not provided
-                $latitude = $request->latitude ?? $shipment->delivery_latitude ?? $shipment->pickup_latitude ?? null;
-                $longitude = $request->longitude ?? $shipment->delivery_longitude ?? $shipment->pickup_longitude ?? null;
+            // Create delivery proof if photo or notes is provided
+            if ($photoPath || $request->notes) {
+                try {
+                    $proofData = [
+                        'tenant_id' => $shipment->tenant_id,
+                        'shipment_id' => $shipment->id,
+                        'driver_id' => $driver->id,
+                        'proof_type' => $request->status === 'delivered' ? 'delivery' : ($request->status === 'picked_up' ? 'pickup' : 'other'),
+                        'description' => $request->notes ?? null,
+                        'status' => 'pending',
+                        'delivery_time' => now(),
+                    ];
 
-                if ($latitude && $longitude) {
-                    $proofData['latitude'] = $latitude;
-                    $proofData['longitude'] = $longitude;
+                    // Always try to get location from request first, then from shipment
+                    // Latitude and longitude are required in database, so use shipment coordinates or 0,0 as fallback
+                    $latitude = null;
+                    $longitude = null;
+                    
+                    if ($request->has('latitude') && $request->has('longitude') && $request->latitude && $request->longitude) {
+                        $latitude = (float) $request->latitude;
+                        $longitude = (float) $request->longitude;
+                    } elseif ($shipment->delivery_latitude && $shipment->delivery_longitude) {
+                        $latitude = (float) $shipment->delivery_latitude;
+                        $longitude = (float) $shipment->delivery_longitude;
+                    } elseif ($shipment->pickup_latitude && $shipment->pickup_longitude) {
+                        $latitude = (float) $shipment->pickup_latitude;
+                        $longitude = (float) $shipment->pickup_longitude;
+                    }
+
+                    // Set location (required by database, use 0,0 if not available)
+                    // Ensure values are valid decimals for database
+                    $proofData['latitude'] = ($latitude !== null && $latitude != 0) ? number_format((float)$latitude, 8, '.', '') : '0.00000000';
+                    $proofData['longitude'] = ($longitude !== null && $longitude != 0) ? number_format((float)$longitude, 8, '.', '') : '0.00000000';
+                    
                     // Try to get address from shipment
-                    $proofData['address'] = $shipment->delivery_address ?? $shipment->pickup_address;
-                    $proofData['city'] = $shipment->delivery_city ?? $shipment->pickup_city;
-                    $proofData['state'] = $shipment->delivery_state ?? $shipment->pickup_state;
-                }
+                    if ($shipment->delivery_address || $shipment->pickup_address) {
+                        $proofData['address'] = $shipment->delivery_address ?? $shipment->pickup_address;
+                        $proofData['city'] = $shipment->delivery_city ?? $shipment->pickup_city;
+                        $proofData['state'] = $shipment->delivery_state ?? $shipment->pickup_state;
+                    }
 
-                if ($photoPath) {
-                    // Store path, URL will be generated by accessor
-                    $proofData['photos'] = [$photoPath];
-                }
+                    if ($photoPath) {
+                        // Store path, URL will be generated by accessor
+                        // Ensure photos is always an array
+                        $proofData['photos'] = is_array($photoPath) ? $photoPath : [$photoPath];
+                        Log::info('Delivery proof photo path stored', [
+                            'shipment_id' => $shipment->id,
+                            'photo_path' => $photoPath,
+                            'photos_array' => $proofData['photos'],
+                        ]);
+                    } else {
+                        // Ensure photos is empty array if no photo
+                        $proofData['photos'] = [];
+                    }
 
-                \App\Models\DeliveryProof::create($proofData);
+                    Log::info('Attempting to create delivery proof', [
+                        'shipment_id' => $shipment->id,
+                        'proof_data' => array_merge($proofData, ['photos' => $proofData['photos'] ?? []]),
+                    ]);
+
+                    $deliveryProof = \App\Models\DeliveryProof::create($proofData);
+                    
+                    // Reload to get fresh data with accessors
+                    $deliveryProof->refresh();
+                    
+                    // Test photo_urls accessor (wrap in try-catch to avoid errors if MinIO is not accessible)
+                    $photoUrls = [];
+                    try {
+                        $photoUrls = $deliveryProof->photo_urls;
+                    } catch (\Exception $e) {
+                        Log::warning('Error getting photo URLs from delivery proof accessor', [
+                            'proof_id' => $deliveryProof->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $photoUrls = [];
+                    }
+                    
+                    Log::info('Delivery proof created successfully', [
+                        'proof_id' => $deliveryProof->id,
+                        'shipment_id' => $shipment->id,
+                        'has_photo' => !empty($photoPath),
+                        'photo_path' => $photoPath ?? null,
+                        'photos_saved' => $deliveryProof->photos ?? [],
+                        'photo_urls_count' => count($photoUrls),
+                        'latitude' => $proofData['latitude'],
+                        'longitude' => $proofData['longitude'],
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Error creating delivery proof', [
+                        'shipment_id' => $shipment->id,
+                        'driver_id' => $driver->id,
+                        'proof_data' => $proofData ?? null,
+                        'error' => $e->getMessage(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    // Don't fail the entire request if proof creation fails, but log it
+                    // The shipment status update was successful, so we continue
+                }
             }
 
             // Return updated shipment with proofs
@@ -828,24 +906,168 @@ class DriverDashboardController extends Controller
                 ]);
             }
 
+            // Reload shipment with fresh delivery proofs for response
+            $shipment->refresh();
+            $shipment->load(['deliveryProofs' => function($query) {
+                $query->orderBy('delivery_time', 'desc');
+            }]);
+            
+            // Get proof photos for response (wrap in try-catch to avoid errors if MinIO is not accessible)
+            $proofPhotos = [];
+            foreach ($shipment->deliveryProofs as $proof) {
+                try {
+                    $photoUrls = $proof->photo_urls ?? [];
+                    foreach ($photoUrls as $photoUrl) {
+                        if ($photoUrl) {
+                            $proofPhotos[] = $photoUrl;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Error getting photo URLs for delivery proof in response', [
+                        'proof_id' => $proof->id ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Continue with next proof
+                    continue;
+                }
+            }
+            
+            Log::info('Shipment status updated successfully', [
+                'shipment_id' => $shipment->id,
+                'status' => $shipment->status,
+                'proofs_count' => $shipment->deliveryProofs->count(),
+                'photos_count' => count($proofPhotos),
+            ]);
+
             return response()->json([
                 'message' => 'Status atualizado com sucesso!',
                 'shipment' => [
                     'id' => $shipment->id,
                     'status' => $shipment->status,
+                    'proofs_count' => $shipment->deliveryProofs->count(),
+                    'has_photos' => count($proofPhotos) > 0,
                 ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error updating shipment status', [
-                'shipment_id' => $shipmentId,
+                'shipment_id' => $shipmentId ?? null,
+                'driver_id' => isset($driver) && $driver ? $driver->id : null,
+                'user_id' => isset($user) && $user ? $user->id : null,
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
             
+            // Return more specific error message
+            $errorMessage = 'Ocorreu um erro ao processar a solicitação.';
+            if (str_contains($e->getMessage(), 'SQLSTATE') || str_contains($e->getMessage(), 'Integrity constraint')) {
+                $errorMessage = 'Erro ao salvar os dados no banco de dados. Verifique os logs para mais detalhes.';
+            } elseif (str_contains($e->getMessage(), 'Storage') || str_contains($e->getMessage(), 'MinIO')) {
+                $errorMessage = 'Erro ao salvar a foto no MinIO. Verifique a configuração do armazenamento.';
+            } elseif (str_contains($e->getMessage(), 'not found')) {
+                $errorMessage = 'Entregue não encontrada ou não pertence a este motorista.';
+            } else {
+                $errorMessage = $e->getMessage();
+            }
+            
             return response()->json([
                 'error' => 'Erro ao atualizar status',
-                'message' => 'Ocorreu um erro ao processar a solicitação. Tente novamente.',
+                'message' => $errorMessage,
             ], 500);
+        }
+    }
+
+    /**
+     * Optimize image: resize and compress
+     * 
+     * @param \Illuminate\Http\UploadedFile $image
+     * @param int $maxWidth Maximum width
+     * @param int $maxHeight Maximum height
+     * @param int $quality JPEG quality (1-100)
+     * @return string Binary image data
+     */
+    private function optimizeImage(\Illuminate\Http\UploadedFile $image, int $maxWidth = 1920, int $maxHeight = 1920, int $quality = 85): string
+    {
+        try {
+            $mimeType = $image->getMimeType();
+            $tempPath = $image->getRealPath();
+            
+            // Create image resource from file
+            switch ($mimeType) {
+                case 'image/jpeg':
+                case 'image/jpg':
+                    $source = imagecreatefromjpeg($tempPath);
+                    break;
+                case 'image/png':
+                    $source = imagecreatefrompng($tempPath);
+                    break;
+                case 'image/gif':
+                    $source = imagecreatefromgif($tempPath);
+                    break;
+                case 'image/webp':
+                    if (function_exists('imagecreatefromwebp')) {
+                        $source = imagecreatefromwebp($tempPath);
+                    } else {
+                        throw new \Exception('WebP não é suportado neste servidor');
+                    }
+                    break;
+                default:
+                    throw new \InvalidArgumentException('Tipo de imagem não suportado: ' . $mimeType);
+            }
+            
+            if (!$source) {
+                throw new \RuntimeException('Falha ao criar recurso de imagem');
+            }
+            
+            // Get original dimensions
+            $originalWidth = imagesx($source);
+            $originalHeight = imagesy($source);
+            
+            // Only resize if image is larger than max dimensions
+            if ($originalWidth <= $maxWidth && $originalHeight <= $maxHeight) {
+                // Image is already within limits, just compress
+                ob_start();
+                imagejpeg($source, null, $quality);
+                $optimizedData = ob_get_clean();
+                imagedestroy($source);
+                return $optimizedData;
+            }
+            
+            // Calculate new dimensions maintaining aspect ratio
+            $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
+            $newWidth = (int)($originalWidth * $ratio);
+            $newHeight = (int)($originalHeight * $ratio);
+            
+            // Create resized image
+            $resized = imagecreatetruecolor($newWidth, $newHeight);
+            
+            // Preserve transparency for PNG and GIF
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+            imagefill($resized, 0, 0, $transparent);
+            
+            // Resize
+            imagecopyresampled($resized, $source, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+            
+            // Output to string as JPEG
+            ob_start();
+            imagejpeg($resized, null, $quality);
+            $optimizedData = ob_get_clean();
+            
+            // Clean up
+            imagedestroy($source);
+            imagedestroy($resized);
+            
+            return $optimizedData;
+        } catch (\Exception $e) {
+            Log::warning('Image optimization failed, using original', [
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Fallback: return original file contents
+            return file_get_contents($image->getRealPath());
         }
     }
 
@@ -1363,6 +1585,105 @@ class DriverDashboardController extends Controller
                 'error' => 'Error finishing route: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get route history for driver (AJAX endpoint)
+     */
+    public function getRouteHistory(Request $request)
+    {
+        $user = Auth::user();
+        $tenant = $user->tenant;
+
+        if (!$tenant) {
+            return response()->json(['error' => 'Tenant not found'], 404);
+        }
+
+        $driver = Driver::where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$driver) {
+            return response()->json(['error' => 'Driver not found'], 404);
+        }
+
+        $limit = $request->get('limit', 20);
+        $offset = $request->get('offset', 0);
+        $period = $request->get('period', 'all'); // all, week, month, year
+
+        $query = DriverRouteHistory::where('driver_id', $driver->id)
+            ->where('status', 'completed')
+            ->orderBy('completed_at', 'desc');
+
+        // Apply period filter
+        if ($period !== 'all') {
+            $startDate = $this->getStartDateForPeriod($period);
+            if ($startDate) {
+                $query->where('completed_at', '>=', $startDate);
+            }
+        }
+
+        $total = $query->count();
+        $routes = $query->skip($offset)->take($limit)->get();
+
+        return response()->json([
+            'routes' => $routes->map(function ($route) {
+                return [
+                    'id' => $route->id,
+                    'route_id' => $route->route_id,
+                    'route_name' => $route->route_name,
+                    'completed_at' => $route->completed_at->toIso8601String(),
+                    'formatted_date' => $route->completed_at->format('d/m/Y H:i'),
+                    'distance' => $route->formatted_distance,
+                    'duration' => $route->formatted_duration,
+                    'total_shipments' => $route->total_shipments,
+                    'delivered_shipments' => $route->delivered_shipments,
+                    'efficiency_score' => $route->efficiency_score,
+                    'efficiency_badge_color' => $route->efficiency_badge_color,
+                    'success_rate' => $route->success_rate,
+                    'achievements' => $route->achievement_badges,
+                    'total_revenue' => $route->total_revenue,
+                    'net_profit' => $route->net_profit,
+                ];
+            }),
+            'total' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
+        ]);
+    }
+
+    /**
+     * Get driver statistics (AJAX endpoint)
+     */
+    public function getDriverStatistics(Request $request)
+    {
+        $user = Auth::user();
+        $tenant = $user->tenant;
+
+        if (!$tenant) {
+            return response()->json(['error' => 'Tenant not found'], 404);
+        }
+
+        $driver = Driver::where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$driver) {
+            return response()->json(['error' => 'Driver not found'], 404);
+        }
+
+        $period = $request->get('period', 'all');
+        $startDate = $this->getStartDateForPeriod($period);
+        $endDate = $request->get('end_date') ? Carbon::parse($request->get('end_date')) : now();
+
+        $routeHistoryService = app(RouteHistoryService::class);
+        $stats = $routeHistoryService->getDriverStatistics(
+            $driver->id,
+            $startDate,
+            $endDate
+        );
+
+        return response()->json($stats);
     }
 }
 

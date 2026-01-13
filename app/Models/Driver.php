@@ -156,6 +156,27 @@ class Driver extends Model
                 // Ignore errors when re-enabling
             }
         });
+        
+        static::deleting(function (Driver $driver) {
+            // Disable activity log if table doesn't exist
+            try {
+                if (!\Schema::hasTable('activity_log')) {
+                    activity()->disableLogging();
+                }
+            } catch (\Exception $e) {
+                // If we can't check the table, disable logging to be safe
+                activity()->disableLogging();
+            }
+        });
+        
+        static::deleted(function (Driver $driver) {
+            // Re-enable logging after delete
+            try {
+                activity()->enableLogging();
+            } catch (\Exception $e) {
+                // Ignore errors when re-enabling
+            }
+        });
     }
 
     public static function normalizePhone(?string $phone): ?string
@@ -325,6 +346,22 @@ class Driver extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(DriverTenantAssignment::class);
+    }
+
+    /**
+     * Get route history for this driver
+     */
+    public function routeHistory(): HasMany
+    {
+        return $this->hasMany(DriverRouteHistory::class)->orderBy('completed_at', 'desc');
+    }
+
+    /**
+     * Get completed routes history
+     */
+    public function completedRouteHistory(): HasMany
+    {
+        return $this->routeHistory()->where('status', 'completed');
     }
 
     public function getStatusLabelAttribute(): string

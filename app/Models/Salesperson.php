@@ -66,4 +66,41 @@ class Salesperson extends Model
     {
         return number_format($this->max_discount_percentage, 2, ',', '.') . '%';
     }
+
+    public static function normalizePhone(?string $phone): ?string
+    {
+        if (!$phone) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', $phone);
+
+        if (!$digits) {
+            return null;
+        }
+
+        if (str_starts_with($digits, '55') && strlen($digits) >= 12) {
+            return $digits;
+        }
+
+        if (strlen($digits) >= 10 && strlen($digits) <= 11) {
+            return '55' . $digits;
+        }
+
+        return $digits;
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Salesperson $salesperson) {
+            if ($salesperson->phone) {
+                $salesperson->phone_e164 = self::normalizePhone($salesperson->phone);
+            }
+        });
+    }
+
+    public function scopeByPhoneE164($query, string $phone)
+    {
+        return $query->where('phone_e164', $phone);
+    }
 }

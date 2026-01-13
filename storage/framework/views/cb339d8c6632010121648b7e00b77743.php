@@ -657,6 +657,287 @@
     .nav-settings-toggle:hover {
         background: rgba(255, 255, 255, 0.1);
     }
+
+    /* Route History Styles */
+    .route-history-section {
+        background-color: var(--cor-secundaria);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .route-history-header {
+        margin-bottom: 25px;
+    }
+
+    .route-history-header h2 {
+        color: var(--cor-acento);
+        font-size: 1.4em;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .history-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .stat-item {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.85em;
+        color: rgba(245, 245, 245, 0.7);
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.5em;
+        font-weight: 700;
+        color: var(--cor-acento);
+    }
+
+    /* Upcoming Routes Styles */
+    .upcoming-routes-section {
+        margin-bottom: 30px;
+        padding-bottom: 25px;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .upcoming-route-card {
+        background: rgba(255, 107, 53, 0.1);
+        border: 2px solid rgba(255, 107, 53, 0.3);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .upcoming-route-card:hover {
+        background: rgba(255, 107, 53, 0.15);
+        border-color: var(--cor-acento);
+        transform: translateX(5px);
+    }
+
+    .upcoming-route-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 10px;
+    }
+
+    .upcoming-route-header h4 {
+        color: var(--cor-acento);
+        font-size: 1.1em;
+        margin: 0;
+    }
+
+    .upcoming-route-info {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(245, 245, 245, 0.8);
+        font-size: 0.9em;
+    }
+
+    .info-item i {
+        color: var(--cor-acento);
+    }
+
+    /* Timeline Styles */
+    .timeline-container {
+        margin-top: 25px;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, var(--cor-acento), rgba(255, 107, 53, 0.3));
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -37px;
+        top: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.9em;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        z-index: 2;
+    }
+
+    .timeline-content {
+        margin-left: 0;
+    }
+
+    .route-history-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 20px;
+        border-left: 4px solid var(--cor-acento);
+        transition: all 0.3s ease;
+    }
+
+    .route-history-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .route-history-header-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 15px;
+    }
+
+    .route-history-header-card h4 {
+        color: var(--cor-texto-claro);
+        font-size: 1.2em;
+        margin: 0 0 5px 0;
+    }
+
+    .route-date {
+        color: rgba(245, 245, 245, 0.7);
+        font-size: 0.9em;
+        margin: 0;
+    }
+
+    .efficiency-badge {
+        padding: 10px 15px;
+        border-radius: 10px;
+        text-align: center;
+        min-width: 80px;
+    }
+
+    .efficiency-badge span {
+        display: block;
+        color: var(--cor-texto-claro);
+    }
+
+    .route-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin: 15px 0;
+    }
+
+    .route-stat {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+    }
+
+    .route-stat i {
+        color: var(--cor-acento);
+        font-size: 1.2em;
+    }
+
+    .route-stat .stat-label {
+        display: block;
+        font-size: 0.75em;
+        color: rgba(245, 245, 245, 0.6);
+        margin-bottom: 3px;
+    }
+
+    .route-stat .stat-value {
+        display: block;
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--cor-texto-claro);
+    }
+
+    .achievements-section {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .achievements-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .achievement-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        color: var(--cor-texto-claro);
+        font-weight: 500;
+    }
+
+    .achievement-badge i {
+        font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+        .history-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .route-stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .route-history-header-card {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .timeline {
+            padding-left: 20px;
+        }
+
+        .timeline-marker {
+            left: -27px;
+            width: 24px;
+            height: 24px;
+            font-size: 0.8em;
+        }
+    }
 </style>
 <?php $__env->stopPush(); ?>
 
@@ -987,6 +1268,177 @@
     <?php endif; ?>
 </div>
 
+<!-- Route History Timeline -->
+<div class="route-history-section">
+    <div class="route-history-header">
+        <h2><i class="fas fa-history"></i> Histórico de Rotas</h2>
+        <div class="history-stats">
+            <div class="stat-item">
+                <span class="stat-label">Total de Rotas</span>
+                <span class="stat-value"><?php echo e($driverStats['total_routes'] ?? 0); ?></span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Distância Total</span>
+                <span class="stat-value"><?php echo e(number_format($driverStats['total_distance_km'] ?? 0, 0, ',', '.')); ?> km</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Eficiência Média</span>
+                <span class="stat-value" style="color: <?php echo e(($driverStats['average_efficiency'] ?? 0) >= 75 ? '#4caf50' : (($driverStats['average_efficiency'] ?? 0) >= 60 ? '#ffc107' : '#f44336')); ?>">
+                    <?php echo e(number_format($driverStats['average_efficiency'] ?? 0, 1)); ?>%
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Routes -->
+    <?php if(isset($upcomingRoutes) && $upcomingRoutes->count() > 0): ?>
+    <div class="upcoming-routes-section">
+        <h3 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1.1em;">
+            <i class="fas fa-calendar-check"></i> Próximas Rotas
+        </h3>
+        <?php $__currentLoopData = $upcomingRoutes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $upcomingRoute): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <div class="upcoming-route-card">
+            <div class="upcoming-route-header">
+                <div>
+                    <h4><?php echo e($upcomingRoute->name); ?></h4>
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 5px 0;">
+                        <i class="fas fa-calendar"></i> <?php echo e($upcomingRoute->scheduled_date->format('d/m/Y')); ?>
+
+                        <?php if($upcomingRoute->start_time): ?>
+                        <span style="margin-left: 10px;">
+                            <i class="fas fa-clock"></i> <?php echo e(\Carbon\Carbon::parse($upcomingRoute->start_time)->format('H:i')); ?>
+
+                        </span>
+                        <?php endif; ?>
+                    </p>
+                </div>
+                <span class="status-badge pending"><?php echo e($upcomingRoute->status_label); ?></span>
+            </div>
+            <div class="upcoming-route-info">
+                <div class="info-item">
+                    <i class="fas fa-box"></i>
+                    <span><?php echo e($upcomingRoute->shipments->count()); ?> entregas</span>
+                </div>
+                <?php if($upcomingRoute->estimated_distance): ?>
+                <div class="info-item">
+                    <i class="fas fa-route"></i>
+                    <span><?php echo e(number_format($upcomingRoute->estimated_distance, 1, ',', '.')); ?> km</span>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Completed Routes Timeline -->
+    <?php if(isset($routeHistory) && $routeHistory->count() > 0): ?>
+    <div class="timeline-container">
+        <h3 style="color: var(--cor-acento); margin-bottom: 20px; font-size: 1.1em;">
+            <i class="fas fa-check-circle"></i> Rotas Concluídas
+        </h3>
+        <div class="timeline">
+            <?php $__currentLoopData = $routeHistory; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $history): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <div class="timeline-item">
+                <div class="timeline-marker" style="background: <?php echo e($history->efficiency_badge_color === 'green' ? '#4caf50' : ($history->efficiency_badge_color === 'blue' ? '#2196F3' : ($history->efficiency_badge_color === 'yellow' ? '#ffc107' : '#f44336'))); ?>;">
+                    <i class="fas fa-route"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="route-history-card">
+                        <div class="route-history-header-card">
+                            <div>
+                                <h4><?php echo e($history->route_name); ?></h4>
+                                <p class="route-date">
+                                    <i class="fas fa-calendar"></i> <?php echo e($history->completed_at->format('d/m/Y')); ?>
+
+                                    <span style="margin-left: 10px;">
+                                        <i class="fas fa-clock"></i> <?php echo e($history->completed_at->format('H:i')); ?>
+
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="efficiency-badge" style="background: rgba(<?php echo e($history->efficiency_badge_color === 'green' ? '76, 175, 80' : ($history->efficiency_badge_color === 'blue' ? '33, 150, 243' : ($history->efficiency_badge_color === 'yellow' ? '255, 193, 7' : '244, 67, 54'))); ?>, 0.2); border: 2px solid <?php echo e($history->efficiency_badge_color === 'green' ? '#4caf50' : ($history->efficiency_badge_color === 'blue' ? '#2196F3' : ($history->efficiency_badge_color === 'yellow' ? '#ffc107' : '#f44336'))); ?>;">
+                                <span style="font-size: 1.2em; font-weight: 700;"><?php echo e(number_format($history->efficiency_score ?? 0, 0)); ?></span>
+                                <span style="font-size: 0.8em; opacity: 0.8;">pontos</span>
+                            </div>
+                        </div>
+                        
+                        <div class="route-stats-grid">
+                            <div class="route-stat">
+                                <i class="fas fa-route"></i>
+                                <div>
+                                    <span class="stat-label">Distância</span>
+                                    <span class="stat-value"><?php echo e($history->formatted_distance); ?></span>
+                                </div>
+                            </div>
+                            <div class="route-stat">
+                                <i class="fas fa-clock"></i>
+                                <div>
+                                    <span class="stat-label">Duração</span>
+                                    <span class="stat-value"><?php echo e($history->formatted_duration); ?></span>
+                                </div>
+                            </div>
+                            <div class="route-stat">
+                                <i class="fas fa-box"></i>
+                                <div>
+                                    <span class="stat-label">Entregas</span>
+                                    <span class="stat-value"><?php echo e($history->delivered_shipments); ?>/<?php echo e($history->total_shipments); ?></span>
+                                </div>
+                            </div>
+                            <div class="route-stat">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <div>
+                                    <span class="stat-label">Velocidade Média</span>
+                                    <span class="stat-value"><?php echo e($history->average_speed_kmh ? number_format($history->average_speed_kmh, 0) . ' km/h' : 'N/A'); ?></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <?php if($history->achievement_badges && count($history->achievement_badges) > 0): ?>
+                        <div class="achievements-section">
+                            <strong style="color: var(--cor-acento); font-size: 0.9em; display: block; margin-bottom: 8px;">
+                                <i class="fas fa-trophy"></i> Conquistas:
+                            </strong>
+                            <div class="achievements-list">
+                                <?php $__currentLoopData = $history->achievement_badges; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $badge): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <span class="achievement-badge" style="background: rgba(<?php echo e($badge['color'] === 'green' ? '76, 175, 80' : ($badge['color'] === 'blue' ? '33, 150, 243' : ($badge['color'] === 'gold' ? '255, 215, 0' : ($badge['color'] === 'purple' ? '156, 39, 176' : '255, 152, 0')))); ?>, 0.2); border: 1px solid <?php echo e($badge['color'] === 'green' ? '#4caf50' : ($badge['color'] === 'blue' ? '#2196F3' : ($badge['color'] === 'gold' ? '#FFD700' : ($badge['color'] === 'purple' ? '#9c27b0' : '#FF9800')))); ?>;">
+                                    <i class="fas fa-<?php echo e($badge['icon']); ?>"></i> <?php echo e($badge['label']); ?>
+
+                                </span>
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if($history->net_profit > 0): ?>
+                        <div class="route-profit" style="margin-top: 10px; padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border-left: 3px solid #4caf50;">
+                            <strong style="color: #4caf50;">
+                                <i class="fas fa-dollar-sign"></i> Lucro: R$ <?php echo e(number_format($history->net_profit, 2, ',', '.')); ?>
+
+                            </strong>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn-primary" onclick="loadMoreHistory()" id="loadMoreBtn" style="display: none;">
+                <i class="fas fa-chevron-down"></i> Carregar Mais
+            </button>
+        </div>
+    </div>
+    <?php else: ?>
+    <div class="empty-state" style="margin-top: 20px;">
+        <i class="fas fa-history" style="font-size: 3em; opacity: 0.3;"></i>
+        <p style="margin-top: 15px;">Nenhuma rota concluída ainda.</p>
+        <p style="font-size: 0.9em; opacity: 0.7;">Seu histórico aparecerá aqui após completar rotas.</p>
+    </div>
+    <?php endif; ?>
+</div>
+
 <!-- Status Update Modal -->
 <div id="statusModal" class="modal">
     <div class="modal-content">
@@ -1219,11 +1671,18 @@
             return response.json();
         })
         .then(data => {
+            console.log('Response data:', data);
             if (data.message) {
                 alert(data.message);
-                window.location.reload();
+                // Force a full page reload to ensure fresh data
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 500);
+            } else if (data.error || data.message) {
+                alert('Erro ao atualizar status: ' + (data.message || data.error || 'Erro desconhecido'));
             } else {
-                alert('Erro ao atualizar status: ' + (data.error || 'Erro desconhecido'));
+                console.error('Unexpected response format:', data);
+                alert('Erro ao atualizar status: Resposta inesperada do servidor');
             }
         })
         .catch(error => {
@@ -2063,6 +2522,184 @@
             stopLocationPolling();
         }
     });
+
+    // Route History Functions
+    let historyOffset = <?php echo e(isset($routeHistory) ? $routeHistory->count() : 0); ?>;
+    const historyLimit = 10;
+
+    function loadMoreHistory() {
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando...';
+        }
+
+        fetch(`/driver/route-history?limit=${historyLimit}&offset=${historyOffset}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.routes && data.routes.length > 0) {
+                appendHistoryItems(data.routes);
+                historyOffset += data.routes.length;
+                
+                // Hide button if no more items
+                if (historyOffset >= data.total) {
+                    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+                } else {
+                    if (loadMoreBtn) {
+                        loadMoreBtn.disabled = false;
+                        loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Carregar Mais';
+                    }
+                }
+            } else {
+                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading more history:', error);
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Carregar Mais';
+            }
+        });
+    }
+
+    function appendHistoryItems(routes) {
+        const timeline = document.querySelector('.timeline');
+        if (!timeline) return;
+
+        routes.forEach(route => {
+            const timelineItem = createHistoryItem(route);
+            timeline.appendChild(timelineItem);
+        });
+    }
+
+    function createHistoryItem(route) {
+        const item = document.createElement('div');
+        item.className = 'timeline-item';
+        
+        const badgeColor = route.efficiency_badge_color === 'green' ? '#4caf50' : 
+                          (route.efficiency_badge_color === 'blue' ? '#2196F3' : 
+                          (route.efficiency_badge_color === 'yellow' ? '#ffc107' : '#f44336'));
+        
+        const badgeBg = route.efficiency_badge_color === 'green' ? 'rgba(76, 175, 80, 0.2)' : 
+                       (route.efficiency_badge_color === 'blue' ? 'rgba(33, 150, 243, 0.2)' : 
+                       (route.efficiency_badge_color === 'yellow' ? 'rgba(255, 193, 7, 0.2)' : 'rgba(244, 67, 54, 0.2)'));
+        
+        const badgeBorder = route.efficiency_badge_color === 'green' ? '#4caf50' : 
+                           (route.efficiency_badge_color === 'blue' ? '#2196F3' : 
+                           (route.efficiency_badge_color === 'yellow' ? '#ffc107' : '#f44336'));
+
+        let achievementsHtml = '';
+        if (route.achievements && route.achievements.length > 0) {
+            achievementsHtml = `
+                <div class="achievements-section">
+                    <strong style="color: var(--cor-acento); font-size: 0.9em; display: block; margin-bottom: 8px;">
+                        <i class="fas fa-trophy"></i> Conquistas:
+                    </strong>
+                    <div class="achievements-list">
+                        ${route.achievements.map(badge => {
+                            const badgeColors = {
+                                'green': { bg: 'rgba(76, 175, 80, 0.2)', border: '#4caf50' },
+                                'blue': { bg: 'rgba(33, 150, 243, 0.2)', border: '#2196F3' },
+                                'gold': { bg: 'rgba(255, 215, 0, 0.2)', border: '#FFD700' },
+                                'purple': { bg: 'rgba(156, 39, 176, 0.2)', border: '#9c27b0' },
+                                'orange': { bg: 'rgba(255, 152, 0, 0.2)', border: '#FF9800' }
+                            };
+                            const colors = badgeColors[badge.color] || badgeColors.blue;
+                            return `<span class="achievement-badge" style="background: ${colors.bg}; border: 1px solid ${colors.border};">
+                                <i class="fas fa-${badge.icon}"></i> ${badge.label}
+                            </span>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        let profitHtml = '';
+        if (route.net_profit > 0) {
+            profitHtml = `
+                <div class="route-profit" style="margin-top: 10px; padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border-left: 3px solid #4caf50;">
+                    <strong style="color: #4caf50;">
+                        <i class="fas fa-dollar-sign"></i> Lucro: R$ ${parseFloat(route.net_profit).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </strong>
+                </div>
+            `;
+        }
+
+        item.innerHTML = `
+            <div class="timeline-marker" style="background: ${badgeColor};">
+                <i class="fas fa-route"></i>
+            </div>
+            <div class="timeline-content">
+                <div class="route-history-card">
+                    <div class="route-history-header-card">
+                        <div>
+                            <h4>${route.route_name}</h4>
+                            <p class="route-date">
+                                <i class="fas fa-calendar"></i> ${route.formatted_date}
+                            </p>
+                        </div>
+                        <div class="efficiency-badge" style="background: ${badgeBg}; border: 2px solid ${badgeBorder};">
+                            <span style="font-size: 1.2em; font-weight: 700;">${Math.round(route.efficiency_score || 0)}</span>
+                            <span style="font-size: 0.8em; opacity: 0.8;">pontos</span>
+                        </div>
+                    </div>
+                    
+                    <div class="route-stats-grid">
+                        <div class="route-stat">
+                            <i class="fas fa-route"></i>
+                            <div>
+                                <span class="stat-label">Distância</span>
+                                <span class="stat-value">${route.distance}</span>
+                            </div>
+                        </div>
+                        <div class="route-stat">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <span class="stat-label">Duração</span>
+                                <span class="stat-value">${route.duration}</span>
+                            </div>
+                        </div>
+                        <div class="route-stat">
+                            <i class="fas fa-box"></i>
+                            <div>
+                                <span class="stat-label">Entregas</span>
+                                <span class="stat-value">${route.delivered_shipments}/${route.total_shipments}</span>
+                            </div>
+                        </div>
+                        <div class="route-stat">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <div>
+                                <span class="stat-label">Taxa de Sucesso</span>
+                                <span class="stat-value">${Math.round(route.success_rate || 0)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${achievementsHtml}
+                    ${profitHtml}
+                </div>
+            </div>
+        `;
+
+        return item;
+    }
+
+    // Show load more button if there are more items
+    <?php if(isset($routeHistory) && $routeHistory->count() >= 10): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.style.display = 'block';
+        }
+    });
+    <?php endif; ?>
 </script>
 <?php $__env->stopPush(); ?>
 <?php echo $__env->make('driver.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/driver/dashboard.blade.php ENDPATH**/ ?>

@@ -117,6 +117,14 @@ class Route extends Model
         return $this->hasMany(Expense::class);
     }
 
+    /**
+     * Get the driver expenses for this route.
+     */
+    public function driverExpenses(): HasMany
+    {
+        return $this->hasMany(DriverExpense::class);
+    }
+
     public function shipments(): HasMany
     {
         return $this->hasMany(Shipment::class);

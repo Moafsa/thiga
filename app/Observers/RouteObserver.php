@@ -8,6 +8,7 @@ use App\Notifications\DriverPaymentReceived;
 use App\Notifications\DriverExpenseAdded;
 use App\Services\DriverAuthService;
 use App\Services\WuzApiService;
+use App\Services\RouteHistoryService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -15,11 +16,16 @@ class RouteObserver
 {
     protected WuzApiService $wuzApiService;
     protected DriverAuthService $driverAuthService;
+    protected RouteHistoryService $routeHistoryService;
 
-    public function __construct(WuzApiService $wuzApiService, DriverAuthService $driverAuthService)
-    {
+    public function __construct(
+        WuzApiService $wuzApiService, 
+        DriverAuthService $driverAuthService,
+        RouteHistoryService $routeHistoryService
+    ) {
         $this->wuzApiService = $wuzApiService;
         $this->driverAuthService = $driverAuthService;
+        $this->routeHistoryService = $routeHistoryService;
     }
 
     /**
@@ -89,6 +95,18 @@ class RouteObserver
                 $settings['whatsapp_notified'] = true;
                 $route->settings = $settings;
                 $route->saveQuietly(); // Use saveQuietly to avoid triggering observer again
+            }
+        }
+
+        // Create route history snapshot when route is completed
+        if ($route->wasChanged('status') && $route->status === 'completed') {
+            try {
+                $this->routeHistoryService->createRouteSnapshot($route);
+            } catch (\Exception $e) {
+                Log::error('Failed to create route snapshot', [
+                    'route_id' => $route->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }

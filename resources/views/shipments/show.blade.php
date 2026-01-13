@@ -238,14 +238,43 @@
 
 @if($shipment->deliveryProofs->count() > 0)
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px;">
-    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Delivery Proofs</h3>
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-camera"></i> Comprovantes de Entrega
+    </h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
         @foreach($shipment->deliveryProofs as $proof)
             <div style="background-color: var(--cor-principal); padding: 15px; border-radius: 10px;">
-                @if($proof->photo_url)
-                    <img src="{{ $proof->photo_url }}" alt="Proof" style="width: 100%; height: 150px; object-fit: cover; border-radius: 5px; margin-bottom: 10px;">
+                @if($proof->photo_urls && count($proof->photo_urls) > 0)
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                        @foreach($proof->photo_urls as $photoUrl)
+                            @if($photoUrl)
+                                <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-principal); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
+                                    <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : 'N/A' }}', '{{ addslashes($proof->description ?? '') }}')">
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
                 @endif
-                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em;">{{ $proof->delivered_at->format('d/m/Y H:i') }}</p>
+                <div style="margin-bottom: 10px;">
+                    <p style="color: rgba(245, 245, 245, 0.9); font-size: 0.9em; font-weight: 600; margin-bottom: 5px;">
+                        {{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}
+                    </p>
+                    @if($proof->delivery_time)
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin-bottom: 5px;">
+                            <i class="fas fa-clock"></i> {{ $proof->delivery_time->format('d/m/Y H:i') }}
+                        </p>
+                    @endif
+                    @if($proof->description)
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin-top: 5px;">
+                            {{ $proof->description }}
+                        </p>
+                    @endif
+                    @if($proof->address)
+                        <p style="color: rgba(245, 245, 245, 0.6); font-size: 0.8em; margin-top: 5px;">
+                            <i class="fas fa-map-marker-alt"></i> {{ $proof->address }}{{ $proof->city ? ', ' . $proof->city . '/' . $proof->state : '' }}
+                        </p>
+                    @endif
+                </div>
             </div>
         @endforeach
     </div>
@@ -279,6 +308,36 @@
         const messages = document.querySelectorAll('.alert');
         messages.forEach(msg => msg.remove());
     }, 5000);
+
+    function openPhotoModal(photoUrl, type, date, description) {
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        modal.innerHTML = `
+            <div style="position: relative; max-width: 90%; max-height: 90%;">
+                <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.5em;">&times;</button>
+                <img src="${photoUrl}" alt="${type}" style="max-width: 100%; max-height: 90vh; border-radius: 10px;">
+                <div style="color: white; text-align: center; margin-top: 10px;">
+                    <p style="margin: 5px 0; font-weight: 600;">${type} - ${date}</p>
+                    ${description ? `<p style="margin: 5px 0; color: rgba(255,255,255,0.8); font-size: 0.9em;">${description}</p>` : ''}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+        // Close on ESC key
+        const escHandler = function(e) {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
 </script>
 @endpush
 @endsection

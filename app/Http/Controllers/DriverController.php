@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Driver;
+use App\Models\DriverPhoto;
 use App\Models\DriverTenantAssignment;
 use App\Models\User;
+use App\Services\DriverPhotoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -209,8 +212,11 @@ public function edit(Driver $driver)
             'vehicle_plate' => 'nullable|string|max:10',
             'vehicle_model' => 'nullable|string|max:255',
             'vehicle_color' => 'nullable|string|max:50',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'photo_data' => 'nullable|string', // Base64 image data from camera
+            'documents' => 'nullable|array',
+            'documents.*' => 'file|mimes:jpeg,png,jpg,pdf|max:5120', // Max 5MB - images and PDF
+            'document_types' => 'nullable|array',
             'status' => 'nullable|string|in:available,busy,offline,on_break',
             'is_active' => 'boolean',
             'location_tracking_enabled' => 'boolean',
@@ -233,57 +239,80 @@ public function edit(Driver $driver)
             }
         }
 
-        // Handle photo upload with optimization
+        // Handle photo upload using DriverPhotoService (same as DriverDashboardController)
         if ($request->hasFile('photo')) {
-            // Delete old photo if exists
-            if ($driver->photo_url && \Storage::disk('public')->exists($driver->photo_url)) {
-                \Storage::disk('public')->delete($driver->photo_url);
-                // Clear cache
-                \Cache::forget("photo_cache_{$driver->photo_url}_150");
-                \Cache::forget("photo_cache_{$driver->photo_url}_300");
+            $file = $request->file('photo');
+            
+            if ($file->getSize() <= 2 * 1024 * 1024) {
+                try {
+                    $photo = DriverPhotoService::storePhoto($driver, $file, 'profile', true);
+                    // Also update photo_url for backward compatibility
+                    if ($photo && $photo->photo_url) {
+                        $validated['photo_url'] = $photo->photo_url;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to store driver photo', [
+                        'driver_id' => $driver->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    return back()->withErrors(['photo' => 'Erro ao fazer upload da foto: ' . $e->getMessage()]);
+                }
             }
-            
-            // Store optimized photo
-            $extension = $request->file('photo')->getClientOriginalExtension();
-            $filename = 'photo_' . time() . '_' . uniqid() . '.' . $extension;
-            $path = "drivers/{$driver->tenant_id}/{$driver->id}/{$filename}";
-            
-            \App\Services\ImageService::storeOptimized($request->file('photo'), $path, 800, 800);
-            $validated['photo_url'] = $path;
         } elseif ($request->filled('photo_data')) {
             // Handle base64 photo from camera
             $photoData = $request->input('photo_data');
             
-            // Delete old photo if exists
-            if ($driver->photo_url && \Storage::disk('public')->exists($driver->photo_url)) {
-                \Storage::disk('public')->delete($driver->photo_url);
-                // Clear cache
-                \Cache::forget("photo_cache_{$driver->photo_url}_150");
-                \Cache::forget("photo_cache_{$driver->photo_url}_300");
-            }
-            
-            // Decode and optimize base64 image
-            if (preg_match('/^data:image\/(\w+);base64,/', $photoData, $matches)) {
-                $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
-                $filename = 'photo_' . time() . '_' . uniqid() . '.' . $extension;
-                $path = "drivers/{$driver->tenant_id}/{$driver->id}/{$filename}";
-                
-                \App\Services\ImageService::storeOptimized($photoData, $path, 800, 800);
-                $validated['photo_url'] = $path;
+            if (preg_match('/^data:image\/(\w+);base64,/', $photoData)) {
+                try {
+                    $photo = DriverPhotoService::storePhoto($driver, $photoData, 'profile', true);
+                    // Also update photo_url for backward compatibility
+                    if ($photo && $photo->photo_url) {
+                        $validated['photo_url'] = $photo->photo_url;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to store driver photo from camera', [
+                        'driver_id' => $driver->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    return back()->withErrors(['photo' => 'Erro ao fazer upload da foto: ' . $e->getMessage()]);
+                }
             }
         } elseif ($request->has('remove_photo')) {
-            // Remove photo if requested
-            if ($driver->photo_url && \Storage::disk('public')->exists($driver->photo_url)) {
-                \Storage::disk('public')->delete($driver->photo_url);
-                // Clear cache
-                \Cache::forget("photo_cache_{$driver->photo_url}_150");
-                \Cache::forget("photo_cache_{$driver->photo_url}_300");
+            // Remove primary photo if requested
+            $primaryPhoto = $driver->primaryPhoto;
+            if ($primaryPhoto) {
+                DriverPhotoService::deletePhoto($primaryPhoto);
             }
+            // Also clear photo_url for backward compatibility
             $validated['photo_url'] = null;
         }
 
-        // Remove photo_data from validated (not a database field)
-        unset($validated['photo_data']);
+        // Handle document uploads (CNH, comprovantes, cursos, etc.)
+        if ($request->hasFile('documents')) {
+            foreach ($request->file('documents') as $index => $file) {
+                if ($file->getSize() > 5 * 1024 * 1024) { // Max 5MB for documents
+                    continue;
+                }
+                
+                $documentType = $request->input("document_types.{$index}", 'document');
+                
+                try {
+                    DriverPhotoService::storePhoto($driver, $file, $documentType, false);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to store driver document', [
+                        'driver_id' => $driver->id,
+                        'document_type' => $documentType,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        // Remove photo_data and document fields from validated (not database fields)
+        unset($validated['photo'], $validated['photo_data'], $validated['remove_photo'], 
+              $validated['documents'], $validated['document_types']);
 
         $driver->update($validated);
 
@@ -303,6 +332,15 @@ public function edit(Driver $driver)
             return back()->withErrors(['error' => 'Cannot delete driver with associated routes or shipments.']);
         }
 
+        // Disable activity logging if table doesn't exist
+        try {
+            if (!\Schema::hasTable('activity_log')) {
+                activity()->disableLogging();
+            }
+        } catch (\Exception $e) {
+            activity()->disableLogging();
+        }
+
         // Delete associated user if exists
         if ($driver->user_id) {
             $user = User::find($driver->user_id);
@@ -317,8 +355,35 @@ public function edit(Driver $driver)
 
         $driver->delete();
 
+        // Re-enable logging after delete
+        try {
+            activity()->enableLogging();
+        } catch (\Exception $e) {
+            // Ignore errors when re-enabling
+        }
+
         return redirect()->route('drivers.index')
             ->with('success', 'Driver deleted successfully!');
+    }
+
+    /**
+     * Delete driver photo/document
+     */
+    public function deletePhoto(DriverPhoto $photo)
+    {
+        $driver = $photo->driver;
+        $this->authorizeAccess($driver);
+
+        try {
+            DriverPhotoService::deletePhoto($photo);
+            return back()->with('success', 'Foto/Documento removido com sucesso!');
+        } catch (\Exception $e) {
+            \Log::error('Error deleting driver photo', [
+                'photo_id' => $photo->id,
+                'error' => $e->getMessage(),
+            ]);
+            return back()->withErrors(['error' => 'Erro ao remover foto/documento']);
+        }
     }
 
     /**

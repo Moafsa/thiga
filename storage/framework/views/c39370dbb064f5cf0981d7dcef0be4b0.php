@@ -1,0 +1,1385 @@
+<?php $__env->startSection('title', 'Monitoramento - TMS SaaS'); ?>
+<?php $__env->startSection('page-title', 'Monitoramento em Tempo Real'); ?>
+
+<?php $__env->startPush('styles'); ?>
+<?php echo $__env->make('shared.styles', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<style>
+    .monitoring-dashboard {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 20px;
+        height: calc(100vh - 200px);
+    }
+
+    .map-container {
+        background-color: var(--cor-secundaria);
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    #monitoring-map {
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+    }
+
+    .monitoring-panel {
+        background-color: var(--cor-secundaria);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        overflow-y: auto;
+        max-height: calc(100vh - 200px);
+    }
+
+    .driver-card {
+        background-color: var(--cor-principal);
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 4px solid var(--cor-acento);
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .driver-card:hover {
+        transform: translateX(5px);
+    }
+
+    .driver-card.active {
+        border-left-color: #4caf50;
+    }
+
+    .route-card {
+        background-color: var(--cor-principal);
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 4px solid #2196F3;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-item {
+        background-color: var(--cor-principal);
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .stat-item h3 {
+        color: var(--cor-acento);
+        font-size: 2em;
+        margin: 0;
+    }
+
+    .stat-item p {
+        color: rgba(245, 245, 245, 0.7);
+        font-size: 0.9em;
+        margin: 5px 0 0 0;
+    }
+
+    @keyframes slideInLeft {
+        from {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .route-deviation-alert {
+        animation: slideInLeft 0.3s ease-out;
+    }
+
+    @media (max-width: 1024px) {
+        .monitoring-dashboard {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+<?php $__env->stopPush(); ?>
+
+<?php $__env->startSection('content'); ?>
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Monitoramento em Tempo Real</h1>
+        <h2>Rastreie motoristas e cargas em tempo real</h2>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button id="refresh-locations" class="btn-primary">
+            <i class="fas fa-sync-alt"></i> Atualizar
+        </button>
+    </div>
+</div>
+
+<div class="monitoring-dashboard">
+    <div class="map-container">
+        <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; display: flex; align-items: center; gap: 10px; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 8px;">
+            <label style="color: rgba(245, 245, 245, 0.9); font-size: 0.9em; margin: 0;">Modo:</label>
+            <select id="monitoring-map-style-selector" style="padding: 6px 10px; border-radius: 5px; background-color: var(--cor-principal); color: var(--cor-texto-claro); border: 1px solid rgba(255, 255, 255, 0.2); cursor: pointer; font-size: 0.9em;">
+                <option value="uber">Modo Uber</option>
+                <option value="google">Google Maps</option>
+            </select>
+        </div>
+        <div id="monitoring-map"></div>
+    </div>
+
+    <div class="monitoring-panel">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h3><?php echo e($activeDrivers->count()); ?></h3>
+                <p>Motoristas Ativos</p>
+            </div>
+        <div class="stat-item">
+            <h3><?php echo e($activeRoutes->count()); ?></h3>
+            <p>Rotas Ativas</p>
+        </div>
+            <div class="stat-item">
+                <h3><?php echo e($shipmentsInTransit->count()); ?></h3>
+                <p>Em Trânsito</p>
+            </div>
+            <div class="stat-item">
+                <h3><?php echo e($activeRoutes->sum(function($route) { return $route->shipments->count(); })); ?></h3>
+                <p>Total de Cargas</p>
+            </div>
+        </div>
+
+        <h3 style="color: var(--cor-acento); margin-bottom: 15px;">
+            <i class="fas fa-users"></i> Motoristas Ativos
+        </h3>
+        <?php $__empty_1 = true; $__currentLoopData = $activeDrivers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $driver): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+            <div class="driver-card" data-driver-id="<?php echo e($driver->id); ?>">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1; cursor: pointer;" onclick="focusDriver(<?php echo e($driver->id); ?>)">
+                        <h4 style="color: var(--cor-texto-claro); margin: 0 0 5px 0;"><?php echo e($driver->name); ?></h4>
+                        <?php if($driver->phone): ?>
+                            <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 0;">
+                                <i class="fas fa-phone"></i> <?php echo e($driver->phone); ?>
+
+                            </p>
+                        <?php endif; ?>
+                        <?php if($driver->routes->first()): ?>
+                            <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 5px 0 0 0;">
+                                <i class="fas fa-route"></i> <?php echo e($driver->routes->first()->name); ?>
+
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 5px; align-items: end;">
+                        <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50;">
+                            <i class="fas fa-circle" style="font-size: 0.7em;"></i> Online
+                        </span>
+                        <button 
+                            class="toggle-trail-btn" 
+                            data-driver-id="<?php echo e($driver->id); ?>"
+                            onclick="toggleDriverTrail(<?php echo e($driver->id); ?>); event.stopPropagation();"
+                            title="Mostrar/Ocultar Rastro"
+                            style="background: rgba(255, 107, 53, 0.2); border: 1px solid var(--cor-acento); color: var(--cor-acento); padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; transition: all 0.3s;">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+            <div style="text-align: center; padding: 40px; color: rgba(245, 245, 245, 0.7);">
+                <i class="fas fa-user-slash" style="font-size: 3em; margin-bottom: 15px; opacity: 0.3;"></i>
+                <p>Nenhum motorista ativo no momento</p>
+            </div>
+        <?php endif; ?>
+
+        <h3 style="color: var(--cor-acento); margin-top: 30px; margin-bottom: 15px;">
+            <i class="fas fa-route"></i> Rotas Ativas
+        </h3>
+        <?php $__empty_1 = true; $__currentLoopData = $activeRoutes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $route): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+            <div class="route-card" data-route-id="<?php echo e($route->id); ?>" style="cursor: pointer;" onclick="focusRoute(<?php echo e($route->id); ?>)">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                    <h4 style="color: var(--cor-texto-claro); margin: 0 0 5px 0;"><?php echo e($route->name); ?></h4>
+                    <span class="status-badge" style="font-size: 0.75em;">
+                        <?php if($route->status === 'in_progress'): ?>
+                            Em Andamento
+                        <?php else: ?>
+                            Agendada
+                        <?php endif; ?>
+                    </span>
+                </div>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 5px 0;">
+                    <?php if($route->driver): ?>
+                        <i class="fas fa-user"></i> <?php echo e($route->driver->name); ?>
+
+                    <?php else: ?>
+                        <i class="fas fa-user"></i> Sem motorista
+                    <?php endif; ?>
+                </p>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin: 5px 0;">
+                    <i class="fas fa-box"></i> <?php echo e($route->shipments->count()); ?> <?php echo e($route->shipments->count() == 1 ? 'carga' : 'cargas'); ?>
+
+                </p>
+                <?php if($route->started_at): ?>
+                <p style="color: rgba(76, 175, 80, 0.8); font-size: 0.85em; margin: 5px 0;">
+                    <i class="fas fa-play-circle"></i> Iniciada: <?php echo e($route->started_at->format('d/m/Y H:i')); ?>
+
+                </p>
+                <?php endif; ?>
+                <?php if($route->completed_at): ?>
+                <p style="color: rgba(76, 175, 80, 0.8); font-size: 0.85em; margin: 5px 0;">
+                    <i class="fas fa-check-circle"></i> Finalizada: <?php echo e($route->completed_at->format('d/m/Y H:i')); ?>
+
+                </p>
+                <?php endif; ?>
+                <?php if($route->estimated_distance): ?>
+                <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 5px 0;">
+                    <i class="fas fa-route"></i> Estimado: <?php echo e(number_format($route->estimated_distance, 2, ',', '.')); ?> km
+                </p>
+                <?php endif; ?>
+                
+                <!-- Route deviation costs will be loaded here -->
+                <div class="route-deviation-costs" data-route-id="<?php echo e($route->id); ?>" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                    <div style="text-align: center; color: rgba(245, 245, 245, 0.5); font-size: 0.8em;">
+                        <i class="fas fa-spinner fa-spin"></i> Calculando...
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+            <div style="text-align: center; padding: 40px; color: rgba(245, 245, 245, 0.7);">
+                <i class="fas fa-route" style="font-size: 3em; margin-bottom: 15px; opacity: 0.3;"></i>
+                <p>Nenhuma rota ativa no momento</p>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php $__env->startPush('scripts'); ?>
+<script>
+    // Variables moved to monitoring-mapbox.js to avoid conflicts
+    // Old Google Maps variables kept for compatibility (not used with Mapbox)
+    let map; // Kept for compatibility but not used with Mapbox
+    // routePolylines moved to monitoring-mapbox.js to avoid duplicate declaration
+    let driverTrails = {}; // Store polyline trails for each driver (yellow - on route)
+    let driverOffRouteTrails = {}; // Store polyline trails for drivers off route (red)
+    let driverTrailVisibility = {}; // Track visibility state for each driver trail
+    let routePaths = {}; // Store route paths for each route to check if driver is on route
+    let bounds; // Kept for compatibility
+    let currentMapStyle = 'uber'; // Default to Uber style
+    
+    // Map style configurations
+    const mapStyles = {
+        uber: [
+            // Uber-like map styling - cleaner, more minimal
+            {
+                featureType: 'poi',
+                elementType: 'labels',
+                stylers: [{ visibility: 'off' }]
+            },
+            {
+                featureType: 'poi.business',
+                stylers: [{ visibility: 'off' }]
+            },
+            {
+                featureType: 'transit',
+                elementType: 'labels',
+                stylers: [{ visibility: 'off' }]
+            },
+            {
+                featureType: 'transit.station',
+                stylers: [{ visibility: 'off' }]
+            },
+            {
+                featureType: 'road',
+                elementType: 'geometry',
+                stylers: [{ color: '#ffffff' }]
+            },
+            {
+                featureType: 'road',
+                elementType: 'labels.text.fill',
+                stylers: [{ color: '#757575' }]
+            },
+            {
+                featureType: 'road.highway',
+                elementType: 'geometry',
+                stylers: [{ color: '#dadada' }]
+            },
+            {
+                featureType: 'road.highway',
+                elementType: 'labels.text.fill',
+                stylers: [{ color: '#616161' }]
+            },
+            {
+                featureType: 'water',
+                elementType: 'geometry',
+                stylers: [{ color: '#c9c9c9' }]
+            },
+            {
+                featureType: 'landscape',
+                elementType: 'geometry',
+                stylers: [{ color: '#f5f5f5' }]
+            },
+            {
+                featureType: 'administrative',
+                elementType: 'labels.text.fill',
+                stylers: [{ color: '#757575' }]
+            }
+        ],
+        google: [] // Empty array = default Google Maps style
+    };
+    
+    // Route style configurations
+    const routeStyles = {
+        uber: {
+            strokeColor: '#1a73e8',
+            strokeOpacity: 1.0,
+            strokeWeight: 6,
+            pickupColor: '#1a73e8',
+            deliveryColor: '#34a853',
+            markerScale: 12,
+            markerStrokeWeight: 3
+        },
+        google: {
+            strokeColor: '#4285F4',
+            strokeOpacity: 0.8,
+            strokeWeight: 5,
+            pickupColor: '#2196F3',
+            deliveryColor: '#4CAF50',
+            markerScale: 10,
+            markerStrokeWeight: 2
+        }
+    };
+
+    // Prepare routes and shipments data for Mapbox
+    <?php
+        $routesForMap = $activeRoutes->map(function($route) {
+            return [
+                'id' => $route->id,
+                'name' => $route->name,
+                'status' => $route->status,
+                'start_latitude' => $route->start_latitude,
+                'start_longitude' => $route->start_longitude,
+                'shipments' => $route->shipments->map(function($shipment) {
+                    return [
+                        'id' => $shipment->id,
+                        'tracking_number' => $shipment->tracking_number,
+                        'title' => $shipment->title,
+                        'pickup_latitude' => $shipment->pickup_latitude,
+                        'pickup_longitude' => $shipment->pickup_longitude,
+                        'delivery_latitude' => $shipment->delivery_latitude,
+                        'delivery_longitude' => $shipment->delivery_longitude,
+                        'status' => $shipment->status,
+                    ];
+                })->toArray(),
+            ];
+        })->toArray();
+    ?>
+    
+    window.monitoringRoutes = <?php echo json_encode($routesForMap, 15, 512) ?>;
+    window.monitoringShipments = [];
+
+    // Initialize Mapbox (DISABLED Google Maps)
+    // Note: The actual initialization is handled by monitoring-mapbox.js
+    // This function is kept for compatibility but doesn't do anything
+    function initMap() {
+        // Google Maps disabled - Mapbox initialization is handled by monitoring-mapbox.js
+        console.log('initMap called - Mapbox will handle initialization');
+        return;
+        
+        // OLD GOOGLE MAPS CODE - DISABLED
+        // if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+
+        // Load saved map style preference or default to 'uber'
+        currentMapStyle = localStorage.getItem('monitoringMapStyle') || 'uber';
+
+        map = new google.maps.Map(document.getElementById('monitoring-map'), {
+            center: { lat: -23.5505, lng: -46.6333 }, // São Paulo
+            zoom: 10,
+            mapTypeId: 'roadmap',
+            styles: mapStyles[currentMapStyle],
+            disableDefaultUI: false,
+            zoomControl: true,
+            mapTypeControl: currentMapStyle === 'google',
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            },
+            scaleControl: false,
+            streetViewControl: currentMapStyle === 'google',
+            streetViewControlOptions: {
+                position: google.maps.ControlPosition.RIGHT_CENTER
+            },
+            rotateControl: false,
+            fullscreenControl: true
+        });
+        
+        // Set selector to current style
+        const styleSelector = document.getElementById('monitoring-map-style-selector');
+        if (styleSelector) {
+            styleSelector.value = currentMapStyle;
+            styleSelector.addEventListener('change', function() {
+                currentMapStyle = this.value;
+                localStorage.setItem('monitoringMapStyle', currentMapStyle);
+                applyMonitoringMapStyle(currentMapStyle);
+            });
+        }
+
+        bounds = new google.maps.LatLngBounds();
+
+        // Load initial data - routes first so route paths are available for trail checking
+        loadRoutesAndShipments();
+        // Load driver locations after routes (with small delay to ensure routes are processed)
+        setTimeout(() => {
+            loadDriverLocations();
+            // loadRouteDeviationCosts(); // Function not implemented yet
+            if (typeof checkRouteDeviations === 'function') {
+                checkRouteDeviations();
+            }
+        }, 1000);
+    }
+
+    // Apply map style and update markers/routes
+    function applyMonitoringMapStyle(styleName) {
+        if (!map) return;
+        
+        currentMapStyle = styleName;
+        
+        // Apply map styles and controls
+        map.setOptions({
+            styles: mapStyles[styleName],
+            mapTypeControl: styleName === 'google',
+            streetViewControl: styleName === 'google'
+        });
+        
+        // Update driver markers
+        const style = routeStyles[styleName] || routeStyles.uber;
+        Object.values(driverMarkers).forEach(marker => {
+            const icon = marker.getIcon();
+            if (icon && typeof icon === 'object') {
+                marker.setIcon({
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: style.markerScale,
+                    fillColor: '#FF0000',
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: style.markerStrokeWeight
+                });
+            }
+        });
+        
+        // Reload routes and markers with new style
+        loadRoutesAndShipments();
+        loadDriverLocations();
+    }
+
+    // Load Google Maps API (DISABLED - Using Mapbox instead)
+    function loadGoogleMaps() {
+        // Google Maps API is disabled - show message to use Mapbox
+        console.warn('Google Maps API is disabled. Please migrate to Mapbox.');
+        const mapContainer = document.getElementById('monitoring-map');
+        if (mapContainer) {
+            mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Google Maps foi desabilitado</p><p style="font-size: 0.9em; opacity: 0.8; margin-top: 10px;">Esta página precisa ser migrada para Mapbox.</p><p style="font-size: 0.8em; opacity: 0.6; margin-top: 5px;">O mapa será restaurado após a migração.</p></div>';
+        }
+    }
+
+    // Make initMap globally available
+    window.initMap = initMap;
+
+    // Load driver locations with trail and custom icon
+    function loadDriverLocations() {
+        if (!map || typeof google === 'undefined' || typeof google.maps === 'undefined') {
+            console.warn('Google Maps not available - cannot load driver locations');
+            return;
+        }
+        
+        fetch('<?php echo e(route("monitoring.driver-locations")); ?>')
+            .then(response => response.json())
+            .then(drivers => {
+                // Keep existing markers and update them instead of recreating
+                const existingDriverIds = new Set(Object.keys(driverMarkers).map(id => parseInt(id)));
+                const currentDriverIds = new Set(drivers.map(d => d.id));
+                
+                // Remove markers for drivers that are no longer active
+                existingDriverIds.forEach(driverId => {
+                    if (!currentDriverIds.has(driverId)) {
+                        if (driverMarkers[driverId]) {
+                            driverMarkers[driverId].setMap(null);
+                            delete driverMarkers[driverId];
+                        }
+                        if (driverTrails[driverId]) {
+                            driverTrails[driverId].setMap(null);
+                            delete driverTrails[driverId];
+                        }
+                        if (driverOffRouteTrails[driverId]) {
+                            driverOffRouteTrails[driverId].setMap(null);
+                            delete driverOffRouteTrails[driverId];
+                        }
+                    }
+                });
+                
+                // Clear old trails for drivers that are no longer active
+                // Reuse currentDriverIds already declared above
+                Object.keys(driverTrails).forEach(driverId => {
+                    if (!currentDriverIds.has(parseInt(driverId))) {
+                        const trails = driverTrails[driverId];
+                        if (Array.isArray(trails)) {
+                            trails.forEach(trail => trail.setMap(null));
+                        } else if (trails) {
+                            trails.setMap(null);
+                        }
+                        delete driverTrails[driverId];
+                    }
+                });
+                Object.keys(driverOffRouteTrails).forEach(driverId => {
+                    if (!currentDriverIds.has(parseInt(driverId))) {
+                        const trails = driverOffRouteTrails[driverId];
+                        if (Array.isArray(trails)) {
+                            trails.forEach(trail => trail.setMap(null));
+                        } else if (trails) {
+                            trails.setMap(null);
+                        }
+                        delete driverOffRouteTrails[driverId];
+                    }
+                });
+                
+                bounds = new google.maps.LatLngBounds();
+
+                if (drivers.length === 0) {
+                    return;
+                }
+
+                // Add markers and trails for each driver
+                drivers.forEach(driver => {
+                    if (driver.latitude && driver.longitude) {
+                        const position = { lat: driver.latitude, lng: driver.longitude };
+                        
+                        // Draw trail/path if location history exists
+                        // Use Directions API to follow roads, not straight lines
+                        const allPoints = [];
+                        
+                        // Add location history points
+                        if (driver.location_history && driver.location_history.length > 0) {
+                            console.log(`[Location] Driver ${driver.id} has ${driver.location_history.length} location history points`);
+                            
+                            driver.location_history
+                                .filter(loc => loc && loc.lat && loc.lng && !isNaN(parseFloat(loc.lat)) && !isNaN(parseFloat(loc.lng)))
+                                .forEach(loc => {
+                                    allPoints.push({
+                                        lat: parseFloat(loc.lat),
+                                        lng: parseFloat(loc.lng)
+                                    });
+                                });
+                        }
+                        
+                        // Add current position to trail if valid
+                        if (position.lat && position.lng && !isNaN(position.lat) && !isNaN(position.lng)) {
+                            // Only add if it's different from the last point
+                            if (allPoints.length === 0 || 
+                                allPoints[allPoints.length - 1].lat !== position.lat || 
+                                allPoints[allPoints.length - 1].lng !== position.lng) {
+                                allPoints.push(position);
+                            }
+                        }
+                        
+                        if (allPoints.length > 1) {
+                            console.log(`[Location] Drawing trail for driver ${driver.id} with ${allPoints.length} points`);
+                            // Get route path for this driver's active route
+                            const routePath = driver.active_route ? routePaths[driver.active_route.id] : null;
+                            const MAX_DISTANCE_FROM_ROUTE = 100; // meters
+                            
+                            // Draw trail following roads using Directions API
+                            drawDriverTrailFollowingRoads(driver.id, allPoints, routePath, MAX_DISTANCE_FROM_ROUTE);
+                        } else {
+                            console.log(`[Location] Driver ${driver.id} has insufficient points (${allPoints.length}) for trail`);
+                        }
+
+                        // Check if marker already exists for this driver
+                        let marker = driverMarkers[driver.id];
+                        const markerSize = 35; // Small size for driver photo
+                        const markerAnchor = markerSize / 2;
+                        
+                        if (marker) {
+                            // Update existing marker position smoothly
+                            const oldPosition = marker.getPosition();
+                            const hasMoved = !oldPosition || 
+                                (Math.abs(oldPosition.lat() - position.lat) > 0.00001 || 
+                                 Math.abs(oldPosition.lng() - position.lng) > 0.00001);
+                            
+                            if (hasMoved) {
+                                // Smooth animation to new position
+                                marker.setPosition(position);
+                            }
+                        } else {
+                            // Create new marker with small driver photo
+                            const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=128');
+                            
+                            // Use placeholder initially for lazy loading
+                            const placeholderUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name.substring(0, 1)) + '&background=FF6B35&color=fff&size=128';
+                            
+                            marker = new google.maps.Marker({
+                                position: position,
+                                map: map,
+                                icon: {
+                                    url: placeholderUrl,
+                                    scaledSize: new google.maps.Size(markerSize, markerSize),
+                                    anchor: new google.maps.Point(markerAnchor, markerAnchor),
+                                    origin: new google.maps.Point(0, 0)
+                                },
+                                title: driver.name,
+                                zIndex: 1000,
+                                optimized: false,
+                                animation: google.maps.Animation.DROP
+                            });
+                            
+                            // Lazy load actual photo
+                            if (driver.photo_url) {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.onload = function() {
+                                    marker.setIcon({
+                                        url: driverPhotoUrl,
+                                        scaledSize: new google.maps.Size(markerSize, markerSize),
+                                        anchor: new google.maps.Point(markerAnchor, markerAnchor),
+                                        origin: new google.maps.Point(0, 0)
+                                    });
+                                };
+                                img.onerror = function() {
+                                    // Keep placeholder if image fails to load
+                                };
+                                img.src = driverPhotoUrl;
+                            }
+                            
+                            driverMarkers[driver.id] = marker;
+                        }
+
+                        // Create tooltip content and listeners only if marker is new
+                        if (!marker.hasListeners) {
+                            const tooltipPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=40');
+                            let tooltipContent = `<div style="padding: 12px; min-width: 250px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                    <img src="${tooltipPhotoUrl}" loading="lazy" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${driver.name}') + '&background=FF6B35&color=fff&size=40'">
+                                    <div>
+                                        <h4 style="margin: 0; color: #333; font-size: 1.1em;">${driver.name}</h4>
+                                        ${driver.phone ? `<p style="margin: 3px 0 0 0; color: #666; font-size: 0.85em;"><i class="fas fa-phone"></i> ${driver.phone}</p>` : ''}
+                                    </div>
+                                </div>`;
+                            
+                            if (driver.active_route) {
+                                tooltipContent += `
+                                    <div style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
+                                        <p style="margin: 5px 0; color: #333; font-weight: 600;"><i class="fas fa-route" style="color: #1a73e8;"></i> ${driver.active_route.name}</p>
+                                        <p style="margin: 5px 0; color: #666; font-size: 0.9em;">${driver.active_route.shipments_count} ${driver.active_route.shipments_count === 1 ? 'carga' : 'cargas'}</p>
+                                        <p style="margin: 5px 0; color: #666; font-size: 0.85em;">Status: <span style="color: ${driver.active_route.status === 'in_progress' ? '#4caf50' : '#ff9800'};">${driver.active_route.status === 'in_progress' ? 'Em Andamento' : 'Agendada'}</span></p>
+                                    </div>`;
+                            }
+                            
+                            tooltipContent += `
+                                <p style="margin: 10px 0 0 0; font-size: 0.75em; color: #999; border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px;">
+                                    <i class="fas fa-clock"></i> Última atualização: <span class="last-update-time">${new Date(driver.last_update).toLocaleString('pt-BR')}</span>
+                                </p>
+                            </div>`;
+
+                            // Store tooltip content on marker for updates
+                            marker.tooltipContent = tooltipContent;
+
+                            // Create info window for click
+                            const infoWindow = new google.maps.InfoWindow({
+                                content: tooltipContent
+                            });
+
+                            // Create tooltip that appears on hover
+                            let tooltip = null;
+                            marker.addListener('mouseover', function() {
+                                if (tooltip) tooltip.close();
+                                tooltip = new google.maps.InfoWindow({
+                                    content: marker.tooltipContent,
+                                    disableAutoPan: true
+                                });
+                                tooltip.open(map, marker);
+                            });
+
+                            marker.addListener('mouseout', function() {
+                                if (tooltip) {
+                                    tooltip.close();
+                                    tooltip = null;
+                                }
+                            });
+
+                            marker.addListener('click', () => {
+                                infoWindow.setContent(marker.tooltipContent);
+                                infoWindow.open(map, marker);
+                            });
+
+                            marker.hasListeners = true;
+                        } else {
+                            // Update tooltip content with latest information
+                            if (marker.tooltipContent) {
+                                marker.tooltipContent = marker.tooltipContent.replace(
+                                    /<span class="last-update-time">.*?<\/span>/,
+                                    `<span class="last-update-time">${new Date(driver.last_update).toLocaleString('pt-BR')}</span>`
+                                );
+                            }
+                        }
+
+                        driverMarkers[driver.id] = marker;
+                        bounds.extend(position);
+                    }
+                });
+
+                // Fit map to show all drivers
+                if (Object.keys(driverMarkers).length > 0) {
+                    map.fitBounds(bounds);
+                }
+            })
+            .catch(error => console.error('Error loading driver locations:', error));
+    }
+
+    // Load routes and shipments with route paths (using same logic as route show page)
+    function loadRoutesAndShipments() {
+        if (!map || !bounds || typeof google === 'undefined' || typeof google.maps === 'undefined') {
+            console.warn('Google Maps not available - cannot load routes and shipments');
+            return;
+        }
+        
+        // Clear existing route renderers and shipment markers
+        if (window.routeRenderers) {
+            window.routeRenderers.forEach(renderer => renderer.setMap(null));
+        }
+        window.routeRenderers = [];
+        shipmentMarkers.forEach(marker => marker.setMap(null));
+        shipmentMarkers = [];
+        
+        <?php if($activeRoutes->count() > 0): ?>
+            <?php $__currentLoopData = $activeRoutes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $route): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <?php if($route->shipments->count() > 0): ?>
+                    const route<?php echo e($route->id); ?>Waypoints = [];
+                    
+                    // CRITICAL: Add depot/branch as origin (first waypoint) - same logic as route show page
+                    <?php if($route->start_latitude && $route->start_longitude): ?>
+                        const originPos<?php echo e($route->id); ?> = { lat: <?php echo e($route->start_latitude); ?>, lng: <?php echo e($route->start_longitude); ?> };
+                        const originMarker<?php echo e($route->id); ?> = new google.maps.Marker({
+                            position: originPos<?php echo e($route->id); ?>,
+                            map: map,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: (routeStyles[currentMapStyle] || routeStyles.uber).markerScale * 1.2,
+                                fillColor: '#FF6B35', // Orange for depot/branch
+                                fillOpacity: 1,
+                                strokeColor: '#FFFFFF',
+                                strokeWeight: (routeStyles[currentMapStyle] || routeStyles.uber).markerStrokeWeight + 1,
+                                zIndex: 2000
+                            },
+                            title: 'Ponto de Partida: <?php echo e($route->branch->name ?? "Depósito/Filial"); ?>'
+                        });
+                        shipmentMarkers.push(originMarker<?php echo e($route->id); ?>);
+                        bounds.extend(originPos<?php echo e($route->id); ?>);
+                        route<?php echo e($route->id); ?>Waypoints.push(originPos<?php echo e($route->id); ?>);
+                    <?php endif; ?>
+                    
+                    // Add only delivery addresses as waypoints (NOT pickups) - same logic as route show page
+                    <?php
+                        $shipments = $route->shipments;
+                        $optimizedOrder = $route->settings['sequential_optimized_order'] ?? null;
+                        if ($optimizedOrder && is_array($optimizedOrder)) {
+                            $shipmentsMap = $shipments->keyBy('id');
+                            $orderedShipments = collect();
+                            foreach ($optimizedOrder as $shipmentId) {
+                                if ($shipmentsMap->has($shipmentId)) {
+                                    $orderedShipments->push($shipmentsMap->get($shipmentId));
+                                }
+                            }
+                            foreach ($shipments as $shipment) {
+                                if (!in_array($shipment->id, $optimizedOrder)) {
+                                    $orderedShipments->push($shipment);
+                                }
+                            }
+                            $shipments = $orderedShipments;
+                        }
+                    ?>
+                    
+                    <?php $__currentLoopData = $shipments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $shipment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        // Show pickup markers but don't add to waypoints
+                        <?php if($shipment->pickup_latitude && $shipment->pickup_longitude): ?>
+                            const pickupPos<?php echo e($shipment->id); ?> = { lat: <?php echo e($shipment->pickup_latitude); ?>, lng: <?php echo e($shipment->pickup_longitude); ?> };
+                            const pickupStyle<?php echo e($shipment->id); ?> = routeStyles[currentMapStyle] || routeStyles.uber;
+                            
+                            const pickupMarker<?php echo e($shipment->id); ?> = new google.maps.Marker({
+                                position: pickupPos<?php echo e($shipment->id); ?>,
+                                map: map,
+                                icon: {
+                                    path: google.maps.SymbolPath.CIRCLE,
+                                    scale: pickupStyle<?php echo e($shipment->id); ?>.markerScale,
+                                    fillColor: pickupStyle<?php echo e($shipment->id); ?>.pickupColor,
+                                    fillOpacity: 1,
+                                    strokeColor: '#FFFFFF',
+                                    strokeWeight: pickupStyle<?php echo e($shipment->id); ?>.markerStrokeWeight,
+                                    zIndex: 1000
+                                },
+                                title: 'Coleta: <?php echo e($shipment->tracking_number); ?>'
+                            });
+                            
+                            const pickupInfo<?php echo e($shipment->id); ?> = new google.maps.InfoWindow({
+                                content: `<div style="padding: 10px; min-width: 200px;">
+                                    <h4 style="margin: 0 0 10px 0; color: var(--cor-acento);">Coleta: <?php echo e($shipment->tracking_number); ?></h4>
+                                    <p style="margin: 5px 0; color: #666;"><?php echo e($shipment->pickup_address); ?></p>
+                                    <p style="margin: 5px 0; color: #666;"><?php echo e($shipment->pickup_city); ?>, <?php echo e($shipment->pickup_state); ?></p>
+                                </div>`
+                            });
+                            
+                            pickupMarker<?php echo e($shipment->id); ?>.addListener('click', () => pickupInfo<?php echo e($shipment->id); ?>.open(map, pickupMarker<?php echo e($shipment->id); ?>));
+                            shipmentMarkers.push(pickupMarker<?php echo e($shipment->id); ?>);
+                            bounds.extend(pickupPos<?php echo e($shipment->id); ?>);
+                            // NOTE: Pickups are NOT added to waypoints - only visual markers
+                        <?php endif; ?>
+
+                        // Add delivery addresses as waypoints
+                        <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
+                            const deliveryPos<?php echo e($shipment->id); ?> = { lat: <?php echo e($shipment->delivery_latitude); ?>, lng: <?php echo e($shipment->delivery_longitude); ?> };
+                            const deliveryStyle<?php echo e($shipment->id); ?> = routeStyles[currentMapStyle] || routeStyles.uber;
+                            
+                            const deliveryMarker<?php echo e($shipment->id); ?> = new google.maps.Marker({
+                                position: deliveryPos<?php echo e($shipment->id); ?>,
+                                map: map,
+                                icon: {
+                                    path: google.maps.SymbolPath.CIRCLE,
+                                    scale: deliveryStyle<?php echo e($shipment->id); ?>.markerScale,
+                                    fillColor: deliveryStyle<?php echo e($shipment->id); ?>.deliveryColor,
+                                    fillOpacity: 1,
+                                    strokeColor: '#FFFFFF',
+                                    strokeWeight: deliveryStyle<?php echo e($shipment->id); ?>.markerStrokeWeight,
+                                    zIndex: 1000
+                                },
+                                title: 'Entrega: <?php echo e($shipment->tracking_number); ?>'
+                            });
+                            
+                            const deliveryInfo<?php echo e($shipment->id); ?> = new google.maps.InfoWindow({
+                                content: `<div style="padding: 10px; min-width: 200px;">
+                                    <h4 style="margin: 0 0 10px 0; color: var(--cor-acento);">Entrega: <?php echo e($shipment->tracking_number); ?></h4>
+                                    <p style="margin: 5px 0; color: #666;"><?php echo e($shipment->delivery_address); ?></p>
+                                    <p style="margin: 5px 0; color: #666;"><?php echo e($shipment->delivery_city); ?>, <?php echo e($shipment->delivery_state); ?></p>
+                                </div>`
+                            });
+                            
+                            deliveryMarker<?php echo e($shipment->id); ?>.addListener('click', () => deliveryInfo<?php echo e($shipment->id); ?>.open(map, deliveryMarker<?php echo e($shipment->id); ?>));
+                            shipmentMarkers.push(deliveryMarker<?php echo e($shipment->id); ?>);
+                            bounds.extend(deliveryPos<?php echo e($shipment->id); ?>);
+                            // Add delivery address as waypoint
+                            route<?php echo e($route->id); ?>Waypoints.push(deliveryPos<?php echo e($shipment->id); ?>);
+                        <?php endif; ?>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    
+                    // Draw route path: Depot → Destinations → Depot (return)
+                    if (route<?php echo e($route->id); ?>Waypoints.length > 1) {
+                        drawRoutePathCorrect(route<?php echo e($route->id); ?>Waypoints, '<?php echo e($route->id); ?>', '<?php echo e($route->name); ?>');
+                    }
+                <?php endif; ?>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            
+            // Fit bounds to show all routes
+            if (Object.keys(driverMarkers).length === 0 && shipmentMarkers.length > 0) {
+                map.fitBounds(bounds);
+            }
+        <?php endif; ?>
+    }
+
+    // Draw route path using Directions API (correct logic: depot as origin and destination)
+    function drawRoutePathCorrect(waypoints, routeId, routeName) {
+        if (waypoints.length < 2 || typeof google === 'undefined' || typeof google.maps === 'undefined') return;
+
+        // Route style based on current map style
+        const style = routeStyles[currentMapStyle] || routeStyles.uber;
+        const routeStyle = {
+            strokeColor: style.strokeColor,
+            strokeOpacity: style.strokeOpacity,
+            strokeWeight: style.strokeWeight
+        };
+
+        const directionsService = new google.maps.DirectionsService();
+        const directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: true, // We already have custom markers
+            polylineOptions: routeStyle
+        });
+
+        // Store renderer for cleanup
+        if (!window.routeRenderers) {
+            window.routeRenderers = [];
+        }
+        window.routeRenderers.push(directionsRenderer);
+
+        // CRITICAL: waypoints[0] is the origin (depot/branch)
+        // waypoints[1] to waypoints[n] are delivery destinations
+        // Destination MUST ALWAYS be depot/branch (waypoints[0]) - return to origin
+        const waypointsArray = waypoints.length > 1 
+            ? waypoints.slice(1).map(wp => ({
+                location: { lat: wp.lat, lng: wp.lng },
+                stopover: true
+            }))
+            : [];
+
+        // Origin is ALWAYS the depot/branch (waypoints[0])
+        const origin = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+        // Destination is ALWAYS the depot/branch (return to origin)
+        const destination = { lat: waypoints[0].lat, lng: waypoints[0].lng };
+
+        const request = {
+            origin: origin,
+            destination: destination,
+            waypoints: waypointsArray.length > 0 ? waypointsArray : undefined,
+            travelMode: google.maps.TravelMode.DRIVING,
+            unitSystem: google.maps.UnitSystem.METRIC,
+            language: 'pt-BR',
+            optimizeWaypoints: false // Keep order as specified
+        };
+
+        directionsService.route(request, function(result, status) {
+            if (status === 'OK') {
+                directionsRenderer.setDirections(result);
+                
+                const route = result.routes[0];
+                
+                // Extract route path for distance checking
+                const path = [];
+                route.legs.forEach(leg => {
+                    leg.steps.forEach(step => {
+                        step.path.forEach(point => {
+                            path.push({
+                                lat: point.lat(),
+                                lng: point.lng()
+                            });
+                        });
+                    });
+                });
+                
+                // Store route path for driver trail checking
+                routePaths[routeId] = path;
+                
+                route.overview_path.forEach(path => {
+                    bounds.extend(path);
+                });
+            } else {
+                console.error('Directions request failed for route ' + routeId + ':', status);
+            }
+        });
+    }
+
+    // Focus on specific route
+    function focusRoute(routeId) {
+        if (!map) return;
+        
+        const bounds = new google.maps.LatLngBounds();
+        let hasRoute = false;
+        
+        <?php $__currentLoopData = $activeRoutes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $route): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            if (<?php echo e($route->id); ?> === routeId) {
+                <?php $__currentLoopData = $route->shipments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $shipment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php if($shipment->pickup_latitude && $shipment->pickup_longitude): ?>
+                        bounds.extend({ lat: <?php echo e($shipment->pickup_latitude); ?>, lng: <?php echo e($shipment->pickup_longitude); ?> });
+                        hasRoute = true;
+                    <?php endif; ?>
+                    <?php if($shipment->delivery_latitude && $shipment->delivery_longitude): ?>
+                        bounds.extend({ lat: <?php echo e($shipment->delivery_latitude); ?>, lng: <?php echo e($shipment->delivery_longitude); ?> });
+                        hasRoute = true;
+                    <?php endif; ?>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            }
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        
+        if (hasRoute) {
+            map.fitBounds(bounds);
+            map.setZoom(Math.min(map.getZoom(), 12));
+        }
+    }
+
+    // Draw driver trail following roads (not straight lines)
+    function drawDriverTrailFollowingRoads(driverId, points, routePath, maxDistanceFromRoute) {
+        if (points.length < 2) {
+            console.log(`[Trail] Driver ${driverId}: Not enough points (${points.length})`);
+            return;
+        }
+        
+        console.log(`[Trail] Drawing trail for driver ${driverId} with ${points.length} points`);
+        
+        // Default visibility: visible
+        driverTrailVisibility[driverId] = driverTrailVisibility[driverId] !== undefined 
+            ? driverTrailVisibility[driverId] 
+            : true;
+        
+        // Clear existing trails for this driver only
+        if (driverTrails[driverId]) {
+            if (Array.isArray(driverTrails[driverId])) {
+                driverTrails[driverId].forEach(trail => {
+                    if (trail && trail.setMap) trail.setMap(null);
+                });
+            } else if (driverTrails[driverId] && driverTrails[driverId].setMap) {
+                driverTrails[driverId].setMap(null);
+            }
+        }
+        if (driverOffRouteTrails[driverId]) {
+            if (Array.isArray(driverOffRouteTrails[driverId])) {
+                driverOffRouteTrails[driverId].forEach(trail => {
+                    if (trail && trail.setMap) trail.setMap(null);
+                });
+            } else if (driverOffRouteTrails[driverId] && driverOffRouteTrails[driverId].setMap) {
+                driverOffRouteTrails[driverId].setMap(null);
+            }
+        }
+        
+        // Initialize arrays
+        if (!driverTrails[driverId]) {
+            driverTrails[driverId] = [];
+        }
+        if (!driverOffRouteTrails[driverId]) {
+            driverOffRouteTrails[driverId] = [];
+        }
+        
+        const directionsService = new google.maps.DirectionsService();
+        let processedSegments = 0;
+        const totalSegments = points.length - 1;
+        
+        // Process each segment between consecutive points
+        for (let i = 0; i < points.length - 1; i++) {
+            const startPoint = points[i];
+            const endPoint = points[i + 1];
+            
+            // Check if points are on route
+            let startIsOnRoute = true;
+            let endIsOnRoute = true;
+            
+            if (routePath && routePath.length > 0 && typeof google !== 'undefined' && google.maps && google.maps.geometry) {
+                // Check start point
+                let minDistance = Infinity;
+                const startLatLng = new google.maps.LatLng(startPoint.lat, startPoint.lng);
+                for (let j = 0; j < routePath.length; j++) {
+                    const routePoint = new google.maps.LatLng(routePath[j].lat, routePath[j].lng);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(startLatLng, routePoint);
+                    if (distance < minDistance) minDistance = distance;
+                }
+                startIsOnRoute = minDistance <= maxDistanceFromRoute;
+                
+                // Check end point
+                minDistance = Infinity;
+                const endLatLng = new google.maps.LatLng(endPoint.lat, endPoint.lng);
+                for (let j = 0; j < routePath.length; j++) {
+                    const routePoint = new google.maps.LatLng(routePath[j].lat, routePath[j].lng);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(endLatLng, routePoint);
+                    if (distance < minDistance) minDistance = distance;
+                }
+                endIsOnRoute = minDistance <= maxDistanceFromRoute;
+            }
+            
+            // Determine segment type - if either point is off route, the segment is off route
+            const segmentIsOnRoute = (startIsOnRoute && endIsOnRoute) || (!routePath);
+            
+            // Get road path between these two points using Directions API
+            directionsService.route({
+                origin: startPoint,
+                destination: endPoint,
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC
+            }, function(result, status) {
+                processedSegments++;
+                
+                if (status === 'OK' && result.routes && result.routes[0]) {
+                    // Extract path from route
+                    const path = [];
+                    result.routes[0].legs.forEach(leg => {
+                        leg.steps.forEach(step => {
+                            step.path.forEach(point => {
+                                path.push({
+                                    lat: point.lat(),
+                                    lng: point.lng()
+                                });
+                            });
+                        });
+                    });
+                    
+                    // Draw segment immediately with correct color
+                    if (path.length > 1) {
+                        const trail = new google.maps.Polyline({
+                            path: path,
+                            geodesic: true,
+                            strokeColor: segmentIsOnRoute ? '#FFD700' : '#FF0000', // Yellow or Red
+                            strokeOpacity: 0.8,
+                            strokeWeight: 4,
+                            zIndex: segmentIsOnRoute ? 500 : 501,
+                            map: driverTrailVisibility[driverId] ? map : null
+                        });
+                        
+                        if (segmentIsOnRoute) {
+                            driverTrails[driverId].push(trail);
+                        } else {
+                            driverOffRouteTrails[driverId].push(trail);
+                        }
+                    }
+                } else {
+                    // Fallback: use straight line if Directions API fails
+                    const fallbackPath = [startPoint, endPoint];
+                    const trail = new google.maps.Polyline({
+                        path: fallbackPath,
+                        geodesic: true,
+                        strokeColor: segmentIsOnRoute ? '#FFD700' : '#FF0000',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 4,
+                        zIndex: segmentIsOnRoute ? 500 : 501,
+                        map: driverTrailVisibility[driverId] ? map : null
+                    });
+                    
+                    if (segmentIsOnRoute) {
+                        driverTrails[driverId].push(trail);
+                    } else {
+                        driverOffRouteTrails[driverId].push(trail);
+                    }
+                }
+            });
+        }
+    }
+
+    // Focus on specific driver
+    function focusDriver(driverId) {
+        const marker = driverMarkers[driverId];
+        if (marker) {
+            map.setCenter(marker.getPosition());
+            map.setZoom(15);
+            marker.setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(() => marker.setAnimation(null), 2000);
+        }
+    }
+
+    // Toggle driver trail visibility
+    function toggleDriverTrail(driverId) {
+        const trails = driverTrails[driverId];
+        const offRouteTrails = driverOffRouteTrails[driverId];
+        if ((!trails || (Array.isArray(trails) && trails.length === 0)) && 
+            (!offRouteTrails || (Array.isArray(offRouteTrails) && offRouteTrails.length === 0))) {
+            return;
+        }
+        
+        // Toggle visibility state
+        driverTrailVisibility[driverId] = !driverTrailVisibility[driverId];
+        
+        // Show or hide trails
+        if (driverTrailVisibility[driverId]) {
+            if (trails) {
+                if (Array.isArray(trails)) {
+                    trails.forEach(trail => trail.setMap(map));
+                } else {
+                    trails.setMap(map);
+                }
+            }
+            if (offRouteTrails) {
+                if (Array.isArray(offRouteTrails)) {
+                    offRouteTrails.forEach(trail => trail.setMap(map));
+                } else {
+                    offRouteTrails.setMap(map);
+                }
+            }
+        } else {
+            if (trails) {
+                if (Array.isArray(trails)) {
+                    trails.forEach(trail => trail.setMap(null));
+                } else {
+                    trails.setMap(null);
+                }
+            }
+            if (offRouteTrails) {
+                if (Array.isArray(offRouteTrails)) {
+                    offRouteTrails.forEach(trail => trail.setMap(null));
+                } else {
+                    offRouteTrails.setMap(null);
+                }
+            }
+        }
+        
+        // Update button appearance
+        const button = document.querySelector(`.toggle-trail-btn[data-driver-id="${driverId}"]`);
+        if (button) {
+            if (driverTrailVisibility[driverId]) {
+                button.style.background = 'rgba(255, 107, 53, 0.2)';
+                button.style.borderColor = 'var(--cor-acento)';
+                button.style.color = 'var(--cor-acento)';
+            } else {
+                button.style.background = 'rgba(255, 255, 255, 0.1)';
+                button.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                button.style.color = 'rgba(255, 255, 255, 0.5)';
+            }
+        }
+    }
+
+    // Check for route deviations and show alerts
+    let lastDeviationAlerts = {};
+    // Stub function - to be implemented
+    function loadRouteDeviationCosts() {
+        // Function not implemented yet
+        // Will calculate costs for route deviations
+        console.log('loadRouteDeviationCosts: Not implemented yet');
+    }
+
+    function checkRouteDeviations() {
+        <?php $__currentLoopData = $activeRoutes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $route): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php if($route->status === 'in_progress'): ?>
+                fetch('<?php echo e(route("monitoring.route.deviation-costs", $route->id)); ?>')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.has_deviation && data.off_route_distance_km > 0.5) {
+                            // Only show alert if we haven't shown one in the last 2 minutes
+                            const routeId = <?php echo e($route->id); ?>;
+                            const now = Date.now();
+                            if (!lastDeviationAlerts[routeId] || (now - lastDeviationAlerts[routeId]) > 120000) {
+                                showRouteDeviationAlert(<?php echo e($route->id); ?>, '<?php echo e($route->name); ?>', data);
+                                lastDeviationAlerts[routeId] = now;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        // Silently fail
+                    });
+            <?php endif; ?>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    }
+
+    // Show route deviation alert for admin
+    function showRouteDeviationAlert(routeId, routeName, data) {
+        // Remove existing alert for this route
+        const existing = document.querySelector(`.route-deviation-alert[data-route-id="${routeId}"]`);
+        if (existing) existing.remove();
+
+        const alert = document.createElement('div');
+        alert.className = 'route-deviation-alert';
+        alert.setAttribute('data-route-id', routeId);
+        alert.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.5);
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideInLeft 0.3s ease-out;
+        `;
+        alert.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 1.2em;">
+                    <i class="fas fa-exclamation-triangle"></i> Desvio de Rota Detectado!
+                </h4>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; padding: 0; margin-left: 10px;">
+                    &times;
+                </button>
+            </div>
+            <p style="margin: 5px 0; font-size: 0.95em;">
+                <strong>Rota:</strong> ${routeName}
+            </p>
+            <p style="margin: 5px 0; font-size: 0.95em;">
+                Motorista está <strong>${data.off_route_distance_km.toFixed(2)} km</strong> fora da rota planejada.
+            </p>
+            <p style="margin: 5px 0; font-size: 0.9em; opacity: 0.9;">
+                Custo extra estimado: <strong>R$ ${data.total_extra_cost.toFixed(2)}</strong>
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 0.85em; opacity: 0.8;">
+                <i class="fas fa-info-circle"></i> Verifique o mapa para mais detalhes.
+            </p>
+        `;
+
+        document.body.appendChild(alert);
+
+        // Request browser notification permission and show
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Desvio de Rota Detectado', {
+                body: `Rota ${routeName}: Motorista está ${data.off_route_distance_km.toFixed(2)} km fora da rota.`,
+                icon: '/favicon.ico',
+                tag: `route-deviation-${routeId}`,
+                requireInteraction: false,
+            });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification('Desvio de Rota Detectado', {
+                        body: `Rota ${routeName}: Motorista está ${data.off_route_distance_km.toFixed(2)} km fora da rota.`,
+                        icon: '/favicon.ico',
+                        tag: `route-deviation-${routeId}`,
+                    });
+                }
+            });
+        }
+
+        // Auto-remove after 15 seconds
+        setTimeout(() => {
+            if (alert.parentElement) {
+                alert.remove();
+            }
+        }, 15000);
+    }
+
+    // Refresh button
+    const refreshButton = document.getElementById('refresh-locations');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
+                loadRoutesAndShipments();
+                setTimeout(() => {
+                    loadDriverLocations();
+                    if (typeof loadRouteDeviationCosts === 'function') {
+                        loadRouteDeviationCosts();
+                    }
+                    if (typeof checkRouteDeviations === 'function') {
+                        checkRouteDeviations();
+                    }
+                    const btn = this;
+                    if (btn && btn.innerHTML) {
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar';
+                    }
+                }, 1000);
+        });
+    }
+
+    // Google Maps disabled - do not load legacy message anymore (Mapbox now handles initialization)
+    // Left intentionally blank to avoid injecting the old "Google Maps desabilitado" overlay
+
+    // Auto-refresh every 30 seconds (only after map is initialized)
+    let refreshInterval;
+    function startAutoRefresh() {
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => {
+            if (map && typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+                loadRoutesAndShipments();
+                setTimeout(() => {
+                    loadDriverLocations();
+                    if (typeof loadRouteDeviationCosts === 'function') {
+                        loadRouteDeviationCosts();
+                    }
+                    if (typeof checkRouteDeviations === 'function') {
+                        checkRouteDeviations();
+                    }
+                }, 1000);
+            }
+        }, 30000);
+    }
+
+    // Start auto-refresh after map initialization (disabled - Google Maps not available)
+    // const originalInitMap = window.initMap;
+    // window.initMap = function() {
+    //     if (originalInitMap) originalInitMap();
+    //     if (map && typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+    //         startAutoRefresh();
+    //     }
+    // };
+</script>
+<?php $__env->stopPush(); ?>
+<?php $__env->stopSection(); ?>
+
+
+
+
+
+
+
+
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/monitoring/index.blade.php ENDPATH**/ ?>

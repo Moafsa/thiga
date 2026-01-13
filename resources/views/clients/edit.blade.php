@@ -125,7 +125,28 @@
                 <label for="phone">Phone</label>
                 <input type="text" name="phone" id="phone" value="{{ old('phone', $client->phone) }}" 
                        placeholder="(00) 00000-0000">
+                <small style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin-top: 5px; display: block;">
+                    Telefone usado para login no dashboard do cliente
+                </small>
                 @error('phone')
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="user_id">Usuário para Login</label>
+                <select name="user_id" id="user_id">
+                    <option value="">Sem usuário vinculado</option>
+                    @foreach($users as $user)
+                        <option value="{{ $user->id }}" {{ old('user_id', $client->user_id) == $user->id ? 'selected' : '' }}>
+                            {{ $user->name }} ({{ $user->email }})
+                        </option>
+                    @endforeach
+                </select>
+                <small style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin-top: 5px; display: block;">
+                    Vincular a um usuário existente para permitir login no dashboard do cliente
+                </small>
+                @error('user_id')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
                 @enderror
             </div>

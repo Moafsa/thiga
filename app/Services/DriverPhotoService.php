@@ -68,36 +68,67 @@ class DriverPhotoService
         // Handle UploadedFile
         elseif ($photo instanceof UploadedFile) {
             $extension = $photo->getClientOriginalExtension();
+            $mimeType = $photo->getMimeType();
             $filename = 'photo_' . time() . '_' . uniqid() . '.' . $extension;
-            
-            // Optimize and resize image (max 1200x1200, quality 85%)
-            $optimizedData = self::optimizeImage($photo, 1200, 1200, 85);
             $fullPath = "{$path}/{$filename}";
             
-            try {
-                \Log::debug('Uploading uploaded file to disk', ['disk' => $disk, 'path' => $fullPath, 'size' => strlen($optimizedData)]);
-                Storage::disk($disk)->put($fullPath, $optimizedData);
-                \Log::info('Uploaded file saved successfully', ['disk' => $disk, 'path' => $fullPath]);
-            } catch (\Exception $e) {
-                // Fallback to public if MinIO fails
-                if ($disk === 'minio') {
-                    \Log::warning('MinIO upload failed, using public disk fallback', [
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-                    try {
-                        Storage::disk('public')->put($fullPath, $optimizedData);
-                        $disk = 'public';
-                        \Log::info('Uploaded file saved to public disk after MinIO failure', ['path' => $fullPath]);
-                    } catch (\Exception $fallbackException) {
-                        \Log::error('Both MinIO and public disk upload failed', [
-                            'minio_error' => $e->getMessage(),
-                            'public_error' => $fallbackException->getMessage(),
+            // Check if it's a PDF - save directly without optimization
+            if ($mimeType === 'application/pdf' || strtolower($extension) === 'pdf') {
+                try {
+                    \Log::debug('Uploading PDF file to disk', ['disk' => $disk, 'path' => $fullPath, 'size' => $photo->getSize()]);
+                    Storage::disk($disk)->putFileAs($path, $photo, $filename);
+                    \Log::info('PDF file saved successfully', ['disk' => $disk, 'path' => $fullPath]);
+                } catch (\Exception $e) {
+                    // Fallback to public if MinIO fails
+                    if ($disk === 'minio') {
+                        \Log::warning('MinIO upload failed, using public disk fallback', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
                         ]);
-                        throw $fallbackException;
+                        try {
+                            Storage::disk('public')->putFileAs($path, $photo, $filename);
+                            $disk = 'public';
+                            \Log::info('PDF file saved to public disk after MinIO failure', ['path' => $fullPath]);
+                        } catch (\Exception $fallbackException) {
+                            \Log::error('Both MinIO and public disk upload failed', [
+                                'minio_error' => $e->getMessage(),
+                                'public_error' => $fallbackException->getMessage(),
+                            ]);
+                            throw $fallbackException;
+                        }
+                    } else {
+                        throw $e;
                     }
-                } else {
-                    throw $e;
+                }
+            } else {
+                // It's an image - optimize and resize (max 1200x1200, quality 85%)
+                $optimizedData = self::optimizeImage($photo, 1200, 1200, 85);
+                
+                try {
+                    \Log::debug('Uploading uploaded file to disk', ['disk' => $disk, 'path' => $fullPath, 'size' => strlen($optimizedData)]);
+                    Storage::disk($disk)->put($fullPath, $optimizedData);
+                    \Log::info('Uploaded file saved successfully', ['disk' => $disk, 'path' => $fullPath]);
+                } catch (\Exception $e) {
+                    // Fallback to public if MinIO fails
+                    if ($disk === 'minio') {
+                        \Log::warning('MinIO upload failed, using public disk fallback', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        try {
+                            Storage::disk('public')->put($fullPath, $optimizedData);
+                            $disk = 'public';
+                            \Log::info('Uploaded file saved to public disk after MinIO failure', ['path' => $fullPath]);
+                        } catch (\Exception $fallbackException) {
+                            \Log::error('Both MinIO and public disk upload failed', [
+                                'minio_error' => $e->getMessage(),
+                                'public_error' => $fallbackException->getMessage(),
+                            ]);
+                            throw $fallbackException;
+                        }
+                    } else {
+                        throw $e;
+                    }
                 }
             }
         } else {
