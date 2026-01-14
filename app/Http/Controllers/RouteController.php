@@ -382,7 +382,9 @@ class RouteController extends Controller
             }
 
             // CRITICAL: Update route with start coordinates (MUST be depot/branch, NEVER pickup address)
-            if (!$startLat || !$startLng) {
+            // EXCEPTION: Se start_address_type for 'current_location', não definimos coordenadas agora
+            // As coordenadas serão capturadas quando o motorista iniciar a rota
+            if ($startAddressType !== 'current_location' && (!$startLat || !$startLng)) {
                 DB::rollBack();
                 \Log::error('CRITICAL: Route created without start coordinates (depot/branch)', [
                     'route_id' => $route->id,
@@ -398,20 +400,34 @@ class RouteController extends Controller
                 $branch = Branch::find($validated['branch_id']);
             }
             
-            \Log::info('Setting route origin as depot/branch (NOT pickup address)', [
+            \Log::info('Setting route origin', [
                 'route_id' => $route->id,
                 'start_address_type' => $startAddressType,
                 'branch_id' => $branch->id ?? null,
                 'branch_name' => $branch->name ?? null,
                 'branch_city' => $branch->city ?? null,
-                'origin_coordinates' => ['lat' => $startLat, 'lng' => $startLng],
+                'origin_coordinates' => $startLat && $startLng ? ['lat' => $startLat, 'lng' => $startLng] : 'will_be_set_when_driver_starts',
             ]);
             
             try {
-                $route->update([
-                    'start_latitude' => $startLat,
-                    'start_longitude' => $startLng,
-                ]);
+                // Só atualiza coordenadas se não for current_location (será definido quando motorista iniciar)
+                $updateData = [];
+                if ($startAddressType !== 'current_location' && $startLat && $startLng) {
+                    $updateData['start_latitude'] = $startLat;
+                    $updateData['start_longitude'] = $startLng;
+                }
+                
+                if (!empty($updateData)) {
+                    $route->update($updateData);
+                }
+                
+                // Para current_location, logamos que será definido depois
+                if ($startAddressType === 'current_location') {
+                    \Log::info('Route created with current_location - coordinates will be captured when driver starts route', [
+                        'route_id' => $route->id,
+                        'driver_id' => $validated['driver_id'] ?? null,
+                    ]);
+                }
 
                 // Calculate multiple route options (will set end coordinates)
                 // This is done outside transaction to avoid blocking if API call fails
@@ -429,38 +445,46 @@ class RouteController extends Controller
             DB::commit();
             
             // Now calculate routes (outside transaction)
-            try {
-                $this->calculateMultipleRouteOptions($route);
-                
-                // Verify end coordinates are set - MUST ALWAYS be depot/branch (return to origin)
-                $route->refresh();
-                if (!$route->end_latitude || !$route->end_longitude) {
-                    // CRITICAL: End coordinates MUST ALWAYS be depot/branch (return to origin)
-                    $route->update([
-                        'end_latitude' => $startLat,
-                        'end_longitude' => $startLng,
-                    ]);
-                    \Log::info('Route end coordinates set to origin (depot/branch - return)', [
+            // Só calcula se tiver coordenadas de início definidas
+            // Se for current_location, será calculado quando motorista iniciar a rota
+            if ($startAddressType !== 'current_location' && $startLat && $startLng) {
+                try {
+                    $this->calculateMultipleRouteOptions($route);
+                    
+                    // Verify end coordinates are set - MUST ALWAYS be depot/branch (return to origin)
+                    $route->refresh();
+                    if (!$route->end_latitude || !$route->end_longitude) {
+                        // CRITICAL: End coordinates MUST ALWAYS be depot/branch (return to origin)
+                        if ($startLat && $startLng) {
+                            $route->update([
+                                'end_latitude' => $startLat,
+                                'end_longitude' => $startLng,
+                            ]);
+                            \Log::info('Route end coordinates set to origin (depot/branch - return)', [
+                                'route_id' => $route->id,
+                            ]);
+                        }
+                    } else {
+                        // Ensure end coordinates are depot/branch, not last shipment
+                        if ($startLat && $startLng) {
+                            $route->update([
+                                'end_latitude' => $startLat,
+                                'end_longitude' => $startLng,
+                            ]);
+                            \Log::info('Route end coordinates updated to origin (depot/branch - return)', [
+                                'route_id' => $route->id,
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't fail route creation if route calculation fails
+                    \Log::error('Error calculating route options', [
                         'route_id' => $route->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
                     ]);
-                } else {
-                    // Ensure end coordinates are depot/branch, not last shipment
-                    $route->update([
-                        'end_latitude' => $startLat,
-                        'end_longitude' => $startLng,
-                    ]);
-                    \Log::info('Route end coordinates updated to origin (depot/branch - return)', [
-                        'route_id' => $route->id,
-                    ]);
+                    // Route is already created, so we continue
                 }
-            } catch (\Exception $e) {
-                // Log error but don't fail route creation if route calculation fails
-                \Log::error('Error calculating route options', [
-                    'route_id' => $route->id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                // Route is already created, so we continue
             }
             
             // Update vehicle status if vehicle is assigned (outside transaction)

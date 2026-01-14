@@ -1470,11 +1470,40 @@ class DriverDashboardController extends Controller
         }
 
         try {
-            $route->update([
+            // Se a rota foi criada com start_address_type = 'current_location',
+            // captura a localização atual do motorista agora
+            $updateData = [
                 'status' => 'in_progress',
                 'started_at' => now(),
                 'actual_departure_datetime' => now(),
-            ]);
+            ];
+            
+            // Se a rota não tem coordenadas de início definidas OU foi criada com current_location,
+            // usa a localização atual do motorista
+            if ((!$route->start_latitude || !$route->start_longitude) || 
+                ($route->start_address_type === 'current_location' && $driver->current_latitude && $driver->current_longitude)) {
+                
+                if ($driver->current_latitude && $driver->current_longitude) {
+                    $updateData['start_latitude'] = $driver->current_latitude;
+                    $updateData['start_longitude'] = $driver->current_longitude;
+                    
+                    Log::info('Route start coordinates captured from driver current location', [
+                        'route_id' => $route->id,
+                        'driver_id' => $driver->id,
+                        'coordinates' => [
+                            'lat' => $driver->current_latitude,
+                            'lng' => $driver->current_longitude,
+                        ],
+                    ]);
+                } else {
+                    Log::warning('Driver does not have current location when starting route', [
+                        'route_id' => $route->id,
+                        'driver_id' => $driver->id,
+                    ]);
+                }
+            }
+            
+            $route->update($updateData);
 
             // Update vehicle status if vehicle is assigned
             if ($route->vehicle_id) {
@@ -1488,7 +1517,50 @@ class DriverDashboardController extends Controller
                 'route_id' => $route->id,
                 'driver_id' => $driver->id,
                 'started_at' => $route->started_at,
+                'start_coordinates' => $route->start_latitude && $route->start_longitude ? [
+                    'lat' => $route->start_latitude,
+                    'lng' => $route->start_longitude,
+                ] : null,
             ]);
+            
+            // Se as coordenadas foram atualizadas, recalcula a rota
+            $route->refresh();
+            if ($route->start_latitude && $route->start_longitude && $route->shipments()->count() > 0) {
+                try {
+                    // Usa o RouteController para recalcular a rota
+                    // Usamos reflection porque o método é protected
+                    $routeController = app(\App\Http\Controllers\RouteController::class);
+                    $reflection = new \ReflectionClass($routeController);
+                    $method = $reflection->getMethod('calculateMultipleRouteOptions');
+                    $method->setAccessible(true);
+                    $method->invoke($routeController, $route);
+                    
+                    // Atualiza coordenadas de fim para retornar ao ponto de partida
+                    $route->refresh();
+                    if ($route->start_latitude && $route->start_longitude) {
+                        $route->update([
+                            'end_latitude' => $route->start_latitude,
+                            'end_longitude' => $route->start_longitude,
+                        ]);
+                    }
+                    
+                    Log::info('Route recalculated after driver started with current location', [
+                        'route_id' => $route->id,
+                        'driver_id' => $driver->id,
+                        'start_coordinates' => [
+                            'lat' => $route->start_latitude,
+                            'lng' => $route->start_longitude,
+                        ],
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to recalculate route after driver started', [
+                        'route_id' => $route->id,
+                        'driver_id' => $driver->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Não falha a operação se o recálculo falhar
+                }
+            }
 
             return response()->json([
                 'message' => 'Route started successfully',

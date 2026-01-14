@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Client extends Model
 {
@@ -125,11 +126,13 @@ class Client extends Model
     protected static function booted(): void
     {
         static::saving(function (Client $client) {
-            // Normalize phone to E.164 format
-            if ($client->phone) {
-                $client->phone_e164 = self::normalizePhone($client->phone);
-            } else {
-                $client->phone_e164 = null;
+            // Normalize phone to E.164 format only if column exists
+            if (\Schema::hasColumn('clients', 'phone_e164')) {
+                if ($client->phone) {
+                    $client->phone_e164 = self::normalizePhone($client->phone);
+                } else {
+                    $client->phone_e164 = null;
+                }
             }
         });
     }
