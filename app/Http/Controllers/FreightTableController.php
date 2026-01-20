@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FreightTable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class FreightTableController extends Controller
 {
@@ -49,6 +50,8 @@ class FreightTableController extends Controller
             'name' => 'required|string|max:255',
             'destination_name' => 'required|string|max:255',
             'destination_state' => 'nullable|string|max:2',
+            'origin_name' => 'nullable|string|max:255',
+            'origin_state' => 'nullable|string|max:2',
             'weight_0_30' => 'required|numeric|min:0',
             'weight_31_50' => 'required|numeric|min:0',
             'weight_51_70' => 'required|numeric|min:0',
@@ -80,6 +83,8 @@ class FreightTableController extends Controller
             'destination_type' => $request->destination_type ?? 'city',
             'destination_name' => $request->destination_name,
             'destination_state' => $request->destination_state,
+            'origin_name' => $request->origin_name,
+            'origin_state' => $request->origin_state,
             'cep_range_start' => $request->cep_range_start,
             'cep_range_end' => $request->cep_range_end,
             'weight_0_30' => $request->weight_0_30,
@@ -94,6 +99,8 @@ class FreightTableController extends Controller
             'toll_per_100kg' => $request->toll_per_100kg ?? 12.95,
             'cubage_factor' => $request->cubage_factor ?? 300,
             'min_freight_rate_vs_nf' => $this->convertPercentageToDecimal($request->min_freight_rate_vs_nf) ?? 0.01,
+            'min_freight_rate_type' => $request->min_freight_rate_type ?? null,
+            'min_freight_rate_value' => $request->min_freight_rate_type ? ($request->min_freight_rate_value ?? null) : null,
             'tde_markets' => $request->tde_markets,
             'tde_supermarkets_cd' => $request->tde_supermarkets_cd,
             'palletization' => $request->palletization,
@@ -140,6 +147,8 @@ class FreightTableController extends Controller
             'name' => 'required|string|max:255',
             'destination_name' => 'required|string|max:255',
             'destination_state' => 'nullable|string|max:2',
+            'origin_name' => 'nullable|string|max:255',
+            'origin_state' => 'nullable|string|max:2',
             'weight_0_30' => 'nullable|numeric|min:0',
             'weight_31_50' => 'nullable|numeric|min:0',
             'weight_51_70' => 'nullable|numeric|min:0',
@@ -168,6 +177,15 @@ class FreightTableController extends Controller
         if ($request->has('min_freight_rate_vs_nf')) {
             $data['min_freight_rate_vs_nf'] = $this->convertPercentageToDecimal($request->min_freight_rate_vs_nf);
         }
+        
+        // Process minimum freight rate fields
+        if (empty($request->min_freight_rate_type)) {
+            $data['min_freight_rate_type'] = null;
+            $data['min_freight_rate_value'] = null;
+        } else {
+            $data['min_freight_rate_type'] = $request->min_freight_rate_type;
+            $data['min_freight_rate_value'] = $request->min_freight_rate_value ?? null;
+        }
         if ($request->has('weekend_holiday_rate')) {
             $data['weekend_holiday_rate'] = $this->convertPercentageToDecimal($request->weekend_holiday_rate);
         }
@@ -195,6 +213,73 @@ class FreightTableController extends Controller
 
         return redirect()->route('freight-tables.index')
             ->with('success', 'Tabela de frete excluída com sucesso!');
+    }
+
+    /**
+     * Export a single freight table to PDF
+     */
+    public function exportPdf(FreightTable $freightTable)
+    {
+        $this->authorizeAccess($freightTable);
+        
+        $tenant = Auth::user()->tenant;
+        
+        $pdf = Pdf::loadView('freight-tables.pdf', [
+            'freightTable' => $freightTable,
+            'tenant' => $tenant,
+        ]);
+
+        $filename = 'Tabela_Frete_' . str_replace([' ', '/', '\\'], '_', $freightTable->name) . '_' . date('Y-m-d') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Export all freight tables to PDF
+     */
+    public function exportAllPdf()
+    {
+        $tenant = Auth::user()->tenant;
+        
+        if (!$tenant) {
+            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
+        }
+        
+        $freightTables = FreightTable::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->orderBy('is_default', 'desc')
+            ->orderBy('destination_name')
+            ->get();
+        
+        $pdf = Pdf::loadView('freight-tables.pdf-all', [
+            'freightTables' => $freightTables,
+            'tenant' => $tenant,
+        ]);
+
+        $filename = 'Tabelas_Frete_Completas_' . date('Y-m-d') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Duplicate a freight table
+     */
+    public function duplicate(FreightTable $freightTable)
+    {
+        $this->authorizeAccess($freightTable);
+        
+        $tenant = Auth::user()->tenant;
+        
+        // Create a copy of the freight table
+        $duplicated = $freightTable->replicate();
+        $duplicated->name = 'Cópia de ' . $freightTable->name;
+        $duplicated->is_default = false; // Duplicated tables should not be default
+        $duplicated->is_active = true;
+        $duplicated->tenant_id = $tenant->id;
+        $duplicated->save();
+        
+        return redirect()->route('freight-tables.edit', $duplicated)
+            ->with('success', 'Tabela de frete duplicada com sucesso! Você pode editar os dados e salvar.');
     }
 
     /**

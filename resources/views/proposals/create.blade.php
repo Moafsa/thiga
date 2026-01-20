@@ -363,7 +363,9 @@
                         <select name="destination" id="destination" required>
                             <option value="">Selecione um destino</option>
                             @foreach($freightTables as $table)
-                                <option value="{{ $table->destination_name }}">
+                                <option value="{{ $table->destination_name }}"
+                                        data-origin-name="{{ $table->origin_name ?? 'São Paulo' }}"
+                                        data-origin-state="{{ $table->origin_state ?? 'SP' }}">
                                     {{ $table->destination_name }}
                                 </option>
                             @endforeach
@@ -372,7 +374,11 @@
 
                     <div class="form-group">
                         <label for="origin">Origem</label>
-                        <input type="text" id="origin" name="origin" value="São Paulo / SP" disabled>
+                        <input type="text" id="origin" name="origin" value="São Paulo / SP" readonly 
+                               style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <small style="color: rgba(0,0,0,0.6); font-size: 0.85em; display: block; margin-top: 5px;">
+                            A origem é definida automaticamente pela tabela de frete selecionada
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -399,7 +405,32 @@
                         <label for="valid_until">Válido até</label>
                         <input type="date" id="valid_until" name="valid_until" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
                     </div>
+                </div>
 
+                <!-- Taxa Mínima da Proposta -->
+                <div style="margin-top: 20px; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                    <h3 style="margin-top: 0; color: var(--cor-principal); font-size: 18px;">Taxa Mínima de Frete (Opcional)</h3>
+                    <p style="color: #856404; font-size: 0.9em; margin-bottom: 15px;">
+                        Configure uma taxa mínima para esta proposta. Se o valor calculado (após desconto) estiver abaixo desta taxa, a proposta não será criada.
+                    </p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="min_freight_rate_type">Tipo de Taxa Mínima</label>
+                            <select name="min_freight_rate_type" id="min_freight_rate_type" style="padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; background-color: #fff; color: #333;">
+                                <option value="">Nenhuma (usar automático da tabela/rota)</option>
+                                <option value="percentage">Percentual sobre NF</option>
+                                <option value="fixed">Valor Fixo (R$)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="min_freight_rate_value" id="min_freight_rate_value_label">Valor da Taxa Mínima</label>
+                            <input type="number" name="min_freight_rate_value" id="min_freight_rate_value" step="0.01" min="0" placeholder="0.00" disabled style="padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; background-color: #fff; color: #333;">
+                            <small style="color: #856404; display: block; margin-top: 5px;" id="min_freight_rate_value_help">Selecione o tipo primeiro</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid" style="margin-top: 20px;">
                     <div class="form-group full-width">
                         <label for="title">Título da Proposta *</label>
                         <input type="text" name="title" id="title" value="{{ old('title') }}" required placeholder="Ex: Proposta de Frete - Belo Horizonte">
@@ -494,9 +525,50 @@
     </main>
 </div>
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container--default .select2-selection--single {
+        height: auto;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #fff;
+        color: #333;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px;
+        padding-left: 0;
+        padding-right: 20px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 46px;
+        right: 10px;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 8px;
+    }
+    .select2-dropdown {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .select2-results__option {
+        padding: 10px;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: var(--cor-acento);
+    }
+</style>
+@endpush
+
 @push('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/pt-BR.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const today = new Date();
@@ -509,6 +581,39 @@
         document.getElementById('proposal-number').textContent = proposalNumber;
         document.getElementById('proposal-date').textContent = formattedDate;
 
+        // Initialize Select2 for searchable selects
+        $('#client_id').select2({
+            language: 'pt-BR',
+            placeholder: 'Selecione um cliente',
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('#salesperson_id').select2({
+            language: 'pt-BR',
+            placeholder: 'Selecione um vendedor',
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('#destination').select2({
+            language: 'pt-BR',
+            placeholder: 'Selecione um destino',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize origin with default value or first selected option
+        const initialDestination = $('#destination').val();
+        if (initialDestination) {
+            const selectedOption = $('#destination').find('option:selected');
+            if (selectedOption.length > 0) {
+                const originName = selectedOption.data('origin-name') || 'São Paulo';
+                const originState = selectedOption.data('origin-state') || 'SP';
+                $('#origin').val(`${originName} / ${originState}`);
+            }
+        }
+
         const calculateBtn = document.getElementById('calculate-btn');
         const createProposalBtn = document.getElementById('create-proposal-btn');
         const resultSection = document.getElementById('result-section');
@@ -517,7 +622,7 @@
 
         // Calculate freight
         calculateBtn.addEventListener('click', async function() {
-            const destination = document.getElementById('destination').value;
+            const destination = $('#destination').val() || document.getElementById('destination').value;
             const weight = parseFloat(document.getElementById('weight').value) || 0;
             const cubage = parseFloat(document.getElementById('cubage').value) || 0;
             const invoiceValue = parseFloat(document.getElementById('invoice_value').value) || 0;
@@ -560,6 +665,19 @@
                 if (data.success) {
                     calculatedFreightValue = data.data.total;
                     const breakdown = data.data.breakdown;
+                    const minValue = breakdown.minimum_value || 0;
+                    const minSource = breakdown.minimum_source || 'default';
+
+                    let minimumMessage = '';
+                    if (breakdown.minimum_applied) {
+                        let sourceText = 'padrão';
+                        if (minSource === 'route') {
+                            sourceText = 'da rota';
+                        } else if (minSource === 'freight_table') {
+                            sourceText = 'da tabela de frete';
+                        }
+                        minimumMessage = `<br><em style="color: #ff6b35; font-weight: 600;">* Aplicado frete mínimo ${sourceText}: R$ ${formatCurrency(minValue)}</em>`;
+                    }
 
                     resultSection.innerHTML = `
                         <p>Valor Aproximado do Frete (com taxas):</p>
@@ -571,7 +689,8 @@
                             - Ad Valorem (0,40%): R$ ${formatCurrency(breakdown.ad_valorem)}<br>
                             - GRIS (0,30%, mín. R$ 8,70): R$ ${formatCurrency(breakdown.gris)}<br>
                             - Pedágio (R$ 12,95 x fração de 100kg): R$ ${formatCurrency(breakdown.toll)}
-                            ${breakdown.minimum_applied ? `<br><em>* Aplicado frete mínimo de 1% do valor da NF (R$ ${formatCurrency(breakdown.minimum_value)})</em>` : ''}
+                            ${minimumMessage}
+                            ${minValue > 0 ? `<br><div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 3px solid #ffc107; border-radius: 4px;"><strong>Taxa Mínima Atual:</strong> R$ ${formatCurrency(minValue)}</div>` : ''}
                         </div>
                     `;
                     resultSection.style.display = 'block';
@@ -596,15 +715,43 @@
             }
 
             const discountPercentage = parseFloat(document.getElementById('discount_percentage').value) || 0;
-            const salespersonId = document.getElementById('salesperson_id').value;
+            const salespersonId = $('#salesperson_id').val() || document.getElementById('salesperson_id').value;
             const salespersonSelect = document.getElementById('salesperson_id');
-            const selectedOption = salespersonSelect.options[salespersonSelect.selectedIndex];
-            const maxDiscount = parseFloat(selectedOption.getAttribute('data-max-discount')) || 0;
+            const selectedOption = $('#salesperson_id option:selected')[0] || salespersonSelect.options[salespersonSelect.selectedIndex];
+            const maxDiscount = parseFloat($(selectedOption).attr('data-max-discount') || selectedOption.getAttribute('data-max-discount')) || 0;
 
             if (discountPercentage > maxDiscount) {
                 e.preventDefault();
                 alert(`Desconto máximo permitido para este vendedor é ${maxDiscount}%`);
                 return false;
+            }
+
+            // Calcular valor final após desconto
+            const discountValue = (calculatedFreightValue * discountPercentage) / 100;
+            const finalValue = calculatedFreightValue - discountValue;
+
+            // Validar taxa mínima se configurada na proposta
+            const minFreightRateType = document.getElementById('min_freight_rate_type').value;
+            const minFreightRateValueInput = document.getElementById('min_freight_rate_value').value;
+            
+            if (minFreightRateType && minFreightRateValueInput) {
+                let minFreightValue = 0;
+                const invoiceValue = parseFloat(invoiceValueInput.value) || 0;
+                const minRateValue = parseFloat(minFreightRateValueInput);
+                
+                if (minFreightRateType === 'percentage') {
+                    // Se valor > 1, assume que está em percentual (ex: 1.5 para 1.5%)
+                    const percentage = minRateValue > 1 ? minRateValue / 100 : minRateValue;
+                    minFreightValue = invoiceValue * percentage;
+                } else if (minFreightRateType === 'fixed') {
+                    minFreightValue = minRateValue;
+                }
+                
+                if (finalValue < minFreightValue) {
+                    e.preventDefault();
+                    alert(`O valor final da proposta (R$ ${formatCurrency(finalValue)}) está abaixo da taxa mínima configurada (R$ ${formatCurrency(minFreightValue)}). Por favor, ajuste o desconto ou a taxa mínima.`);
+                    return false;
+                }
             }
 
             // Set base_value hidden field
@@ -618,11 +765,36 @@
             } else {
                 document.getElementById('base_value_hidden').value = calculatedFreightValue;
             }
+            
+            // Adicionar campos ocultos para validação de taxa mínima
+            if (!document.getElementById('destination_hidden')) {
+                const destHidden = document.createElement('input');
+                destHidden.type = 'hidden';
+                destHidden.id = 'destination_hidden';
+                destHidden.name = 'destination';
+                const destValue = $('#destination').val();
+                destHidden.value = destValue || document.getElementById('destination').value;
+                freightForm.appendChild(destHidden);
+            } else {
+                document.getElementById('destination_hidden').value = document.getElementById('destination').value;
+            }
+            
+            if (!document.getElementById('invoice_value_hidden')) {
+                const invHidden = document.createElement('input');
+                invHidden.type = 'hidden';
+                invHidden.id = 'invoice_value_hidden';
+                invHidden.name = 'invoice_value';
+                invHidden.value = document.getElementById('invoice_value').value;
+                freightForm.appendChild(invHidden);
+            } else {
+                document.getElementById('invoice_value_hidden').value = document.getElementById('invoice_value').value;
+            }
 
             // Set title if empty
             const titleField = document.getElementById('title');
             if (!titleField.value || titleField.value.trim() === '') {
-                titleField.value = `Proposta de Frete - ${document.getElementById('destination').value}`;
+                const destValue = $('#destination').val() || document.getElementById('destination').value;
+                titleField.value = `Proposta de Frete - ${destValue}`;
             }
 
             createProposalBtn.disabled = true;
@@ -646,17 +818,28 @@
             }).format(value);
         }
 
-        // Highlight table row when destination is selected
-        const destinationSelect = document.getElementById('destination');
-        const tableRows = document.querySelectorAll('.price-table tbody tr');
-
-        destinationSelect.addEventListener('change', function() {
+        // Update origin field when destination is selected
+        $('#destination').on('change', function() {
+            const destination = $(this).val();
+            const selectedOption = $(this).find('option:selected');
+            const tableRows = document.querySelectorAll('.price-table tbody tr');
+            
+            // Update origin field based on selected freight table
+            if (destination && selectedOption.length > 0) {
+                const originName = selectedOption.data('origin-name') || 'São Paulo';
+                const originState = selectedOption.data('origin-state') || 'SP';
+                const originValue = `${originName} / ${originState}`;
+                $('#origin').val(originValue);
+            } else {
+                $('#origin').val('São Paulo / SP');
+            }
+            
             // Remove all highlights
             tableRows.forEach(row => row.classList.remove('highlighted'));
             
             // Highlight selected destination row
-            if (this.value) {
-                const selectedRow = document.querySelector(`tr[data-destination="${this.value}"]`);
+            if (destination) {
+                const selectedRow = document.querySelector(`tr[data-destination="${destination}"]`);
                 if (selectedRow) {
                     selectedRow.classList.add('highlighted');
                     // Scroll to the highlighted row
@@ -664,6 +847,44 @@
                 }
             }
         });
+        
+        // Taxa mínima da proposta - Controle de exibição
+        const minFreightRateType = document.getElementById('min_freight_rate_type');
+        const minFreightRateValue = document.getElementById('min_freight_rate_value');
+        const minFreightRateValueLabel = document.getElementById('min_freight_rate_value_label');
+        const minFreightRateValueHelp = document.getElementById('min_freight_rate_value_help');
+        const invoiceValueInput = document.getElementById('invoice_value');
+        
+        function updateMinFreightRateFields() {
+            const type = minFreightRateType.value;
+            
+            if (!type) {
+                minFreightRateValue.disabled = true;
+                minFreightRateValue.value = '';
+                minFreightRateValueLabel.textContent = 'Valor da Taxa Mínima';
+                minFreightRateValueHelp.textContent = 'Selecione o tipo primeiro';
+                return;
+            }
+            
+            minFreightRateValue.disabled = false;
+            
+            if (type === 'percentage') {
+                minFreightRateValueLabel.textContent = 'Percentual sobre NF (%)';
+                minFreightRateValueHelp.textContent = 'Ex: 1.5 para 1,5% do valor da NF';
+                minFreightRateValue.placeholder = '1.00';
+                minFreightRateValue.step = '0.01';
+            } else if (type === 'fixed') {
+                minFreightRateValueLabel.textContent = 'Valor Fixo (R$)';
+                minFreightRateValueHelp.textContent = 'Ex: 50.00 para R$ 50,00';
+                minFreightRateValue.placeholder = '0.00';
+                minFreightRateValue.step = '0.01';
+            }
+        }
+        
+        minFreightRateType.addEventListener('change', updateMinFreightRateFields);
+        
+        // Initialize on page load
+        updateMinFreightRateFields();
     });
 </script>
 @endpush

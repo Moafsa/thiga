@@ -6,6 +6,7 @@ use App\Traits\HasActiveScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
 
@@ -95,6 +96,15 @@ class Client extends Model
     public function userAssignments(): HasMany
     {
         return $this->hasMany(ClientUser::class);
+    }
+
+    /**
+     * Get the freight tables associated with this client.
+     */
+    public function freightTables(): BelongsToMany
+    {
+        return $this->belongsToMany(FreightTable::class, 'client_freight_table')
+            ->withTimestamps();
     }
 
     /**

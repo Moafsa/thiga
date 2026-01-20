@@ -13,10 +13,18 @@
         <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Tabelas de Frete</h1>
         <h2>Configure as tabelas de frete por destino</h2>
     </div>
-    <a href="{{ route('freight-tables.create') }}" class="btn-primary">
-        <i class="fas fa-plus"></i>
-        Nova Tabela
-    </a>
+    <div style="display: flex; gap: 10px;">
+        @if($freightTables->count() > 0)
+        <a href="{{ route('freight-tables.export-all-pdf') }}" class="btn-secondary" style="background-color: #dc3545; border-color: #dc3545;" target="_blank">
+            <i class="fas fa-file-pdf"></i>
+            Exportar Todas em PDF
+        </a>
+        @endif
+        <a href="{{ route('freight-tables.create') }}" class="btn-primary">
+            <i class="fas fa-plus"></i>
+            Nova Tabela
+        </a>
+    </div>
 </div>
 
 <div class="table-card">
@@ -70,6 +78,17 @@
                                 <a href="{{ route('freight-tables.show', $table) }}" class="action-btn" title="Ver detalhes">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                <a href="{{ route('freight-tables.export-pdf', $table) }}" class="action-btn" title="Exportar PDF" style="color: #dc3545;" target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <form method="POST" action="{{ route('freight-tables.duplicate', $table) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Deseja duplicar esta tabela de frete? Uma nova tabela será criada baseada nesta.')">
+                                    @csrf
+                                    <button type="submit" class="action-btn" title="Duplicar" style="color: #2196f3; background: none; border: none; cursor: pointer;">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </form>
                                 <a href="{{ route('freight-tables.edit', $table) }}" class="action-btn" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>

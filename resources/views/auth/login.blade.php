@@ -214,11 +214,28 @@
 
         <div class="links">
             <p>Não tem uma conta? <a href="{{ route('register') }}">Cadastre-se aqui</a></p>
-            <p style="margin-top: 15px;">
-                <a href="{{ route('driver.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-truck"></i> Sou motorista - Entrar por telefone
-                </a>
-            </p>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                <p style="margin-bottom: 10px; color: rgba(245, 245, 245, 0.7); font-size: 14px;">Entrar por telefone:</p>
+                
+                <p style="margin-top: 10px;">
+                    <a href="{{ route('client.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-user"></i> Sou cliente - Entrar por telefone
+                    </a>
+                </p>
+                
+                <p style="margin-top: 10px;">
+                    <a href="{{ route('salesperson.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-handshake"></i> Sou vendedor - Entrar por telefone
+                    </a>
+                </p>
+                
+                <p style="margin-top: 10px;">
+                    <a href="{{ route('driver.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-truck"></i> Sou motorista - Entrar por telefone
+                    </a>
+                </p>
+            </div>
         </div>
     </div>
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ClientAddress;
+use App\Models\FreightTable;
 use App\Models\Salesperson;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -96,7 +97,12 @@ class ClientController extends Controller
             'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
         ];
 
-        return view('clients.create', compact('salespeople', 'users', 'states'));
+        $freightTables = FreightTable::where('tenant_id', $tenant->id)
+            ->active()
+            ->orderBy('destination_name')
+            ->get();
+
+        return view('clients.create', compact('salespeople', 'users', 'states', 'freightTables'));
     }
 
     /**
@@ -118,6 +124,8 @@ class ClientController extends Controller
             'zip_code' => 'nullable|string|max:10',
             'salesperson_id' => 'nullable|exists:salespeople,id',
             'is_active' => 'boolean',
+            'freight_table_ids' => 'nullable|array',
+            'freight_table_ids.*' => 'exists:freight_tables,id',
             // Address fields
             'addresses' => 'nullable|array',
             'addresses.*.type' => 'required_with:addresses|string|in:pickup,delivery',
@@ -146,6 +154,10 @@ class ClientController extends Controller
             ClientAddress::create($addressData);
         }
 
+        // Sync freight tables
+        $freightTableIds = $request->input('freight_table_ids', []);
+        $client->freightTables()->sync($freightTableIds);
+
         return redirect()->route('clients.show', $client)
             ->with('success', 'Client created successfully!');
     }
@@ -157,7 +169,7 @@ class ClientController extends Controller
     {
         $this->authorizeAccess($client);
 
-        $client->load(['salesperson', 'addresses', 'shipments', 'proposals', 'invoices']);
+        $client->load(['salesperson', 'addresses', 'shipments', 'proposals', 'invoices', 'freightTables']);
 
         return view('clients.show', compact('client'));
     }
@@ -191,9 +203,14 @@ class ClientController extends Controller
             'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
         ];
 
-        $client->load('addresses');
+        $client->load('addresses', 'freightTables');
+        
+        $freightTables = FreightTable::where('tenant_id', $tenant->id)
+            ->active()
+            ->orderBy('destination_name')
+            ->get();
 
-        return view('clients.edit', compact('client', 'salespeople', 'users', 'states'));
+        return view('clients.edit', compact('client', 'salespeople', 'users', 'states', 'freightTables'));
     }
 
     /**
@@ -215,6 +232,8 @@ class ClientController extends Controller
             'zip_code' => 'nullable|string|max:10',
             'salesperson_id' => 'nullable|exists:salespeople,id',
             'is_active' => 'boolean',
+            'freight_table_ids' => 'nullable|array',
+            'freight_table_ids.*' => 'exists:freight_tables,id',
             // Address fields
             'addresses' => 'nullable|array',
             'addresses.*.id' => 'nullable|exists:client_addresses,id',
@@ -260,6 +279,10 @@ class ClientController extends Controller
         ClientAddress::where('client_id', $client->id)
             ->whereNotIn('id', $existingAddressIds)
             ->delete();
+
+        // Sync freight tables
+        $freightTableIds = $request->input('freight_table_ids', []);
+        $client->freightTables()->sync($freightTableIds);
 
         return redirect()->route('clients.show', $client)
             ->with('success', 'Client updated successfully!');

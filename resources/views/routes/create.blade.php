@@ -171,6 +171,61 @@
         <textarea name="description" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">{{ old('description') }}</textarea>
     </div>
     
+    <!-- Taxa Mínima da Rota -->
+    <div style="margin-bottom: 20px; background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+        <h3 style="color: var(--cor-acento); margin-bottom: 15px;">Taxa Mínima da Rota</h3>
+        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 15px;">
+            Configure a taxa mínima de frete para esta rota. Esta taxa terá prioridade sobre a taxa mínima da tabela de frete.
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px;">
+            <div>
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Tipo de Taxa Mínima</label>
+                <select name="min_freight_rate_type" id="min_freight_rate_type" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                    <option value="">Nenhuma (usar da tabela)</option>
+                    <option value="percentage" {{ old('min_freight_rate_type') === 'percentage' ? 'selected' : '' }}>Percentual sobre NF</option>
+                    <option value="fixed" {{ old('min_freight_rate_type') === 'fixed' ? 'selected' : '' }}>Valor Fixo (R$)</option>
+                </select>
+            </div>
+            <div>
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;" id="min_freight_rate_value_label">
+                    Valor da Taxa Mínima
+                </label>
+                <input type="number" name="min_freight_rate_value" id="min_freight_rate_value" value="{{ old('min_freight_rate_value') }}" step="0.01" min="0" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);" placeholder="0.00">
+                <small style="color: rgba(245, 245, 245, 0.6); display: block; margin-top: 5px;" id="min_freight_rate_value_help">
+                    Selecione o tipo primeiro
+                </small>
+            </div>
+        </div>
+        
+        <div id="min_freight_rate_days_section" style="display: none;">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Dias da Semana para Aplicar Taxa Mínima</label>
+            <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 10px;">
+                Selecione os dias da semana em que esta taxa mínima será aplicada. Se nenhum dia for selecionado, aplica em todos os dias.
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                @php
+                    $daysOfWeek = [
+                        0 => 'Domingo',
+                        1 => 'Segunda-feira',
+                        2 => 'Terça-feira',
+                        3 => 'Quarta-feira',
+                        4 => 'Quinta-feira',
+                        5 => 'Sexta-feira',
+                        6 => 'Sábado'
+                    ];
+                    $oldDays = old('min_freight_rate_days', []);
+                @endphp
+                @foreach($daysOfWeek as $dayNumber => $dayName)
+                    <label style="display: flex; align-items: center; padding: 8px 15px; background: var(--cor-secundaria); border-radius: 5px; cursor: pointer;">
+                        <input type="checkbox" name="min_freight_rate_days[]" value="{{ $dayNumber }}" {{ in_array($dayNumber, $oldDays) ? 'checked' : '' }} style="margin-right: 8px;">
+                        <span style="color: var(--cor-texto-claro);">{{ $dayName }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    
     <div style="display: flex; gap: 15px; justify-content: flex-end;">
         <a href="{{ route('routes.index') }}" class="btn-secondary">Cancelar</a>
         <button type="submit" class="btn-primary">Salvar Rota</button>
@@ -565,6 +620,47 @@
         
         // Initial filter on page load
         filterVehicles();
+        
+        // Taxa mínima da rota - Controle de exibição
+        const minFreightRateType = document.getElementById('min_freight_rate_type');
+        const minFreightRateValue = document.getElementById('min_freight_rate_value');
+        const minFreightRateValueLabel = document.getElementById('min_freight_rate_value_label');
+        const minFreightRateValueHelp = document.getElementById('min_freight_rate_value_help');
+        const minFreightRateDaysSection = document.getElementById('min_freight_rate_days_section');
+        
+        function updateMinFreightRateFields() {
+            const type = minFreightRateType.value;
+            
+            if (!type) {
+                minFreightRateValue.disabled = true;
+                minFreightRateValue.value = '';
+                minFreightRateValueLabel.textContent = 'Valor da Taxa Mínima';
+                minFreightRateValueHelp.textContent = 'Selecione o tipo primeiro';
+                minFreightRateDaysSection.style.display = 'none';
+                return;
+            }
+            
+            minFreightRateValue.disabled = false;
+            
+            if (type === 'percentage') {
+                minFreightRateValueLabel.textContent = 'Percentual sobre NF (%)';
+                minFreightRateValueHelp.textContent = 'Ex: 1.5 para 1,5% do valor da NF';
+                minFreightRateValue.placeholder = '1.00';
+                minFreightRateValue.step = '0.01';
+            } else if (type === 'fixed') {
+                minFreightRateValueLabel.textContent = 'Valor Fixo (R$)';
+                minFreightRateValueHelp.textContent = 'Ex: 50.00 para R$ 50,00';
+                minFreightRateValue.placeholder = '0.00';
+                minFreightRateValue.step = '0.01';
+            }
+            
+            minFreightRateDaysSection.style.display = 'block';
+        }
+        
+        minFreightRateType.addEventListener('change', updateMinFreightRateFields);
+        
+        // Initialize on page load
+        updateMinFreightRateFields();
     });
 </script>
 @endpush

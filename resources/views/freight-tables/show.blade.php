@@ -100,6 +100,18 @@
         <h2>Detalhes da tabela de frete</h2>
     </div>
     <div style="display: flex; gap: 10px;">
+        <a href="{{ route('freight-tables.export-pdf', $freightTable) }}" class="btn-secondary" style="background-color: #dc3545; border-color: #dc3545;" target="_blank">
+            <i class="fas fa-file-pdf"></i>
+            Exportar PDF
+        </a>
+        <form method="POST" action="{{ route('freight-tables.duplicate', $freightTable) }}" style="display: inline;">
+            @csrf
+            <button type="submit" class="btn-secondary" style="background-color: #2196f3; border-color: #2196f3;" 
+                    onclick="return confirm('Deseja duplicar esta tabela de frete? Uma nova tabela será criada baseada nesta.');">
+                <i class="fas fa-copy"></i>
+                Duplicar
+            </button>
+        </form>
         <a href="{{ route('freight-tables.edit', $freightTable) }}" class="btn-primary">
             <i class="fas fa-edit"></i>
             Editar

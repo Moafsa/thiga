@@ -105,8 +105,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\FreightTableController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\FreightTableController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\FreightTableController::class, 'store'])->name('store');
+        Route::get('/export-all/pdf', [App\Http\Controllers\FreightTableController::class, 'exportAllPdf'])->name('export-all-pdf');
         Route::get('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'show'])->name('show');
         Route::get('/{freightTable}/edit', [App\Http\Controllers\FreightTableController::class, 'edit'])->name('edit');
+        Route::get('/{freightTable}/export/pdf', [App\Http\Controllers\FreightTableController::class, 'exportPdf'])->name('export-pdf');
+        Route::post('/{freightTable}/duplicate', [App\Http\Controllers\FreightTableController::class, 'duplicate'])->name('duplicate');
         Route::put('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'update'])->name('update');
         Route::delete('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'destroy'])->name('destroy');
     });

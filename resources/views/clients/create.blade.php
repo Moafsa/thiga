@@ -217,6 +217,44 @@
         </div>
     </div>
 
+    <div class="form-section">
+        <h3><i class="fas fa-table"></i> Tabelas de Frete Vinculadas (Opcional)</h3>
+        <p style="color: rgba(245, 245, 245, 0.8); margin-bottom: 20px; font-size: 0.95em;">
+            Selecione uma ou mais tabelas de frete que estarão disponíveis para este cliente ao criar propostas ou calcular fretes.
+        </p>
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label for="freight_tables">Tabelas de Frete Disponíveis</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 10px;">
+                    @foreach($freightTables as $freightTable)
+                        <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background-color: var(--cor-principal); border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.3s ease;"
+                               onmouseover="this.style.borderColor='var(--cor-acento)'"
+                               onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
+                            <input type="checkbox" 
+                                   name="freight_table_ids[]" 
+                                   value="{{ $freightTable->id }}"
+                                   style="width: 18px; height: 18px; cursor: pointer;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: var(--cor-texto-claro);">{{ $freightTable->destination_name }}</div>
+                                @if($freightTable->destination_state)
+                                    <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.6);">{{ $freightTable->destination_state }}</div>
+                                @endif
+                            </div>
+                        </label>
+                    @endforeach
+                </div>
+                @if($freightTables->isEmpty())
+                    <p style="color: rgba(245, 245, 245, 0.6); font-style: italic; margin-top: 15px;">
+                        Nenhuma tabela de frete cadastrada. <a href="{{ route('freight-tables.create') }}" style="color: var(--cor-acento);">Criar tabela de frete</a>
+                    </p>
+                @endif
+                @error('freight_table_ids.*')
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px; display: block;">{{ $message }}</span>
+                @enderror
+            </div>
+        </div>
+    </div>
+
     <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 30px;">
         <a href="{{ route('clients.index') }}" class="btn-secondary">
             <i class="fas fa-times"></i>

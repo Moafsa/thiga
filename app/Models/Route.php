@@ -58,6 +58,10 @@ class Route extends Model
         'deposit_fuel',
         // Revenue
         'total_revenue',
+        // Minimum freight rate
+        'min_freight_rate_type',
+        'min_freight_rate_value',
+        'min_freight_rate_days',
     ];
 
     protected $casts = [
@@ -81,6 +85,8 @@ class Route extends Model
         'deposit_expenses' => 'decimal:2',
         'deposit_fuel' => 'decimal:2',
         'total_revenue' => 'decimal:2',
+        'min_freight_rate_value' => 'decimal:2',
+        'min_freight_rate_days' => 'array',
         'settings' => 'array',
         'route_options' => 'array',
         'is_route_locked' => 'boolean',

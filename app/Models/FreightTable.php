@@ -20,6 +20,8 @@ class FreightTable extends Model
         'destination_type',
         'destination_name',
         'destination_state',
+        'origin_name',
+        'origin_state',
         'cep_range_start',
         'cep_range_end',
         'weight_0_30',
@@ -34,6 +36,8 @@ class FreightTable extends Model
         'toll_per_100kg',
         'cubage_factor',
         'min_freight_rate_vs_nf',
+        'min_freight_rate_type',
+        'min_freight_rate_value',
         'tde_markets',
         'tde_supermarkets_cd',
         'palletization',
@@ -59,6 +63,7 @@ class FreightTable extends Model
         'toll_per_100kg' => 'decimal:2',
         'cubage_factor' => 'decimal:2',
         'min_freight_rate_vs_nf' => 'decimal:4',
+        'min_freight_rate_value' => 'decimal:2',
         'tde_markets' => 'decimal:2',
         'tde_supermarkets_cd' => 'decimal:2',
         'palletization' => 'decimal:2',
@@ -72,6 +77,15 @@ class FreightTable extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /**
+     * Get the clients associated with this freight table.
+     */
+    public function clients(): BelongsToMany
+    {
+        return $this->belongsToMany(Client::class, 'client_freight_table')
+            ->withTimestamps();
     }
 
 

@@ -176,6 +176,10 @@ class RouteController extends Controller
                 'addresses.*.recipient_name' => 'nullable|string|max:255',
                 'addresses.*.freight_value' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string',
+                'min_freight_rate_type' => 'nullable|in:percentage,fixed',
+                'min_freight_rate_value' => 'nullable|numeric|min:0|required_if:min_freight_rate_type,percentage,fixed',
+                'min_freight_rate_days' => 'nullable|array',
+                'min_freight_rate_days.*' => 'integer|between:0,6',
             ]);
 
             // Validate that at least one start address method is provided
@@ -222,6 +226,22 @@ class RouteController extends Controller
         // Set default start_time if not provided (optional field)
         if (!isset($validated['start_time']) || empty($validated['start_time'])) {
             $validated['start_time'] = null; // Now nullable, so null is acceptable
+        }
+
+        // Process minimum freight rate fields
+        if (empty($validated['min_freight_rate_type'])) {
+            $validated['min_freight_rate_type'] = null;
+            $validated['min_freight_rate_value'] = null;
+            $validated['min_freight_rate_days'] = null;
+        } else {
+            // Ensure value is set if type is provided
+            if (empty($validated['min_freight_rate_value'])) {
+                return back()->withErrors(['min_freight_rate_value' => 'O valor da taxa mínima é obrigatório quando o tipo é selecionado.'])->withInput();
+            }
+            // Process days - if empty or not provided, set to null (applies to all days)
+            if (empty($validated['min_freight_rate_days'])) {
+                $validated['min_freight_rate_days'] = null;
+            }
         }
 
         DB::beginTransaction();
@@ -1407,6 +1427,10 @@ class RouteController extends Controller
             'shipment_ids' => 'nullable|array',
             'shipment_ids.*' => 'exists:shipments,id',
             'notes' => 'nullable|string',
+            'min_freight_rate_type' => 'nullable|in:percentage,fixed',
+            'min_freight_rate_value' => 'nullable|numeric|min:0|required_if:min_freight_rate_type,percentage,fixed',
+            'min_freight_rate_days' => 'nullable|array',
+            'min_freight_rate_days.*' => 'integer|between:0,6',
         ]);
 
         // Validate that vehicle belongs to driver if vehicle is provided
@@ -1422,6 +1446,22 @@ class RouteController extends Controller
             // Check if vehicle is available (unless route is already in progress)
             if ($route->status !== 'in_progress' && !$vehicle->isAvailable()) {
                 return back()->withErrors(['vehicle_id' => 'O veículo selecionado não está disponível.'])->withInput();
+            }
+        }
+
+        // Process minimum freight rate fields
+        if (empty($validated['min_freight_rate_type'])) {
+            $validated['min_freight_rate_type'] = null;
+            $validated['min_freight_rate_value'] = null;
+            $validated['min_freight_rate_days'] = null;
+        } else {
+            // Ensure value is set if type is provided
+            if (empty($validated['min_freight_rate_value'])) {
+                return back()->withErrors(['min_freight_rate_value' => 'O valor da taxa mínima é obrigatório quando o tipo é selecionado.'])->withInput();
+            }
+            // Process days - if empty or not provided, set to null (applies to all days)
+            if (empty($validated['min_freight_rate_days'])) {
+                $validated['min_freight_rate_days'] = null;
             }
         }
         

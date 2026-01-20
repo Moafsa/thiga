@@ -216,6 +216,36 @@
 </div>
 @endif
 
+@if($client->freightTables->count() > 0)
+<div class="detail-section">
+    <h3><i class="fas fa-table"></i> Tabelas de Frete Vinculadas</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+        @foreach($client->freightTables as $freightTable)
+            <div class="address-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="color: var(--cor-acento); margin: 0 0 5px 0;">{{ $freightTable->destination_name }}</h4>
+                        @if($freightTable->destination_state)
+                            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em;">{{ $freightTable->destination_state }}</span>
+                        @endif
+                    </div>
+                    <a href="{{ route('freight-tables.show', $freightTable) }}" class="btn-secondary" style="padding: 5px 10px; font-size: 0.9em;">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </div>
+            </div>
+        @endforeach
+    </div>
+</div>
+@else
+<div class="detail-section">
+    <h3><i class="fas fa-table"></i> Tabelas de Frete Vinculadas</h3>
+    <p style="color: rgba(245, 245, 245, 0.6); font-style: italic;">
+        Nenhuma tabela de frete vinculada. <a href="{{ route('clients.edit', $client) }}" style="color: var(--cor-acento);">Vincular tabelas</a>
+    </p>
+</div>
+@endif
+
 @if(session('success'))
     <div class="alert alert-success">
         <i class="fas fa-check mr-2"></i>

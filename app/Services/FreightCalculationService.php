@@ -16,7 +16,7 @@ class FreightCalculationService
      * @param float $weight Weight in kg
      * @param float $cubage Volume in m³
      * @param float $invoiceValue Invoice value (NF)
-     * @param array $options Additional options (tde_markets, tde_supermarkets_cd, pallets, is_weekend, etc)
+     * @param array $options Additional options (tde_markets, tde_supermarkets_cd, pallets, is_weekend, route_id, client_id, etc)
      * @return array Calculation result with breakdown
      */
     public function calculate(
@@ -121,12 +121,18 @@ class FreightCalculationService
         // Add additional services
         $subtotal += $additionalServices;
 
-        // Apply minimum freight rule (1% of invoice value)
-        $minFreight = $invoiceValue * ($freightTable->min_freight_rate_vs_nf ?? 0.01);
+        // Calculate minimum freight (priority: route > freight table > default)
+        $minFreight = $this->calculateMinimumFreight(
+            $subtotal,
+            $invoiceValue,
+            $freightTable,
+            $options['route_id'] ?? null,
+            $options['client_id'] ?? null
+        );
         $appliedMinimum = false;
         
-        if ($subtotal < $minFreight && $invoiceValue > 0) {
-            $subtotal = $minFreight;
+        if ($subtotal < $minFreight['value'] && $minFreight['value'] > 0) {
+            $subtotal = $minFreight['value'];
             $appliedMinimum = true;
         }
 
@@ -146,7 +152,8 @@ class FreightCalculationService
                 'toll' => round($toll, 2),
                 'additional_services' => $additionalBreakdown,
                 'minimum_applied' => $appliedMinimum,
-                'minimum_value' => $appliedMinimum ? round($minFreight, 2) : null,
+                'minimum_value' => $appliedMinimum ? round($minFreight['value'], 2) : null,
+                'minimum_source' => $appliedMinimum ? $minFreight['source'] : null,
             ],
             'freight_table' => [
                 'id' => $freightTable->id,
@@ -243,6 +250,131 @@ class FreightCalculationService
                 'ctrc' => $ctrc,
             ];
         }
+    }
+
+    /**
+     * Calculate minimum freight based on priority:
+     * 1. Route minimum rate (if route_id provided)
+     * 2. Freight table minimum rate
+     * 3. Default minimum rate (percentage of invoice value)
+     *
+     * @param float $subtotal Current subtotal
+     * @param float $invoiceValue Invoice value
+     * @param FreightTable $freightTable Freight table being used
+     * @param int|null $routeId Route ID (optional)
+     * @param int|null $clientId Client ID (optional, for future use)
+     * @return array ['value' => float, 'source' => string]
+     */
+    protected function calculateMinimumFreight(
+        float $subtotal,
+        float $invoiceValue,
+        FreightTable $freightTable,
+        ?int $routeId = null,
+        ?int $clientId = null
+    ): array {
+        // Priority 1: Route minimum rate
+        if ($routeId) {
+            $route = \App\Models\Route::find($routeId);
+            if ($route && $route->min_freight_rate_type && $route->min_freight_rate_value) {
+                // Verifica se deve aplicar taxa mínima da rota baseado nos dias da semana
+                $shouldApplyRouteMinimum = $this->shouldApplyRouteMinimum($route);
+                
+                if ($shouldApplyRouteMinimum) {
+                    $minValue = $this->calculateMinimumByType(
+                        $route->min_freight_rate_type,
+                        $route->min_freight_rate_value,
+                        $invoiceValue
+                    );
+                    
+                    if ($minValue > 0) {
+                        return [
+                            'value' => $minValue,
+                            'source' => 'route'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Priority 2: Freight table minimum rate
+        if ($freightTable->min_freight_rate_type && $freightTable->min_freight_rate_value) {
+            $minValue = $this->calculateMinimumByType(
+                $freightTable->min_freight_rate_type,
+                $freightTable->min_freight_rate_value,
+                $invoiceValue
+            );
+            
+            if ($minValue > 0) {
+                return [
+                    'value' => $minValue,
+                    'source' => 'freight_table'
+                ];
+            }
+        }
+
+        // Priority 3: Default minimum (percentage of invoice value)
+        $minValue = $invoiceValue * ($freightTable->min_freight_rate_vs_nf ?? 0.01);
+        
+        return [
+            'value' => $minValue,
+            'source' => 'default'
+        ];
+    }
+
+    /**
+     * Calculate minimum freight value based on type (percentage or fixed)
+     *
+     * @param string $type 'percentage' or 'fixed'
+     * @param float $value The rate value (percentage as decimal or fixed amount)
+     * @param float $invoiceValue Invoice value (for percentage calculation)
+     * @return float Minimum freight value
+     */
+    protected function calculateMinimumByType(string $type, float $value, float $invoiceValue): float
+    {
+        if ($type === 'percentage') {
+            // Value is already a percentage (e.g., 0.01 for 1%)
+            // If value > 1, assume it's in percentage form (e.g., 1.00 for 1%)
+            if ($value > 1) {
+                $value = $value / 100;
+            }
+            return $invoiceValue * $value;
+        } elseif ($type === 'fixed') {
+            // Value is a fixed amount in R$
+            return $value;
+        }
+
+        return 0;
+    }
+
+    /**
+     * Check if route minimum rate should be applied based on day of week
+     *
+     * @param \App\Models\Route $route
+     * @return bool
+     */
+    protected function shouldApplyRouteMinimum(\App\Models\Route $route): bool
+    {
+        // Se não tem dias específicos configurados, aplica sempre
+        if (empty($route->min_freight_rate_days) || !is_array($route->min_freight_rate_days)) {
+            return true;
+        }
+
+        // Se array está vazio, aplica sempre
+        if (count($route->min_freight_rate_days) === 0) {
+            return true;
+        }
+
+        // Obtém o dia da semana da data agendada da rota (0 = domingo, 6 = sábado)
+        // Se não tiver data agendada, usa o dia atual
+        $routeDate = $route->scheduled_date ?? now();
+        if ($routeDate instanceof \Carbon\Carbon || $routeDate instanceof \DateTime) {
+            $dayOfWeek = (int) $routeDate->format('w');
+        } else {
+            $dayOfWeek = (int) date('w', strtotime($routeDate));
+        }
+
+        // Verifica se o dia da rota está na lista de dias permitidos
+        return in_array($dayOfWeek, $route->min_freight_rate_days, true);
     }
 }
 

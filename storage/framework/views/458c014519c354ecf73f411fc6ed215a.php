@@ -1,5 +1,3 @@
-
-
 <?php $__env->startSection('title', 'Driver Details - TMS SaaS'); ?>
 <?php $__env->startSection('page-title', 'Driver Details'); ?>
 

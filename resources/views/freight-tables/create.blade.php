@@ -121,9 +121,24 @@
             </div>
 
             <div class="form-group">
-                <label for="destination_state">Estado (UF)</label>
+                <label for="destination_state">Estado do Destino (UF)</label>
                 <input type="text" name="destination_state" id="destination_state" value="{{ old('destination_state') }}" 
                        maxlength="2" placeholder="Ex: MG" style="text-transform: uppercase;">
+            </div>
+
+            <div class="form-group">
+                <label for="origin_name">Nome da Origem</label>
+                <input type="text" name="origin_name" id="origin_name" value="{{ old('origin_name', 'São Paulo') }}" 
+                       placeholder="Ex: SÃO PAULO - SP">
+                @error('origin_name')
+                    <span class="error-message">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="origin_state">Estado da Origem (UF)</label>
+                <input type="text" name="origin_state" id="origin_state" value="{{ old('origin_state', 'SP') }}" 
+                       maxlength="2" placeholder="Ex: SP" style="text-transform: uppercase;">
             </div>
 
             <div id="cep_range_fields" class="form-group full-width" style="display: none;">
@@ -254,10 +269,34 @@
             </div>
 
             <div class="form-group">
-                <label for="min_freight_rate_vs_nf">Frete Mínimo vs NF (%)</label>
+                <label for="min_freight_rate_vs_nf">Frete Mínimo vs NF (%) - Padrão</label>
                 <input type="number" name="min_freight_rate_vs_nf" id="min_freight_rate_vs_nf" value="{{ old('min_freight_rate_vs_nf', 1.00) }}" 
                        step="0.01" min="0" placeholder="1.00">
-                <span class="help-text">Padrão: 1%</span>
+                <span class="help-text">Padrão: 1% (usado se não houver taxa mínima configurada)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Taxa Mínima Configurável -->
+    <div class="form-section">
+        <h3><i class="fas fa-dollar-sign"></i> Taxa Mínima Configurável (Opcional)</h3>
+        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 15px;">
+            Configure uma taxa mínima específica para esta tabela. Esta taxa terá prioridade sobre o valor padrão acima.
+        </p>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="min_freight_rate_type">Tipo de Taxa Mínima</label>
+                <select name="min_freight_rate_type" id="min_freight_rate_type" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-secundaria); color: var(--cor-texto-claro);">
+                    <option value="">Nenhuma (usar padrão)</option>
+                    <option value="percentage" {{ old('min_freight_rate_type') === 'percentage' ? 'selected' : '' }}>Percentual sobre NF</option>
+                    <option value="fixed" {{ old('min_freight_rate_type') === 'fixed' ? 'selected' : '' }}>Valor Fixo (R$)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="min_freight_rate_value" id="min_freight_rate_value_label">Valor da Taxa Mínima</label>
+                <input type="number" name="min_freight_rate_value" id="min_freight_rate_value" value="{{ old('min_freight_rate_value') }}" 
+                       step="0.01" min="0" placeholder="0.00" disabled>
+                <span class="help-text" id="min_freight_rate_value_help">Selecione o tipo primeiro</span>
             </div>
         </div>
     </div>
@@ -349,6 +388,43 @@
         if (destinationType === 'cep_range') {
             document.getElementById('cep_range_fields').style.display = 'block';
         }
+        
+        // Taxa mínima configurável - Controle de exibição
+        const minFreightRateType = document.getElementById('min_freight_rate_type');
+        const minFreightRateValue = document.getElementById('min_freight_rate_value');
+        const minFreightRateValueLabel = document.getElementById('min_freight_rate_value_label');
+        const minFreightRateValueHelp = document.getElementById('min_freight_rate_value_help');
+        
+        function updateMinFreightRateFields() {
+            const type = minFreightRateType.value;
+            
+            if (!type) {
+                minFreightRateValue.disabled = true;
+                minFreightRateValue.value = '';
+                minFreightRateValueLabel.textContent = 'Valor da Taxa Mínima';
+                minFreightRateValueHelp.textContent = 'Selecione o tipo primeiro';
+                return;
+            }
+            
+            minFreightRateValue.disabled = false;
+            
+            if (type === 'percentage') {
+                minFreightRateValueLabel.textContent = 'Percentual sobre NF (%)';
+                minFreightRateValueHelp.textContent = 'Ex: 1.5 para 1,5% do valor da NF';
+                minFreightRateValue.placeholder = '1.00';
+                minFreightRateValue.step = '0.01';
+            } else if (type === 'fixed') {
+                minFreightRateValueLabel.textContent = 'Valor Fixo (R$)';
+                minFreightRateValueHelp.textContent = 'Ex: 50.00 para R$ 50,00';
+                minFreightRateValue.placeholder = '0.00';
+                minFreightRateValue.step = '0.01';
+            }
+        }
+        
+        minFreightRateType.addEventListener('change', updateMinFreightRateFields);
+        
+        // Initialize on page load
+        updateMinFreightRateFields();
     });
 </script>
 @endpush
