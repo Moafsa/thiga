@@ -14,6 +14,7 @@ class ClientLoginCode extends Model
         'tenant_id',
         'client_id',
         'phone_e164',
+        'email',
         'code_hash',
         'channel',
         'attempts',

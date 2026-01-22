@@ -77,6 +77,7 @@
                     <th>Valor Total</th>
                     <th>Data</th>
                     <th>Status</th>
+                    <th>Coleta</th>
                     <th style="text-align: center;">Ações</th>
                 </tr>
             </thead>
@@ -102,6 +103,15 @@
                             <span class="status-badge status-{{ $proposal->status }}">
                                 {{ $proposal->status_label }}
                             </span>
+                        </td>
+                        <td>
+                            @if($proposal->collection_requested)
+                                <span style="color: #ff9800; font-weight: 600;">
+                                    <i class="fas fa-truck"></i> Solicitada
+                                </span>
+                            @else
+                                <span style="color: #999;">-</span>
+                            @endif
                         </td>
                         <td style="text-align: center;">
                             <div class="action-buttons" style="justify-content: center;">

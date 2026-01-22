@@ -161,6 +161,10 @@
             Gerenciar Categorias
         </a>
         <?php if($freightTables->count() > 0): ?>
+        <a href="<?php echo e(route('freight-tables.adjust')); ?>" class="btn-secondary" style="background-color: #ff9800; border-color: #ff9800;">
+            <i class="fas fa-percentage"></i>
+            Reajustar Tabelas
+        </a>
         <a href="<?php echo e(route('freight-tables.export-all-pdf')); ?>" class="btn-secondary" style="background-color: #dc3545; border-color: #dc3545;" target="_blank">
             <i class="fas fa-file-pdf"></i>
             Exportar Todas em PDF

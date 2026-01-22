@@ -78,6 +78,28 @@
         </div>
     @endif
 
+    @if($proposal->isAccepted() && !$proposal->collection_requested)
+        <div style="margin-top: 20px;">
+            <form method="POST" action="{{ route('client.proposals.requestCollection', $proposal) }}"
+                  onsubmit="return confirm('Deseja solicitar a coleta desta carga? Ela ficará disponível para criação de rota.');">
+                @csrf
+                <button type="submit" class="btn-primary" style="width: 100%; background: rgba(255, 152, 0, 0.2); border: 2px solid #ff9800; color: #ff9800;">
+                    <i class="fas fa-truck"></i> Solicitar Coleta
+                </button>
+            </form>
+        </div>
+    @endif
+
+    @if($proposal->collection_requested)
+        <div style="margin-top: 20px; padding: 15px; background-color: rgba(255, 152, 0, 0.2); border: 1px solid #ff9800; border-radius: 5px; color: #ff9800;">
+            <i class="fas fa-check-circle"></i>
+            <strong>Coleta Solicitada</strong> em {{ $proposal->collection_requested_at->format('d/m/Y H:i') }}
+            @if($proposal->availableCargo && $proposal->availableCargo->route)
+                <br><small>Rota: {{ $proposal->availableCargo->route->name }}</small>
+            @endif
+        </div>
+    @endif
+
     <a href="{{ route('client.proposals') }}" class="btn-primary" style="display: inline-block; margin-top: 20px;">
         <i class="fas fa-arrow-left"></i> Voltar
     </a>

@@ -179,6 +179,20 @@
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
                     </div>
 
+                    <div class="grid grid-cols-2 gap-4 border-t pt-4">
+                        <div>
+                            <label for="pickup_date" class="block text-sm font-medium text-gray-700 mb-2">Data da coleta</label>
+                            <input type="date" id="pickup_date" name="options[pickup_date]"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                            <p class="text-xs text-gray-500 mt-1">Opcional. Se a tabela tiver dias configurados, a taxa fim de semana/feriado pode ser aplicada.</p>
+                        </div>
+                        <div>
+                            <label for="delivery_date" class="block text-sm font-medium text-gray-700 mb-2">Data da entrega</label>
+                            <input type="date" id="delivery_date" name="options[delivery_date]"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                        </div>
+                    </div>
+
                     <!-- Additional Options -->
                     <div class="border-t pt-4">
                         <p class="text-sm font-medium text-gray-700 mb-3">Serviços Adicionais</p>
@@ -388,6 +402,10 @@
             if (formData.get('options[unloading]')) data.options.unloading = true;
             const pallets = parseInt(formData.get('options[pallets]')) || 0;
             if (pallets > 0) data.options.pallets = pallets;
+            const pickupDate = formData.get('options[pickup_date]');
+            if (pickupDate) data.options.pickup_date = pickupDate;
+            const deliveryDate = formData.get('options[delivery_date]');
+            if (deliveryDate) data.options.delivery_date = deliveryDate;
 
             try {
                 const response = await fetch('{{ route("salesperson.calculateFreight") }}', {

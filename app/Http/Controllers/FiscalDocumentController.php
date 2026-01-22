@@ -77,6 +77,7 @@ class FiscalDocumentController extends Controller
 
         // Get clients for filter dropdown
         $clients = Client::where('tenant_id', $tenant->id)
+            ->listed()
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

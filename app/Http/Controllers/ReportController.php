@@ -25,7 +25,7 @@ class ReportController extends Controller
     public function index()
     {
         $tenant = Auth::user()->tenant;
-        $clients = Client::where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get();
+        $clients = Client::where('tenant_id', $tenant->id)->listed()->where('is_active', true)->orderBy('name')->get();
         
         return view('reports.index', compact('clients'));
     }

@@ -41,6 +41,7 @@ class InvoicingTool extends Component
     {
         $tenant = Auth::user()->tenant;
         $this->clients = Client::where('tenant_id', $tenant->id)
+            ->listed()
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

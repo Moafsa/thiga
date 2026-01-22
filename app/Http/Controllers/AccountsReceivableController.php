@@ -60,6 +60,7 @@ class AccountsReceivableController extends Controller
         }
 
         $clients = Client::where('tenant_id', $tenant->id)
+            ->listed()
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

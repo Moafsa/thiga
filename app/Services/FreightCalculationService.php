@@ -96,13 +96,25 @@ class FreightCalculationService
             ];
         }
 
-        // Apply weekend/holiday rate if applicable
+        // Apply weekend/holiday rate if applicable (manual checkbox or date in configured ranges)
         $weekendRate = 0;
-        if (!empty($options['is_weekend_or_holiday'])) {
-            $weekendRate = $subtotal * ($freightTable->weekend_holiday_rate ?? 0.30);
+        $applyWeekend = !empty($options['is_weekend_or_holiday']);
+        if (!$applyWeekend && ($freightTable->getWeekendHolidayDates() !== [])) {
+            foreach (['pickup_date', 'delivery_date'] as $key) {
+                $date = $options[$key] ?? null;
+                if ($date && $freightTable->isDateInWeekendHolidayRanges($date)) {
+                    $applyWeekend = true;
+                    break;
+                }
+            }
+        }
+        if ($applyWeekend) {
+            $rate = $freightTable->weekend_holiday_rate ?? 0.30;
+            $weekendRate = $subtotal * $rate;
             $subtotal += $weekendRate;
+            $pct = round($rate * 100);
             $additionalBreakdown[] = [
-                'name' => 'Taxa Fim de Semana/Feriado (30%)',
+                'name' => "Taxa Fim de Semana/Feriado ({$pct}%)",
                 'value' => $weekendRate
             ];
         }

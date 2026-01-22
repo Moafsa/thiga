@@ -4,11 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ClientAddress;
+use App\Models\ClientUser;
 use App\Models\FreightTable;
 use App\Models\Salesperson;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ClientController extends Controller
 {
@@ -30,6 +36,12 @@ class ClientController extends Controller
 
         $query = Client::where('tenant_id', $tenant->id)
             ->with(['salesperson', 'addresses', 'user']);
+
+        if ($request->filled('excluidos') && $request->excluidos === '1') {
+            $query->excludedFromListing();
+        } else {
+            $query->listed();
+        }
 
         // Filters
         if ($request->filled('search')) {
@@ -89,48 +101,34 @@ class ClientController extends Controller
             ->orderBy('name')
             ->get();
 
-        $users = User::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->whereDoesntHave('client')
-            ->orderBy('name')
-            ->get();
-
         $states = [
             'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
             'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
             'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
         ];
 
-        $freightTables = FreightTable::where('tenant_id', $tenant->id)
-            ->active()
-            ->orderBy('destination_name')
-            ->get();
-
-        return view('clients.create', compact('salespeople', 'users', 'states', 'freightTables'));
+        return view('clients.create', compact('salespeople', 'states'));
     }
 
     /**
-     * Store a newly created client
+     * Store a newly created client.
+     * Creates a User automatically (email + phone) for login via code (phone or email).
      */
     public function store(Request $request)
     {
         $tenant = Auth::user()->tenant;
 
-        $validated = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'cnpj' => 'nullable|string|max:18',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:20',
-            'user_id' => 'nullable|exists:users,id',
+            'email' => ['required_without:phone', 'nullable', 'email', 'max:255'],
+            'phone' => 'required_without:email|nullable|string|max:20',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|size:2',
             'zip_code' => 'nullable|string|max:10',
             'salesperson_id' => 'nullable|exists:salespeople,id',
             'is_active' => 'boolean',
-            'freight_table_ids' => 'nullable|array',
-            'freight_table_ids.*' => 'exists:freight_tables,id',
-            // Address fields
             'addresses' => 'nullable|array',
             'addresses.*.type' => 'required_with:addresses|string|in:pickup,delivery',
             'addresses.*.name' => 'required_with:addresses|string|max:255',
@@ -142,7 +140,13 @@ class ClientController extends Controller
             'addresses.*.state' => 'required_with:addresses|string|size:2',
             'addresses.*.zip_code' => 'required_with:addresses|string|max:10',
             'addresses.*.is_default' => 'boolean',
-        ]);
+        ];
+
+        if ($request->filled('email')) {
+            $rules['email'][] = 'unique:users,email';
+        }
+
+        $validated = $request->validate($rules);
 
         $validated['tenant_id'] = $tenant->id;
         $validated['is_active'] = $request->has('is_active') ? true : false;
@@ -151,20 +155,55 @@ class ClientController extends Controller
         $addresses = $validated['addresses'] ?? [];
         unset($validated['addresses']);
 
-        $client = Client::create($validated);
+        $client = DB::transaction(function () use ($validated, $addresses, $tenant, $request) {
+            $client = Client::create($validated);
 
-        // Create addresses
-        foreach ($addresses as $addressData) {
-            $addressData['client_id'] = $client->id;
-            ClientAddress::create($addressData);
-        }
+            foreach ($addresses as $addressData) {
+                $addressData['client_id'] = $client->id;
+                ClientAddress::create($addressData);
+            }
 
-        // Sync freight tables
-        $freightTableIds = $request->input('freight_table_ids', []);
-        $client->freightTables()->sync($freightTableIds);
+            $phoneDigits = $validated['phone'] ? preg_replace('/\D/', '', $validated['phone']) : null;
+            $userEmail = $validated['email']
+                ? Str::lower($validated['email'])
+                : 'client+' . $tenant->id . '+' . ($phoneDigits ?? '0') . '@tms.local';
+
+            if (User::where('email', $userEmail)->exists()) {
+                throw ValidationException::withMessages([
+                    'email' => __('O e-mail informado já está em uso por outro usuário.'),
+                ]);
+            }
+
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $userEmail,
+                'password' => Hash::make(Str::random(32)),
+                'tenant_id' => $tenant->id,
+                'phone' => $phoneDigits,
+                'is_active' => true,
+            ]);
+
+            if ($user->hasRole('Client') === false) {
+                try {
+                    $user->assignRole('Client');
+                } catch (\Throwable $e) {
+                    // Role may not exist yet; continue
+                }
+            }
+
+            ClientUser::create([
+                'client_id' => $client->id,
+                'tenant_id' => $tenant->id,
+                'user_id' => $user->id,
+            ]);
+
+            $client->forceFill(['user_id' => $user->id])->save();
+
+            return $client;
+        });
 
         return redirect()->route('clients.show', $client)
-            ->with('success', 'Client created successfully!');
+            ->with('success', 'Cliente criado com sucesso! O usuário para login (código por telefone ou e-mail) foi gerado automaticamente.');
     }
 
     /**
@@ -193,15 +232,6 @@ class ClientController extends Controller
             ->orderBy('name')
             ->get();
 
-        $users = User::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->where(function($query) use ($client) {
-                $query->whereDoesntHave('client')
-                      ->orWhere('id', $client->user_id);
-            })
-            ->orderBy('name')
-            ->get();
-
         $states = [
             'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
             'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
@@ -215,7 +245,7 @@ class ClientController extends Controller
             ->orderBy('destination_name')
             ->get();
 
-        return view('clients.edit', compact('client', 'salespeople', 'users', 'states', 'freightTables'));
+        return view('clients.edit', compact('client', 'salespeople', 'states', 'freightTables'));
     }
 
     /**
@@ -230,7 +260,6 @@ class ClientController extends Controller
             'cnpj' => 'nullable|string|max:18',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
-            'user_id' => 'nullable|exists:users,id',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|size:2',
@@ -239,7 +268,6 @@ class ClientController extends Controller
             'is_active' => 'boolean',
             'freight_table_ids' => 'nullable|array',
             'freight_table_ids.*' => 'exists:freight_tables,id',
-            // Address fields
             'addresses' => 'nullable|array',
             'addresses.*.id' => 'nullable|exists:client_addresses,id',
             'addresses.*.type' => 'required_with:addresses|string|in:pickup,delivery',
@@ -259,6 +287,7 @@ class ClientController extends Controller
 
         $addresses = $validated['addresses'] ?? [];
         unset($validated['addresses']);
+        unset($validated['user_id']);
 
         $client->update($validated);
 
@@ -295,22 +324,34 @@ class ClientController extends Controller
     }
 
     /**
-     * Remove the specified client
+     * Excluir cliente da listagem do tenant (não exclui globalmente).
+     * O cliente permanece no sistema; deixa de aparecer na listagem de clientes.
      */
     public function destroy(Client $client)
     {
         $this->authorizeAccess($client);
 
-        // Check if client has shipments
-        if ($client->shipments()->count() > 0) {
-            return back()->withErrors(['error' => 'Cannot delete client with associated shipments.']);
+        if (Schema::hasColumn('clients', 'excluded_from_listing_at')) {
+            $client->update(['excluded_from_listing_at' => now()]);
         }
 
-        $client->addresses()->delete();
-        $client->delete();
+        return redirect()->route('clients.index')
+            ->with('success', 'Cliente removido da listagem. Ele não será exibido na lista de clientes, mas permanece no sistema (propostas, entregas etc.).');
+    }
+
+    /**
+     * Reincluir na listagem o cliente que foi excluído da listagem.
+     */
+    public function restoreListing(Client $client)
+    {
+        $this->authorizeAccess($client);
+
+        if (Schema::hasColumn('clients', 'excluded_from_listing_at')) {
+            $client->update(['excluded_from_listing_at' => null]);
+        }
 
         return redirect()->route('clients.index')
-            ->with('success', 'Client deleted successfully!');
+            ->with('success', 'Cliente incluído novamente na listagem.');
     }
 
     /**

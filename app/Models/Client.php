@@ -29,10 +29,12 @@ class Client extends Model
         'salesperson_id',
         'is_active',
         'marker',
+        'excluded_from_listing_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'excluded_from_listing_at' => 'datetime',
     ];
 
     protected $attributes = [
@@ -110,6 +112,36 @@ class Client extends Model
     public function getMarkerBgColorAttribute(): string
     {
         return $this->getMarkerInfo()['bg_color'];
+    }
+
+    /**
+     * Scope: apenas clientes presentes na listagem do tenant (não excluídos).
+     */
+    public function scopeListed($query)
+    {
+        if (Schema::hasColumn('clients', 'excluded_from_listing_at')) {
+            return $query->whereNull('excluded_from_listing_at');
+        }
+        return $query;
+    }
+
+    /**
+     * Scope: apenas clientes excluídos da listagem.
+     */
+    public function scopeExcludedFromListing($query)
+    {
+        if (Schema::hasColumn('clients', 'excluded_from_listing_at')) {
+            return $query->whereNotNull('excluded_from_listing_at');
+        }
+        return $query;
+    }
+
+    /**
+     * Verifica se o cliente está excluído da listagem.
+     */
+    public function isExcludedFromListing(): bool
+    {
+        return $this->excluded_from_listing_at !== null;
     }
 
     /**

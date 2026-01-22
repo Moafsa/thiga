@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Proposal extends Model
 {
@@ -33,6 +34,24 @@ class Proposal extends Model
         'rejected_at',
         'notes',
         'attachments',
+        'collection_requested',
+        'collection_requested_at',
+        'origin_address',
+        'origin_city',
+        'origin_state',
+        'origin_zip_code',
+        'origin_latitude',
+        'origin_longitude',
+        'destination_address',
+        'destination_city',
+        'destination_state',
+        'destination_zip_code',
+        'destination_latitude',
+        'destination_longitude',
+        'client_name',
+        'client_whatsapp',
+        'client_email',
+        'destination_name',
     ];
 
     /**
@@ -69,6 +88,12 @@ class Proposal extends Model
         'accepted_at' => 'datetime',
         'rejected_at' => 'datetime',
         'attachments' => 'array',
+        'collection_requested' => 'boolean',
+        'collection_requested_at' => 'datetime',
+        'origin_latitude' => 'decimal:8',
+        'origin_longitude' => 'decimal:8',
+        'destination_latitude' => 'decimal:8',
+        'destination_longitude' => 'decimal:8',
     ];
 
     public function tenant(): BelongsTo
@@ -84,6 +109,16 @@ class Proposal extends Model
     public function salesperson(): BelongsTo
     {
         return $this->belongsTo(Salesperson::class);
+    }
+
+    public function availableCargo(): HasOne
+    {
+        return $this->hasOne(AvailableCargo::class);
+    }
+
+    public function hasCollectionRequested(): bool
+    {
+        return $this->collection_requested === true;
     }
 
     public function scopeByStatus($query, string $status)

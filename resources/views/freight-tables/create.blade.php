@@ -403,7 +403,7 @@
                 <label for="weekend_holiday_rate">Fim de Semana/Feriado (%)</label>
                 <input type="number" name="weekend_holiday_rate" id="weekend_holiday_rate" value="{{ old('weekend_holiday_rate', 30) }}" 
                        step="0.01" min="0" placeholder="30">
-                <span class="help-text">Padrão: 30%</span>
+                <span class="help-text">Percentual aplicado sobre o frete base nos dias selecionados abaixo.</span>
             </div>
 
             <div class="form-group">
@@ -418,6 +418,29 @@
                 <input type="number" name="return_rate" id="return_rate" value="{{ old('return_rate', 100) }}" 
                        step="0.01" min="0" placeholder="100">
                 <span class="help-text">Padrão: 100%</span>
+            </div>
+
+            <div class="form-group full-width" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,107,53,0.3);">
+                <label><i class="fas fa-calendar-alt"></i> Dias ou períodos em que a taxa Fim de Semana/Feriado se aplica</label>
+                <p class="help-text" style="margin-bottom: 12px;">Selecione datas específicas (ex.: feriados) ou intervalos (ex.: recesso). A taxa acima será aplicada quando a coleta/entrega cair nesses dias.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="date" id="wh_single_date" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <button type="button" id="wh_add_date_btn" class="btn-secondary" style="padding: 10px 16px;">
+                            <i class="fas fa-plus"></i> Adicionar data
+                        </button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="date" id="wh_range_start" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <span style="color: rgba(255,255,255,0.7);">até</span>
+                        <input type="date" id="wh_range_end" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <button type="button" id="wh_add_range_btn" class="btn-secondary" style="padding: 10px 16px;">
+                            <i class="fas fa-plus"></i> Adicionar período
+                        </button>
+                    </div>
+                </div>
+                <div id="wh_dates_list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <input type="hidden" name="weekend_holiday_dates" id="weekend_holiday_dates" value="{{ old('weekend_holiday_dates', '[]') }}">
             </div>
         </div>
     </div>
@@ -648,6 +671,88 @@
         // Initialize on page load
         updateMinFreightRateFields();
     });
+
+    // Dias/períodos Fim de Semana/Feriado
+    (function() {
+        let whDates = [];
+        const hiddenInput = document.getElementById('weekend_holiday_dates');
+        const listEl = document.getElementById('wh_dates_list');
+        const singleInput = document.getElementById('wh_single_date');
+        const rangeStart = document.getElementById('wh_range_start');
+        const rangeEnd = document.getElementById('wh_range_end');
+
+        function parseDateYmd(ymd) {
+            const [y, m, d] = ymd.split('-');
+            return d + '/' + m + '/' + y;
+        }
+
+        function syncHidden() {
+            hiddenInput.value = JSON.stringify(whDates);
+        }
+
+        function render() {
+            if (!listEl) return;
+            listEl.innerHTML = whDates.map((item, i) => {
+                let label;
+                if (item.type === 'date') {
+                    label = parseDateYmd(item.date);
+                } else {
+                    label = parseDateYmd(item.start) + ' – ' + parseDateYmd(item.end);
+                }
+                return '<div class="wh-date-item" data-index="' + i + '" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--cor-principal); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">' +
+                    '<span style="color: var(--cor-texto-claro);">' + label + '</span>' +
+                    '<button type="button" class="wh-remove" data-index="' + i + '" style="background: none; border: none; color: #f44336; cursor: pointer; padding: 4px 8px;"><i class="fas fa-times"></i></button>' +
+                    '</div>';
+            }).join('');
+            syncHidden();
+        }
+
+        function addDate() {
+            const v = singleInput && singleInput.value ? singleInput.value.trim() : '';
+            if (!v) return;
+            whDates.push({ type: 'date', date: v });
+            singleInput.value = '';
+            render();
+        }
+
+        function addRange() {
+            const s = rangeStart && rangeStart.value ? rangeStart.value.trim() : '';
+            const e = rangeEnd && rangeEnd.value ? rangeEnd.value.trim() : '';
+            if (!s || !e) return;
+            if (s > e) { alert('Data inicial deve ser anterior à data final.'); return; }
+            whDates.push({ type: 'range', start: s, end: e });
+            rangeStart.value = '';
+            rangeEnd.value = '';
+            render();
+        }
+
+        function removeAt(i) {
+            whDates.splice(i, 1);
+            render();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!hiddenInput || !listEl) return;
+            try {
+                const raw = (hiddenInput.value || '').trim();
+                if (raw) whDates = JSON.parse(raw);
+                if (!Array.isArray(whDates)) whDates = [];
+            } catch (e) {
+                whDates = [];
+            }
+            render();
+
+            const addDateBtn = document.getElementById('wh_add_date_btn');
+            const addRangeBtn = document.getElementById('wh_add_range_btn');
+            if (addDateBtn) addDateBtn.addEventListener('click', addDate);
+            if (addRangeBtn) addRangeBtn.addEventListener('click', addRange);
+
+            listEl.addEventListener('click', function(e) {
+                const btn = e.target.closest('.wh-remove');
+                if (btn && btn.dataset.index !== undefined) removeAt(parseInt(btn.dataset.index, 10));
+            });
+        });
+    })();
 </script>
 @endpush
 @endsection

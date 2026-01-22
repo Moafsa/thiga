@@ -161,6 +161,52 @@ class FreightTable extends Model
 
         return $cepClean >= $startClean && $cepClean <= $endClean;
     }
+
+    /**
+     * Get weekend/holiday dates configuration (dates or ranges when the extra rate applies).
+     * Stored in settings.weekend_holiday_dates as [ { type: 'date', date: 'Y-m-d' } | { type: 'range', start: 'Y-m-d', end: 'Y-m-d' } ].
+     */
+    public function getWeekendHolidayDates(): array
+    {
+        $dates = $this->settings['weekend_holiday_dates'] ?? [];
+        return is_array($dates) ? $dates : [];
+    }
+
+    /**
+     * Check if a given date falls within any configured weekend/holiday date or range.
+     *
+     * @param \DateTimeInterface|string $date Date to check (Y-m-d or DateTime)
+     */
+    public function isDateInWeekendHolidayRanges($date): bool
+    {
+        $items = $this->getWeekendHolidayDates();
+        if (empty($items)) {
+            return false;
+        }
+
+        $dt = $date instanceof \DateTimeInterface
+            ? $date
+            : \Carbon\Carbon::parse($date)->startOfDay();
+        $check = $dt->format('Y-m-d');
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            if (($item['type'] ?? '') === 'date' && isset($item['date'])) {
+                if ($item['date'] === $check) {
+                    return true;
+                }
+            }
+            if (($item['type'] ?? '') === 'range' && isset($item['start'], $item['end'])) {
+                if ($check >= $item['start'] && $check <= $item['end']) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }
 
 

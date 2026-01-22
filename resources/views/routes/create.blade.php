@@ -166,6 +166,31 @@
         </div>
     </div>
     
+    <!-- Available Cargo from Proposals -->
+    @if(isset($availableCargo) && $availableCargo->count() > 0)
+    <div style="margin-bottom: 20px; background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+        <h3 style="color: var(--cor-acento); margin-bottom: 15px;">Cargas Disponíveis para Coleta (de Propostas)</h3>
+        <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 15px;">
+            @foreach($availableCargo as $cargo)
+                @php
+                    $proposal = $cargo->proposal;
+                @endphp
+                <label style="display: flex; align-items: center; padding: 10px; margin-bottom: 5px; background: var(--cor-secundaria); border-radius: 5px;">
+                    <input type="checkbox" name="available_cargo_ids[]" value="{{ $cargo->id }}" style="margin-right: 10px;">
+                    <div style="flex: 1; color: var(--cor-texto-claro);">
+                        <div style="font-weight: 600;">{{ $proposal->proposal_number }} - {{ $proposal->title }}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8; margin-top: 3px;">
+                            Cliente: {{ $proposal->client->name ?? 'N/A' }} | 
+                            Destino: {{ $proposal->destination_name ?? 'N/A' }} | 
+                            Valor: R$ {{ number_format($proposal->final_value, 2, ',', '.') }}
+                        </div>
+                    </div>
+                </label>
+            @endforeach
+        </div>
+    </div>
+    @endif
+    
     <div style="margin-bottom: 20px;">
         <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Descrição</label>
         <textarea name="description" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">{{ old('description') }}</textarea>

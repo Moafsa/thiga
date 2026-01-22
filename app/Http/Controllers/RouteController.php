@@ -11,12 +11,18 @@ use App\Models\Company;
 use App\Models\FiscalDocument;
 use App\Models\CteXml;
 use App\Models\Client;
+use App\Models\ClientUser;
+use App\Models\AvailableCargo;
+use App\Models\Proposal;
+use App\Models\User;
 use App\Services\CteXmlParserService;
 use App\Services\GoogleMapsService;
 use App\Services\MapsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -129,7 +135,14 @@ class RouteController extends Controller
             ->limit(100) // Limitar resultados para evitar carregar muitos dados
             ->get();
 
-        return view('routes.create', compact('drivers', 'vehicles', 'branches', 'availableShipments', 'company'));
+        // Buscar cargas disponíveis de propostas com coleta solicitada
+        $availableCargo = AvailableCargo::where('tenant_id', $tenant->id)
+            ->where('status', 'available')
+            ->with(['proposal.client', 'proposal.salesperson'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('routes.create', compact('drivers', 'vehicles', 'branches', 'availableShipments', 'availableCargo', 'company'));
     }
 
     /**
@@ -166,6 +179,8 @@ class RouteController extends Controller
                 'end_time' => 'nullable|string',
                 'shipment_ids' => 'nullable|array',
                 'shipment_ids.*' => 'exists:shipments,id',
+                'available_cargo_ids' => 'nullable|array',
+                'available_cargo_ids.*' => 'exists:available_cargo,id',
                 'cte_xml_numbers' => 'nullable|array',
                 'cte_xml_numbers.*' => 'string',
                 'addresses' => 'nullable|array|min:1',
@@ -337,11 +352,97 @@ class RouteController extends Controller
                 }
             }
 
+            // Process available cargo (from proposals with collection requested)
+            if ($request->has('available_cargo_ids') && !empty($request->available_cargo_ids)) {
+                $availableCargoList = AvailableCargo::whereIn('id', $request->available_cargo_ids)
+                    ->where('tenant_id', $tenant->id)
+                    ->where('status', 'available')
+                    ->with('proposal')
+                    ->get();
+
+                foreach ($availableCargoList as $cargo) {
+                    $proposal = $cargo->proposal;
+                    
+                    if (!$proposal) {
+                        continue;
+                    }
+
+                    // Criar shipment a partir da proposta
+                    $trackingNumber = 'THG' . strtoupper(Str::random(8));
+                    
+                    // Buscar ou criar cliente destinatário (pode ser o mesmo cliente ou criar novo)
+                    // Se não houver endereço de destino, usar o cliente da proposta como destinatário
+                    if (empty($proposal->destination_address) && empty($proposal->destination_city)) {
+                        $receiverClient = $proposal->client;
+                    } else {
+                        $receiverClient = $this->findOrCreateClient($tenant, [
+                            'name' => $proposal->destination_name ?? ($proposal->client->name ?? 'Destinatário'),
+                            'address' => $proposal->destination_address ?? '',
+                            'city' => $proposal->destination_city ?? '',
+                            'state' => $proposal->destination_state ?? '',
+                            'zip_code' => $proposal->destination_zip_code ?? '',
+                        ]);
+                    }
+
+                    $shipment = Shipment::create([
+                        'tenant_id' => $tenant->id,
+                        'route_id' => $route->id,
+                        'sender_client_id' => $proposal->client_id,
+                        'receiver_client_id' => $receiverClient->id,
+                        'tracking_number' => $trackingNumber,
+                        'tracking_code' => $trackingNumber,
+                        'title' => 'Coleta - ' . ($proposal->title ?? 'Proposta ' . $proposal->proposal_number),
+                        'description' => $proposal->description,
+                        'recipient_name' => $proposal->destination_name ?? 'Destinatário',
+                        'recipient_address' => $proposal->destination_address ?? '',
+                        'recipient_city' => $proposal->destination_city ?? '',
+                        'recipient_state' => $proposal->destination_state ?? '',
+                        'recipient_zip_code' => $proposal->destination_zip_code ?? '',
+                        'pickup_address' => $proposal->origin_address ?? '',
+                        'pickup_city' => $proposal->origin_city ?? '',
+                        'pickup_state' => $proposal->origin_state ?? '',
+                        'pickup_zip_code' => $proposal->origin_zip_code ?? '',
+                        'pickup_latitude' => $proposal->origin_latitude,
+                        'pickup_longitude' => $proposal->origin_longitude,
+                        'delivery_address' => $proposal->destination_address ?? '',
+                        'delivery_city' => $proposal->destination_city ?? '',
+                        'delivery_state' => $proposal->destination_state ?? '',
+                        'delivery_zip_code' => $proposal->destination_zip_code ?? '',
+                        'delivery_latitude' => $proposal->destination_latitude,
+                        'delivery_longitude' => $proposal->destination_longitude,
+                        'weight' => $proposal->weight,
+                        'volume' => $proposal->cubage,
+                        'value' => $proposal->final_value,
+                        'freight_value' => $proposal->final_value,
+                        'pickup_date' => $route->scheduled_date ?? now(),
+                        'status' => 'pending',
+                        'shipment_type' => 'collection',
+                        'metadata' => [
+                            'proposal_id' => $proposal->id,
+                            'proposal_number' => $proposal->proposal_number,
+                        ],
+                    ]);
+
+                    // Atualizar status da carga disponível
+                    $cargo->update([
+                        'status' => 'assigned',
+                        'route_id' => $route->id,
+                        'assigned_at' => now(),
+                    ]);
+
+                    $hasShipments = true;
+                }
+
+                if ($hasShipments) {
+                    $route->calculateTotalRevenue();
+                }
+            }
+
             // Validate that route has at least one shipment
             if (!$hasShipments) {
                 DB::rollBack();
                 \Log::warning('Route created without shipments');
-                return back()->withErrors(['error' => 'A rota deve ter pelo menos um endereço, shipment existente ou número de XML de CT-e.'])->withInput();
+                return back()->withErrors(['error' => 'A rota deve ter pelo menos um endereço, shipment existente, carga disponível ou número de XML de CT-e.'])->withInput();
             }
 
             // Determine start address coordinates
@@ -1197,33 +1298,32 @@ class RouteController extends Controller
     }
 
     /**
-     * Find or create client from address data
+     * Find or create client from address/contact data (e.g. from CT-e XML).
+     * - Busca por CNPJ/CPF normalizado; se existir, reutiliza e atualiza endereço/contato.
+     * - Se não existir, cria cliente e, quando houver email ou telefone, gera User para login.
      */
     protected function findOrCreateClient($tenant, array $addressData): Client
     {
-        $cnpj = isset($addressData['cnpj']) ? preg_replace('/\D/', '', $addressData['cnpj']) : null;
-        
+        $cnpj = isset($addressData['cnpj']) ? preg_replace('/\D/', '', (string) $addressData['cnpj']) : null;
+        $cnpj = $cnpj !== '' ? $cnpj : null;
+
         $client = null;
-        
         if ($cnpj) {
             $client = Client::where('tenant_id', $tenant->id)
                 ->where('cnpj', $cnpj)
                 ->first();
         }
-        
-        if (!$client) {
-            $client = Client::create([
-                'tenant_id' => $tenant->id,
-                'name' => $addressData['name'] ?? 'Unknown',
-                'cnpj' => $cnpj,
-                'address' => $addressData['address'] ?? '',
-                'city' => $addressData['city'] ?? '',
-                'state' => $addressData['state'] ?? '',
-                'zip_code' => $addressData['zip_code'] ?? '',
-                'is_active' => true,
-            ]);
+
+        $email = isset($addressData['email']) ? trim((string) $addressData['email']) : null;
+        if ($email !== '') {
+            $email = filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
         } else {
-            // Update address if needed
+            $email = null;
+        }
+        $phone = isset($addressData['phone']) ? trim((string) $addressData['phone']) : null;
+        $phone = $phone !== '' ? $phone : null;
+
+        if ($client) {
             $updateData = [];
             if (!empty($addressData['address']) && empty($client->address)) {
                 $updateData['address'] = $addressData['address'];
@@ -1237,13 +1337,106 @@ class RouteController extends Controller
             if (!empty($addressData['zip_code']) && empty($client->zip_code)) {
                 $updateData['zip_code'] = $addressData['zip_code'];
             }
-            
+            if ($email !== null && empty($client->email)) {
+                $updateData['email'] = $email;
+            }
+            if ($phone !== null && empty($client->phone)) {
+                $updateData['phone'] = $phone;
+            }
             if (!empty($updateData)) {
                 $client->update($updateData);
+                $client->refresh();
             }
+            $this->ensureClientHasUserForLogin($client, $tenant);
+            return $client;
         }
-        
+
+        return $this->createClientFromAddressData($tenant, $addressData, $cnpj, $email, $phone);
+    }
+
+    /**
+     * Create client from XML/address data and optionally User for login (when email or phone present).
+     */
+    protected function createClientFromAddressData($tenant, array $addressData, ?string $cnpj, ?string $email, ?string $phone): Client
+    {
+        $client = DB::transaction(function () use ($tenant, $addressData, $cnpj, $email, $phone) {
+            $client = Client::create([
+                'tenant_id' => $tenant->id,
+                'name' => $addressData['name'] ?? 'Unknown',
+                'cnpj' => $cnpj,
+                'email' => $email,
+                'phone' => $phone,
+                'address' => $addressData['address'] ?? '',
+                'city' => $addressData['city'] ?? '',
+                'state' => $addressData['state'] ?? '',
+                'zip_code' => $addressData['zip_code'] ?? '',
+                'is_active' => true,
+            ]);
+
+            if ($email || $phone) {
+                $this->createUserForClient($client, $tenant, $email, $phone);
+            }
+
+            return $client;
+        });
+
         return $client;
+    }
+
+    /**
+     * Ensure client has User for login when we have contact info. Use when updating existing client.
+     */
+    protected function ensureClientHasUserForLogin(Client $client, $tenant): void
+    {
+        if (!$client->email && !$client->phone) {
+            return;
+        }
+        if ($client->user_id) {
+            return;
+        }
+        $this->createUserForClient($client, $tenant, $client->email ?: null, $client->phone ?: null);
+    }
+
+    /**
+     * Create User + ClientUser for client login (phone/email code). Skips if email already used.
+     */
+    protected function createUserForClient(Client $client, $tenant, ?string $email, ?string $phone): void
+    {
+        $phoneDigits = $phone ? preg_replace('/\D/', '', $phone) : null;
+        $userEmail = $email
+            ? Str::lower($email)
+            : ('client+' . $tenant->id . '+' . ($phoneDigits ?? '0') . '@tms.local');
+
+        if (User::where('email', $userEmail)->exists()) {
+            Log::info('findOrCreateClient: skipped user creation, email already in use', [
+                'client_id' => $client->id,
+                'email' => $userEmail,
+            ]);
+            return;
+        }
+
+        $user = User::create([
+            'name' => $client->name,
+            'email' => $userEmail,
+            'password' => Hash::make(Str::random(32)),
+            'tenant_id' => $tenant->id,
+            'phone' => $phoneDigits,
+            'is_active' => true,
+        ]);
+
+        try {
+            $user->assignRole('Client');
+        } catch (\Throwable $e) {
+            // Role may not exist
+        }
+
+        ClientUser::create([
+            'client_id' => $client->id,
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+        ]);
+
+        $client->forceFill(['user_id' => $user->id])->save();
     }
 
     /**

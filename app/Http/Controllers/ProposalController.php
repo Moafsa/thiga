@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Salesperson;
 use App\Models\FreightTable;
 use App\Models\Route;
+use App\Models\AvailableCargo;
 use App\Services\FreightCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,7 +95,7 @@ class ProposalController extends Controller
         }
         
         // Carregar relacionamentos necessários
-        $proposal->loadMissing(['tenant', 'client', 'salesperson']);
+        $proposal->loadMissing(['tenant', 'client', 'salesperson', 'availableCargo.route']);
         
         $this->authorize('view', $proposal);
         
@@ -113,12 +114,12 @@ class ProposalController extends Controller
         }
         
         $tenant = $user->tenant;
-        $clients = Client::where('tenant_id', $tenant->id)->active()->get();
+        $clients = Client::where('tenant_id', $tenant->id)->listed()->active()->get();
         $salespeople = Salesperson::where('tenant_id', $tenant->id)->active()->get();
         $freightTables = FreightTable::where('tenant_id', $tenant->id)->active()->get();
         
         $selectedClient = $request->get('client_id') ? 
-            Client::where('tenant_id', $tenant->id)->find($request->get('client_id')) : null;
+            Client::where('tenant_id', $tenant->id)->listed()->find($request->get('client_id')) : null;
         
         // Verificar se há email configurado
         $hasEmailConfigured = !empty($tenant->email_provider) && !empty($tenant->email_config);
@@ -439,7 +440,7 @@ class ProposalController extends Controller
         $this->authorize('update', $proposal);
         
         $tenant = Auth::user()->tenant;
-        $clients = Client::where('tenant_id', $tenant->id)->active()->get();
+        $clients = Client::where('tenant_id', $tenant->id)->listed()->active()->get();
         $salespeople = Salesperson::where('tenant_id', $tenant->id)->active()->get();
         $freightTables = FreightTable::where('tenant_id', $tenant->id)->active()->get();
         
@@ -666,5 +667,113 @@ class ProposalController extends Controller
             'formatted_discount_value' => 'R$ ' . number_format($discountValue, 2, ',', '.'),
             'formatted_final_value' => 'R$ ' . number_format($finalValue, 2, ',', '.'),
         ]);
+    }
+
+    /**
+     * Request collection for a proposal
+     */
+    public function requestCollection(Request $request, Proposal $proposal)
+    {
+        $user = Auth::user();
+        
+        // Verificar permissão: admin, vendedor ou cliente dono da proposta
+        $canRequest = false;
+        
+        if ($user->hasAnyRole(['Admin Tenant', 'Super Admin'])) {
+            $canRequest = true;
+        } elseif ($user->hasRole('Vendedor')) {
+            $salesperson = \App\Models\Salesperson::where('user_id', $user->id)->first();
+            if ($salesperson && $proposal->salesperson_id === $salesperson->id) {
+                $canRequest = true;
+            }
+        } elseif ($user->hasRole('Cliente')) {
+            // Cliente pode solicitar coleta de suas próprias propostas
+            $client = \App\Models\Client::where('user_id', $user->id)->first();
+            if ($client && $proposal->client_id === $client->id) {
+                $canRequest = true;
+            }
+            // Também verificar via ClientUser (multi-tenant)
+            if (!$canRequest) {
+                $clientUser = \App\Models\ClientUser::where('user_id', $user->id)
+                    ->where('client_id', $proposal->client_id)
+                    ->first();
+                if ($clientUser) {
+                    $canRequest = true;
+                }
+            }
+        }
+        
+        if (!$canRequest) {
+            abort(403, 'Você não tem permissão para solicitar coleta desta proposta.');
+        }
+
+        $tenant = $user->tenant ?? $proposal->tenant;
+
+        if (!$tenant) {
+            return redirect()->back()
+                ->withErrors(['error' => 'Não foi possível determinar o tenant.']);
+        }
+
+        // Validar se a proposta está aceita
+        if (!$proposal->isAccepted()) {
+            $redirectRoute = $user->hasRole('Cliente') 
+                ? route('client.proposals.show', $proposal)
+                : route('proposals.show', $proposal);
+            return redirect($redirectRoute)
+                ->withErrors(['error' => 'Apenas propostas aceitas podem ter coleta solicitada.']);
+        }
+
+        // Validar se já não foi solicitada
+        if ($proposal->collection_requested) {
+            $redirectRoute = $user->hasRole('Cliente') 
+                ? route('client.proposals.show', $proposal)
+                : route('proposals.show', $proposal);
+            return redirect($redirectRoute)
+                ->withErrors(['error' => 'Coleta já foi solicitada para esta proposta.']);
+        }
+
+        try {
+            // Atualizar proposta
+            $proposal->update([
+                'collection_requested' => true,
+                'collection_requested_at' => now(),
+            ]);
+
+            // Criar carga disponível
+            $availableCargo = \App\Models\AvailableCargo::create([
+                'tenant_id' => $tenant->id,
+                'proposal_id' => $proposal->id,
+                'status' => 'available',
+            ]);
+
+            Log::info('Coleta solicitada para proposta', [
+                'proposal_id' => $proposal->id,
+                'available_cargo_id' => $availableCargo->id,
+                'tenant_id' => $tenant->id,
+                'user_id' => $user->id,
+            ]);
+
+            // Redirecionar baseado no tipo de usuário
+            if ($user->hasRole('Cliente')) {
+                return redirect()->route('client.proposals.show', $proposal)
+                    ->with('success', 'Coleta solicitada com sucesso! A carga está disponível para criação de rota.');
+            } else {
+                return redirect()->route('proposals.show', $proposal)
+                    ->with('success', 'Coleta solicitada com sucesso! A carga está disponível para criação de rota.');
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao solicitar coleta', [
+                'proposal_id' => $proposal->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $redirectRoute = $user->hasRole('Cliente') 
+                ? route('client.proposals.show', $proposal)
+                : route('proposals.show', $proposal);
+            return redirect($redirectRoute)
+                ->withErrors(['error' => 'Erro ao solicitar coleta: ' . $e->getMessage()]);
+        }
     }
 }

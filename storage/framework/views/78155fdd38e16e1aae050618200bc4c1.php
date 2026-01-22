@@ -112,6 +112,14 @@
     </a>
 </div>
 
+<?php if(request('excluidos') === '1'): ?>
+<div class="filters-section" style="margin-bottom: 15px;">
+    <p style="color: rgba(245, 245, 245, 0.85); margin: 0;">
+        <i class="fas fa-info-circle"></i> Exibindo clientes <strong>excluídos da listagem</strong>. Eles não aparecem na lista principal nem em buscas. Use &quot;Incluir novamente&quot; para recolocá-los na listagem.
+    </p>
+</div>
+<?php endif; ?>
+
 <div class="filters-section">
     <form method="GET" action="<?php echo e(route('clients.index')); ?>" class="filters-grid">
         <div>
@@ -155,6 +163,24 @@
                 <option value="0" <?php echo e(request('is_active') === '0' ? 'selected' : ''); ?>>Inativo</option>
             </select>
         </div>
+        <div>
+            <label for="marker" style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px;">Marcador</label>
+            <select name="marker" id="marker" 
+                    style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                <option value="">Todos os Marcadores</option>
+                <?php $__currentLoopData = \App\Models\Client::getAvailableMarkers(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $marker): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($key); ?>" <?php echo e(request('marker') === $key ? 'selected' : ''); ?>><?php echo e($marker['label']); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+        </div>
+        <div>
+            <label for="excluidos" style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px;">Listagem</label>
+            <select name="excluidos" id="excluidos" 
+                    style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                <option value="0" <?php echo e(request('excluidos') !== '1' ? 'selected' : ''); ?>>Na listagem</option>
+                <option value="1" <?php echo e(request('excluidos') === '1' ? 'selected' : ''); ?>>Excluídos da listagem</option>
+            </select>
+        </div>
         <div style="display: flex; align-items: flex-end; gap: 10px;">
             <button type="submit" class="btn-primary" style="flex: 1;">
                 <i class="fas fa-search"></i>
@@ -176,7 +202,13 @@
                         <i class="fas fa-building"></i>
                     </div>
                     <div class="client-info">
-                        <h3><?php echo e($client->name); ?></h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h3 style="margin: 0;"><?php echo e($client->name); ?></h3>
+                            <span class="status-badge" style="background-color: <?php echo e($client->marker_bg_color); ?>; color: <?php echo e($client->marker_color); ?>; font-size: 0.85em; padding: 4px 10px; border-radius: 12px; font-weight: 600;">
+                                <?php echo e($client->marker_label); ?>
+
+                            </span>
+                        </div>
                         <?php if($client->salesperson): ?>
                             <p>Vendedor: <?php echo e($client->salesperson->name); ?></p>
                         <?php endif; ?>
@@ -189,6 +221,22 @@
                     <a href="<?php echo e(route('clients.edit', $client)); ?>" class="action-btn" title="Editar">
                         <i class="fas fa-edit"></i>
                     </a>
+                    <?php if(request('excluidos') === '1'): ?>
+                        <form action="<?php echo e(route('clients.restore-listing', $client)); ?>" method="POST" style="display: inline;" onsubmit="return confirm('Incluir este cliente novamente na listagem?');">
+                            <?php echo csrf_field(); ?>
+                            <button type="submit" class="action-btn" title="Incluir novamente na listagem" style="background: none; border: none; padding: 0; cursor: pointer; color: inherit;">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </form>
+                    <?php else: ?>
+                        <form action="<?php echo e(route('clients.destroy', $client)); ?>" method="POST" style="display: inline;" onsubmit="return confirm('Remover este cliente da listagem? Ele não será exibido na lista, mas permanecerá no sistema (propostas, entregas etc.).');">
+                            <?php echo csrf_field(); ?>
+                            <?php echo method_field('DELETE'); ?>
+                            <button type="submit" class="action-btn" title="Excluir da listagem" style="background: none; border: none; padding: 0; cursor: pointer; color: inherit;">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -245,13 +293,26 @@
         </div>
     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
         <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-            <i class="fas fa-users" style="font-size: 5em; color: rgba(245, 245, 245, 0.3); margin-bottom: 20px;"></i>
-            <h3 style="color: var(--cor-texto-claro); font-size: 1.5em; margin-bottom: 10px;">Nenhum cliente encontrado</h3>
-            <p style="color: rgba(245, 245, 245, 0.7); margin-bottom: 30px;">Comece criando seu primeiro cliente</p>
+            <i class="fas fa-<?php echo e(request('excluidos') === '1' ? 'eye-slash' : 'users'); ?>" style="font-size: 5em; color: rgba(245, 245, 245, 0.3); margin-bottom: 20px;"></i>
+            <h3 style="color: var(--cor-texto-claro); font-size: 1.5em; margin-bottom: 10px;">
+                <?php echo e(request('excluidos') === '1' ? 'Nenhum cliente excluído da listagem' : 'Nenhum cliente encontrado'); ?>
+
+            </h3>
+            <p style="color: rgba(245, 245, 245, 0.7); margin-bottom: 30px;">
+                <?php echo e(request('excluidos') === '1' ? 'Altere o filtro &quot;Listagem&quot; para &quot;Na listagem&quot; para ver os clientes ativos.' : 'Comece criando seu primeiro cliente'); ?>
+
+            </p>
+            <?php if(request('excluidos') !== '1'): ?>
             <a href="<?php echo e(route('clients.create')); ?>" class="btn-primary">
                 <i class="fas fa-plus"></i>
                 Novo Cliente
             </a>
+            <?php else: ?>
+            <a href="<?php echo e(route('clients.index')); ?>" class="btn-secondary">
+                <i class="fas fa-list"></i>
+                Ver clientes na listagem
+            </a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>

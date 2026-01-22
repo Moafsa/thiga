@@ -106,10 +106,10 @@ class DashboardController extends Controller
                 ->count(),
         ];
 
-        // Clients statistics
+        // Clients statistics (apenas os que estão na listagem)
         $clientsStats = [
-            'total' => Client::where('tenant_id', $tenant->id)->count(),
-            'active' => Client::where('tenant_id', $tenant->id)->where('is_active', true)->count(),
+            'total' => Client::where('tenant_id', $tenant->id)->listed()->count(),
+            'active' => Client::where('tenant_id', $tenant->id)->listed()->where('is_active', true)->count(),
         ];
 
         // Routes statistics
@@ -193,6 +193,7 @@ class DashboardController extends Controller
         
         // Get clients for filter dropdown
         $clients = Client::where('tenant_id', $tenant->id)
+            ->listed()
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\ClientLoginCodeEmail;
 use App\Models\Client;
 use App\Models\ClientLoginCode;
 use App\Models\ClientUser;
@@ -11,6 +12,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -89,6 +91,67 @@ class ClientAuthService
                 'metadata' => array_filter([
                     'device_id' => $deviceId,
                 ]),
+            ]);
+        });
+
+        return $loginCode;
+    }
+
+    public function requestLoginCodeByEmail(string $rawEmail, ?string $deviceId = null, ?ClientUser $assignment = null): ClientLoginCode
+    {
+        $email = Str::lower(trim($rawEmail));
+        if (!str_contains($email, '@') || strlen($email) < 5) {
+            throw ValidationException::withMessages(['email' => __('Informe um e-mail válido.')]);
+        }
+
+        $client = $assignment?->client ?? Client::whereNotNull('email')->where('email', $email)->first();
+        if (!$client) {
+            throw ValidationException::withMessages(['email' => __('Não encontramos um cliente com este e-mail.')]);
+        }
+
+        if (Str::lower(trim($client->email ?? '')) !== $email) {
+            throw ValidationException::withMessages(['email' => __('E-mail não corresponde ao cadastro do cliente.')]);
+        }
+
+        $tenant = $assignment?->tenant ?? $client->tenant;
+        if (!$tenant) {
+            throw new RuntimeException('Client tenant not found.');
+        }
+
+        $this->ensureCanRequestCodeByEmail($client, $email);
+
+        $code = (string) random_int(100000, 999999);
+        $codeHash = hash('sha256', $code);
+        $expiresAt = now()->addMinutes(self::CODE_TTL_MINUTES);
+        $expiresAtFormatted = CarbonImmutable::now()->addMinutes(self::CODE_TTL_MINUTES)->locale('pt_BR')->translatedFormat('H:i');
+
+        try {
+            Mail::to($email)->send(new ClientLoginCodeEmail($client, $tenant, $code, $expiresAtFormatted));
+            Log::info('Client login code email sent', ['client_id' => $client->id, 'email' => $email]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send client login code email', [
+                'client_id' => $client->id,
+                'email' => $email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw ValidationException::withMessages([
+                'email' => __('Não foi possível enviar o código por e-mail. Tente novamente mais tarde.'),
+            ]);
+        }
+
+        $loginCode = null;
+        DB::transaction(function () use (&$loginCode, $client, $email, $codeHash, $expiresAt, $deviceId, $tenant) {
+            $loginCode = ClientLoginCode::create([
+                'tenant_id' => $tenant->id,
+                'client_id' => $client->id,
+                'phone_e164' => null,
+                'email' => $email,
+                'code_hash' => $codeHash,
+                'channel' => 'email',
+                'sent_at' => now(),
+                'expires_at' => $expiresAt,
+                'metadata' => array_filter(['device_id' => $deviceId]),
             ]);
         });
 
@@ -177,6 +240,51 @@ class ClientAuthService
         $loginCode->forceFill([
             'used_at' => now(),
         ])->save();
+
+        return $client;
+    }
+
+    public function verifyLoginCodeByEmail(string $rawEmail, string $code, ?string $deviceId = null, ?ClientUser $assignment = null): Client
+    {
+        $email = Str::lower(trim($rawEmail));
+        if (!str_contains($email, '@') || strlen($email) < 5) {
+            throw ValidationException::withMessages(['email' => __('Informe um e-mail válido.')]);
+        }
+
+        $client = $assignment?->client ?? Client::whereNotNull('email')->where('email', $email)->first();
+        if (!$client) {
+            throw ValidationException::withMessages(['email' => __('E-mail não encontrado.')]);
+        }
+
+        $loginCode = ClientLoginCode::where('client_id', $client->id)
+            ->where('email', $email)
+            ->whereNull('used_at')
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
+
+        if (!$loginCode) {
+            throw ValidationException::withMessages([
+                'code' => __('Código inválido ou expirado. Solicite um novo.'),
+            ]);
+        }
+
+        if ($loginCode->attempts >= self::MAX_ATTEMPTS) {
+            throw ValidationException::withMessages([
+                'code' => __('Número máximo de tentativas excedido. Solicite um novo código.'),
+            ]);
+        }
+
+        $loginCode->increment('attempts', 1, [
+            'last_attempt_at' => now(),
+            'metadata' => array_filter(array_merge($loginCode->metadata ?? [], ['last_device_id' => $deviceId])),
+        ]);
+
+        if (!hash_equals($loginCode->code_hash, hash('sha256', $code))) {
+            throw ValidationException::withMessages(['code' => __('Código incorreto.')]);
+        }
+
+        $loginCode->forceFill(['used_at' => now()])->save();
 
         return $client;
     }
@@ -373,6 +481,35 @@ class ClientAuthService
 
         return $assignments;
     }
+
+    public function getAssignmentsByEmail(string $rawEmail): Collection
+    {
+        $email = Str::lower(trim($rawEmail));
+        if (!str_contains($email, '@') || strlen($email) < 5) {
+            Log::warning('Invalid email', ['raw' => $rawEmail]);
+            return collect();
+        }
+
+        Log::info('Searching client by email', ['email' => $email]);
+
+        $client = Client::with(['userAssignments.tenant', 'userAssignments.user'])
+            ->whereNotNull('email')
+            ->where('email', $email)
+            ->first();
+
+        if (!$client) {
+            Log::warning('Client not found by email', ['email' => $email]);
+            return collect();
+        }
+
+        $assignments = $client->userAssignments()->with(['tenant', 'user', 'client'])->get();
+        Log::info('Client assignments by email', [
+            'client_id' => $client->id,
+            'assignments_count' => $assignments->count(),
+        ]);
+
+        return $assignments;
+    }
     
     protected function findClientByPhoneDirect(string $cleanPhone, array $with): ?Client
     {
@@ -462,6 +599,21 @@ class ClientAuthService
         if ($recentCode) {
             throw ValidationException::withMessages([
                 'phone' => __('Aguarde alguns instantes antes de solicitar um novo código.'),
+            ]);
+        }
+    }
+
+    protected function ensureCanRequestCodeByEmail(Client $client, string $email): void
+    {
+        $recentCode = ClientLoginCode::where('client_id', $client->id)
+            ->where('email', Str::lower($email))
+            ->where('created_at', '>=', now()->subSeconds(self::RESEND_COOLDOWN_SECONDS))
+            ->latest()
+            ->first();
+
+        if ($recentCode) {
+            throw ValidationException::withMessages([
+                'email' => __('Aguarde alguns instantes antes de solicitar um novo código.'),
             ]);
         }
     }

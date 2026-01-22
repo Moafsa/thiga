@@ -441,7 +441,7 @@ unset($__errorArgs, $__bag); ?>
         <div class="form-grid">
             <div class="form-group">
                 <label for="min_freight_rate_type">Tipo de Taxa Mínima</label>
-                <select name="min_freight_rate_type" id="min_freight_rate_type">
+                <select name="min_freight_rate_type" id="min_freight_rate_type" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
                     <option value="">Nenhuma (usar padrão)</option>
                     <option value="percentage" <?php echo e(old('min_freight_rate_type', $freightTable->min_freight_rate_type) === 'percentage' ? 'selected' : ''); ?>>Percentual sobre NF</option>
                     <option value="fixed" <?php echo e(old('min_freight_rate_type', $freightTable->min_freight_rate_type) === 'fixed' ? 'selected' : ''); ?>>Valor Fixo (R$)</option>
@@ -494,7 +494,7 @@ unset($__errorArgs, $__bag); ?>
                 <label for="weekend_holiday_rate">Fim de Semana/Feriado (%)</label>
                 <input type="number" name="weekend_holiday_rate" id="weekend_holiday_rate" value="<?php echo e(old('weekend_holiday_rate', $freightTable->weekend_holiday_rate * 100)); ?>" 
                        step="0.01" min="0" placeholder="30">
-                <span class="help-text">Padrão: 30%</span>
+                <span class="help-text">Percentual aplicado sobre o frete base nos dias selecionados abaixo.</span>
             </div>
 
             <div class="form-group">
@@ -509,6 +509,29 @@ unset($__errorArgs, $__bag); ?>
                 <input type="number" name="return_rate" id="return_rate" value="<?php echo e(old('return_rate', $freightTable->return_rate * 100)); ?>" 
                        step="0.01" min="0" placeholder="100">
                 <span class="help-text">Padrão: 100%</span>
+            </div>
+
+            <div class="form-group full-width" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,107,53,0.3);">
+                <label><i class="fas fa-calendar-alt"></i> Dias ou períodos em que a taxa Fim de Semana/Feriado se aplica</label>
+                <p class="help-text" style="margin-bottom: 12px;">Selecione datas específicas (ex.: feriados) ou intervalos (ex.: recesso). A taxa acima será aplicada quando a coleta/entrega cair nesses dias.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="date" id="wh_single_date" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <button type="button" id="wh_add_date_btn" class="btn-secondary" style="padding: 10px 16px;">
+                            <i class="fas fa-plus"></i> Adicionar data
+                        </button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="date" id="wh_range_start" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <span style="color: rgba(255,255,255,0.7);">até</span>
+                        <input type="date" id="wh_range_end" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                        <button type="button" id="wh_add_range_btn" class="btn-secondary" style="padding: 10px 16px;">
+                            <i class="fas fa-plus"></i> Adicionar período
+                        </button>
+                    </div>
+                </div>
+                <div id="wh_dates_list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <input type="hidden" name="weekend_holiday_dates" id="weekend_holiday_dates" value="<?php echo e(old('weekend_holiday_dates', json_encode($freightTable->getWeekendHolidayDates()))); ?>">
             </div>
         </div>
     </div>
@@ -530,54 +553,87 @@ unset($__errorArgs, $__bag); ?>
     let clientSearchTimeout;
     let selectedClient = null;
 
-    // Client search functionality
-    const clientSearchInput = document.getElementById('client_search');
-    const clientSearchResults = document.getElementById('client_search_results');
-    const clientIdInput = document.getElementById('client_id');
-    const selectedClientDisplay = document.getElementById('selected_client_display');
-    const selectedClientText = document.getElementById('selected_client_text');
-
-    // Load selected client if editing
-    <?php if(old('client_id', $freightTable->client_id)): ?>
-        <?php
-            $selectedClientId = old('client_id', $freightTable->client_id);
-            $selectedClient = \App\Models\Client::find($selectedClientId);
-        ?>
-        <?php if($selectedClient): ?>
-            selectedClient = {
-                id: <?php echo e($selectedClient->id); ?>,
-                name: '<?php echo e(addslashes($selectedClient->name)); ?>',
-                phone: '<?php echo e(addslashes($selectedClient->phone ?? '')); ?>',
-                cnpj: '<?php echo e(addslashes($selectedClient->cnpj ?? '')); ?>'
-            };
-            clientSearchInput.value = '<?php echo e(addslashes($selectedClient->name)); ?>';
-            updateClientDisplay();
-        <?php endif; ?>
-    <?php endif; ?>
-
-    clientSearchInput.addEventListener('input', function() {
-        const query = this.value.trim();
+    // Client search functionality - Initialize after DOM is ready
+    let clientSearchInput, clientSearchResults, clientIdInput, selectedClientDisplay, selectedClientText;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        clientSearchInput = document.getElementById('client_search');
+        clientSearchResults = document.getElementById('client_search_results');
+        clientIdInput = document.getElementById('client_id');
+        selectedClientDisplay = document.getElementById('selected_client_display');
+        selectedClientText = document.getElementById('selected_client_text');
         
-        clearTimeout(clientSearchTimeout);
-        
-        if (query.length < 2) {
-            clientSearchResults.style.display = 'none';
+        if (!clientSearchInput || !clientSearchResults || !clientIdInput) {
+            console.error('Client search elements not found');
             return;
         }
-
-        clientSearchTimeout = setTimeout(() => {
-            searchClients(query);
-        }, 300);
+        
+        // Initialize search functionality
+        initializeClientSearch();
     });
+    
+    function initializeClientSearch() {
+
+        // Load selected client if editing
+        <?php if(old('client_id', $freightTable->client_id)): ?>
+            <?php
+                $selectedClientId = old('client_id', $freightTable->client_id);
+                $selectedClient = \App\Models\Client::find($selectedClientId);
+            ?>
+            <?php if($selectedClient): ?>
+                selectedClient = {
+                    id: <?php echo e($selectedClient->id); ?>,
+                    name: '<?php echo e(addslashes($selectedClient->name)); ?>',
+                    phone: '<?php echo e(addslashes($selectedClient->phone ?? '')); ?>',
+                    cnpj: '<?php echo e(addslashes($selectedClient->cnpj ?? '')); ?>'
+                };
+                if (clientSearchInput) {
+                    clientSearchInput.value = '<?php echo e(addslashes($selectedClient->name)); ?>';
+                }
+                updateClientDisplay();
+            <?php endif; ?>
+        <?php endif; ?>
+        
+        clientSearchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            clearTimeout(clientSearchTimeout);
+            
+            if (query.length < 1) {
+                clientSearchResults.style.display = 'none';
+                clientSearchResults.innerHTML = '';
+                return;
+            }
+
+            clientSearchTimeout = setTimeout(() => {
+                searchClients(query);
+            }, 300);
+        });
+    }
 
     function searchClients(query) {
-        fetch('<?php echo e(route("freight-tables.search-clients")); ?>?q=' + encodeURIComponent(query))
-            .then(response => response.json())
+        const url = '<?php echo e(route("freight-tables.search-clients")); ?>?q=' + encodeURIComponent(query);
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 displayClientResults(data);
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error searching clients:', error);
+                clientSearchResults.innerHTML = '<div style="padding: 15px; color: #f44336; text-align: center;">Erro ao buscar clientes. Tente novamente.</div>';
+                clientSearchResults.style.display = 'block';
             });
     }
 
@@ -590,13 +646,18 @@ unset($__errorArgs, $__bag); ?>
 
         let html = '';
         clients.forEach(client => {
+            // Escapar caracteres especiais para evitar problemas no HTML
+            const name = (client.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const phone = (client.phone || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const cnpj = (client.cnpj || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
             html += `
                 <div class="client-result-item" 
-                     onclick="selectClient(${client.id}, '${client.name.replace("'", "\\'")}', '${(client.phone || '').replace("'", "\\'")}', '${(client.cnpj || '').replace("'", "\\'")}')"
+                     onclick="selectClient(${client.id}, '${name}', '${phone}', '${cnpj}')"
                      style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background-color 0.2s;"
                      onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'"
                      onmouseout="this.style.backgroundColor='transparent'">
-                    <div style="font-weight: 600; color: var(--cor-texto-claro);">${client.name}</div>
+                    <div style="font-weight: 600; color: var(--cor-texto-claro);">${client.name || 'Sem nome'}</div>
                     <div style="font-size: 0.85em; color: rgba(255,255,255,0.7); margin-top: 5px;">
                         ${client.phone ? '📞 ' + client.phone : ''}
                         ${client.cnpj ? ' | 📄 ' + client.cnpj : ''}
@@ -613,13 +674,15 @@ unset($__errorArgs, $__bag); ?>
 
     function selectClient(id, name, phone, cnpj) {
         selectedClient = { id, name, phone, cnpj };
-        clientIdInput.value = id;
-        clientSearchInput.value = '';
-        clientSearchResults.style.display = 'none';
+        if (clientIdInput) clientIdInput.value = id;
+        if (clientSearchInput) clientSearchInput.value = '';
+        if (clientSearchResults) clientSearchResults.style.display = 'none';
         updateClientDisplay();
     }
 
     function updateClientDisplay() {
+        if (!selectedClientDisplay || !selectedClientText) return;
+        
         if (selectedClient) {
             let displayText = selectedClient.name;
             if (selectedClient.phone) displayText += ' - ' + selectedClient.phone;
@@ -635,9 +698,9 @@ unset($__errorArgs, $__bag); ?>
 
     function clearClientSelection() {
         selectedClient = null;
-        clientIdInput.value = '';
-        clientSearchInput.value = '';
-        selectedClientDisplay.style.display = 'none';
+        if (clientIdInput) clientIdInput.value = '';
+        if (clientSearchInput) clientSearchInput.value = '';
+        if (selectedClientDisplay) selectedClientDisplay.style.display = 'none';
     }
 
     // Close results when clicking outside
@@ -701,6 +764,88 @@ unset($__errorArgs, $__bag); ?>
         // Initialize on page load
         updateMinFreightRateFields();
     });
+
+    // Dias/períodos Fim de Semana/Feriado
+    (function() {
+        let whDates = [];
+        const hiddenInput = document.getElementById('weekend_holiday_dates');
+        const listEl = document.getElementById('wh_dates_list');
+        const singleInput = document.getElementById('wh_single_date');
+        const rangeStart = document.getElementById('wh_range_start');
+        const rangeEnd = document.getElementById('wh_range_end');
+
+        function parseDateYmd(ymd) {
+            const [y, m, d] = ymd.split('-');
+            return d + '/' + m + '/' + y;
+        }
+
+        function syncHidden() {
+            hiddenInput.value = JSON.stringify(whDates);
+        }
+
+        function render() {
+            if (!listEl) return;
+            listEl.innerHTML = whDates.map((item, i) => {
+                let label;
+                if (item.type === 'date') {
+                    label = parseDateYmd(item.date);
+                } else {
+                    label = parseDateYmd(item.start) + ' – ' + parseDateYmd(item.end);
+                }
+                return '<div class="wh-date-item" data-index="' + i + '" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--cor-principal); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">' +
+                    '<span style="color: var(--cor-texto-claro);">' + label + '</span>' +
+                    '<button type="button" class="wh-remove" data-index="' + i + '" style="background: none; border: none; color: #f44336; cursor: pointer; padding: 4px 8px;"><i class="fas fa-times"></i></button>' +
+                    '</div>';
+            }).join('');
+            syncHidden();
+        }
+
+        function addDate() {
+            const v = singleInput && singleInput.value ? singleInput.value.trim() : '';
+            if (!v) return;
+            whDates.push({ type: 'date', date: v });
+            singleInput.value = '';
+            render();
+        }
+
+        function addRange() {
+            const s = rangeStart && rangeStart.value ? rangeStart.value.trim() : '';
+            const e = rangeEnd && rangeEnd.value ? rangeEnd.value.trim() : '';
+            if (!s || !e) return;
+            if (s > e) { alert('Data inicial deve ser anterior à data final.'); return; }
+            whDates.push({ type: 'range', start: s, end: e });
+            rangeStart.value = '';
+            rangeEnd.value = '';
+            render();
+        }
+
+        function removeAt(i) {
+            whDates.splice(i, 1);
+            render();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!hiddenInput || !listEl) return;
+            try {
+                const raw = (hiddenInput.value || '').trim();
+                if (raw) whDates = JSON.parse(raw);
+                if (!Array.isArray(whDates)) whDates = [];
+            } catch (e) {
+                whDates = [];
+            }
+            render();
+
+            const addDateBtn = document.getElementById('wh_add_date_btn');
+            const addRangeBtn = document.getElementById('wh_add_range_btn');
+            if (addDateBtn) addDateBtn.addEventListener('click', addDate);
+            if (addRangeBtn) addRangeBtn.addEventListener('click', addRange);
+
+            listEl.addEventListener('click', function(e) {
+                const btn = e.target.closest('.wh-remove');
+                if (btn && btn.dataset.index !== undefined) removeAt(parseInt(btn.dataset.index, 10));
+            });
+        });
+    })();
 </script>
 <?php $__env->stopPush(); ?>
 <?php $__env->stopSection(); ?>

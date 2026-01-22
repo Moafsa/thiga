@@ -8,6 +8,7 @@ use App\Models\Shipment;
 use App\Models\Invoice;
 use App\Models\FreightTable;
 use App\Models\Salesperson;
+use App\Models\ClientUser;
 use App\Services\FreightCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,20 +66,21 @@ class ClientDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Statistics
+        $clientIds = [$client->id];
+
         $stats = [
-            'total_shipments' => Shipment::where('sender_client_id', $client->id)->count(),
-            'active_shipments' => Shipment::where('sender_client_id', $client->id)
+            'total_shipments' => Shipment::whereIn('sender_client_id', $clientIds)->count(),
+            'active_shipments' => Shipment::whereIn('sender_client_id', $clientIds)
                 ->whereIn('status', ['pending', 'picked_up', 'in_transit'])->count(),
-            'delivered_shipments' => Shipment::where('sender_client_id', $client->id)
+            'delivered_shipments' => Shipment::whereIn('sender_client_id', $clientIds)
                 ->where('status', 'delivered')->count(),
-            'total_proposals' => Proposal::where('client_id', $client->id)->count(),
-            'pending_proposals' => Proposal::where('client_id', $client->id)
+            'total_proposals' => Proposal::whereIn('client_id', $clientIds)->count(),
+            'pending_proposals' => Proposal::whereIn('client_id', $clientIds)
                 ->whereIn('status', ['sent', 'negotiating'])->count(),
-            'total_invoices' => Invoice::where('client_id', $client->id)->count(),
-            'pending_invoices' => Invoice::where('client_id', $client->id)
+            'total_invoices' => Invoice::whereIn('client_id', $clientIds)->count(),
+            'pending_invoices' => Invoice::whereIn('client_id', $clientIds)
                 ->whereIn('status', ['open', 'overdue'])->count(),
-            'total_pending_amount' => Invoice::where('client_id', $client->id)
+            'total_pending_amount' => Invoice::whereIn('client_id', $clientIds)
                 ->whereIn('status', ['open', 'overdue'])
                 ->sum('total_amount'),
         ];
@@ -334,17 +336,35 @@ class ClientDashboardController extends Controller
                 ->with('error', 'Você não está registrado como cliente.');
         }
 
-        $query = Proposal::where('client_id', $client->id)
-            ->with(['salesperson']);
+        // Buscar todos os client_ids relacionados ao usuário em diferentes tenants
+        $clientUserAssignments = ClientUser::where('user_id', $user->id)
+            ->with('client')
+            ->get();
+        
+        $clientIds = $clientUserAssignments->pluck('client_id')->toArray();
+        $clientIds[] = $client->id; // Incluir o cliente principal
+
+        $query = Proposal::whereIn('client_id', $clientIds)
+            ->with(['salesperson', 'tenant']);
 
         // Filter by status
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
+        // Filter by tenant
+        if ($request->filled('tenant_id')) {
+            $query->where('tenant_id', $request->tenant_id);
+        }
+
         $proposals = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        return view('client.proposals', compact('client', 'proposals'));
+        // Get all tenants where user has clients
+        $tenants = \App\Models\Tenant::whereIn('id', 
+            $clientUserAssignments->pluck('tenant_id')->merge([$tenant->id])->unique()
+        )->get();
+
+        return view('client.proposals', compact('client', 'proposals', 'tenants'));
     }
 
     /**
@@ -353,21 +373,26 @@ class ClientDashboardController extends Controller
     public function showProposal(Proposal $proposal)
     {
         $user = Auth::user();
-        $tenant = $user->tenant;
 
-        if (!$tenant) {
-            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
+        // Buscar todos os client_ids relacionados ao usuário em diferentes tenants
+        $clientUserAssignments = ClientUser::where('user_id', $user->id)
+            ->with('client')
+            ->get();
+        
+        $clientIds = $clientUserAssignments->pluck('client_id')->toArray();
+        
+        // Incluir cliente principal se existir
+        $client = Client::where('user_id', $user->id)->first();
+        if ($client) {
+            $clientIds[] = $client->id;
         }
 
-        $client = Client::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$client || $proposal->client_id !== $client->id) {
+        // Verificar se a proposta pertence a algum dos clientes do usuário
+        if (!in_array($proposal->client_id, $clientIds)) {
             abort(403, 'Acesso negado.');
         }
 
-        $proposal->load(['salesperson', 'client']);
+        $proposal->load(['salesperson', 'client', 'tenant', 'availableCargo.route']);
 
         return view('client.proposal-details', compact('client', 'proposal'));
     }

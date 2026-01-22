@@ -101,9 +101,10 @@ class SalespersonDashboardController extends Controller
             ->distinct()
             ->get();
 
-        // Get clients list
+        // Get clients list (apenas os que estão na listagem)
         $clients = Client::where('salesperson_id', $salesperson->id)
             ->where('tenant_id', $tenant->id)
+            ->listed()
             ->active()
             ->orderBy('name')
             ->get();

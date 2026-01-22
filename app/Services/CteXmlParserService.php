@@ -207,7 +207,7 @@ class CteXmlParserService
                     
                     $address = [
                         'name' => (string)($remNode->xNome ?? ''),
-                        'cnpj' => (string)($remNode->CNPJ ?? ''),
+                        'cnpj' => (string)($remNode->CNPJ ?? $remNode->CPF ?? ''),
                         'address' => implode(', ', $addressParts),
                         'number' => (string)($endereco->nro ?? ''),
                         'complement' => (string)($endereco->xCpl ?? ''),
@@ -215,6 +215,8 @@ class CteXmlParserService
                         'city' => (string)($endereco->xMun ?? ''),
                         'state' => (string)($endereco->UF ?? ''),
                         'zip_code' => preg_replace('/\D/', '', (string)($endereco->CEP ?? '')),
+                        'email' => $this->extractContactEmail($remNode, $endereco),
+                        'phone' => $this->extractContactPhone($remNode, $endereco),
                     ];
                 }
             }
@@ -238,7 +240,7 @@ class CteXmlParserService
                         
                         $address = [
                             'name' => (string)($rem->xNome ?? ''),
-                            'cnpj' => (string)($rem->CNPJ ?? ''),
+                            'cnpj' => (string)($rem->CNPJ ?? $rem->CPF ?? ''),
                             'address' => implode(', ', $addressParts),
                             'number' => (string)($enderReme->nro ?? ''),
                             'complement' => (string)($enderReme->xCpl ?? ''),
@@ -246,6 +248,8 @@ class CteXmlParserService
                             'city' => (string)($enderReme->xMun ?? ''),
                             'state' => (string)($enderReme->UF ?? ''),
                             'zip_code' => preg_replace('/\D/', '', (string)($enderReme->CEP ?? '')),
+                            'email' => $this->extractContactEmail($rem, $enderReme),
+                            'phone' => $this->extractContactPhone($rem, $enderReme),
                         ];
                     }
                 }
@@ -286,7 +290,7 @@ class CteXmlParserService
                     
                     $address = [
                         'name' => (string)($destNode->xNome ?? ''),
-                        'cnpj' => (string)($destNode->CNPJ ?? ''),
+                        'cnpj' => (string)($destNode->CNPJ ?? $destNode->CPF ?? ''),
                         'address' => implode(', ', $addressParts),
                         'number' => (string)($endereco->nro ?? ''),
                         'complement' => (string)($endereco->xCpl ?? ''),
@@ -294,6 +298,8 @@ class CteXmlParserService
                         'city' => (string)($endereco->xMun ?? ''),
                         'state' => (string)($endereco->UF ?? ''),
                         'zip_code' => preg_replace('/\D/', '', (string)($endereco->CEP ?? '')),
+                        'email' => $this->extractContactEmail($destNode, $endereco),
+                        'phone' => $this->extractContactPhone($destNode, $endereco),
                     ];
                 }
             }
@@ -317,7 +323,7 @@ class CteXmlParserService
                         
                         $address = [
                             'name' => (string)($dest->xNome ?? ''),
-                            'cnpj' => (string)($dest->CNPJ ?? ''),
+                            'cnpj' => (string)($dest->CNPJ ?? $dest->CPF ?? ''),
                             'address' => implode(', ', $addressParts),
                             'number' => (string)($enderDest->nro ?? ''),
                             'complement' => (string)($enderDest->xCpl ?? ''),
@@ -325,6 +331,8 @@ class CteXmlParserService
                             'city' => (string)($enderDest->xMun ?? ''),
                             'state' => (string)($enderDest->UF ?? ''),
                             'zip_code' => preg_replace('/\D/', '', (string)($enderDest->CEP ?? '')),
+                            'email' => $this->extractContactEmail($dest, $enderDest),
+                            'phone' => $this->extractContactPhone($dest, $enderDest),
                         ];
                     }
                 }
@@ -483,6 +491,35 @@ class CteXmlParserService
         }
 
         return $values;
+    }
+
+    /**
+     * Extract email from rem/dest node or endereço.
+     * CT-e: email pode vir em rem/email, dest/email.
+     */
+    protected function extractContactEmail(SimpleXMLElement $personNode, SimpleXMLElement $endereco): ?string
+    {
+        $raw = (string)($personNode->email ?? $personNode->Email ?? $personNode->{'e-mail'} ?? $personNode->{'E-mail'} ?? '');
+        $raw = trim($raw);
+        if ($raw !== '' && filter_var($raw, FILTER_VALIDATE_EMAIL)) {
+            return $raw;
+        }
+        return null;
+    }
+
+    /**
+     * Extract phone from rem/dest node or endereço.
+     * CT-e: fone pode vir em rem/fone, dest/fone ou enderReme/fone, enderDest/fone.
+     */
+    protected function extractContactPhone(SimpleXMLElement $personNode, SimpleXMLElement $endereco): ?string
+    {
+        $raw = (string)($personNode->fone ?? $personNode->Fone ?? $endereco->fone ?? $endereco->Fone ?? '');
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+        $digits = preg_replace('/\D/', '', $raw);
+        return strlen($digits) >= 10 ? $raw : null;
     }
 
     /**

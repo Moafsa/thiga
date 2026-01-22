@@ -23,7 +23,7 @@ class FiscalReportController extends Controller
     public function index()
     {
         $tenant = Auth::user()->tenant;
-        $clients = Client::where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get();
+        $clients = Client::where('tenant_id', $tenant->id)->listed()->where('is_active', true)->orderBy('name')->get();
         $drivers = Driver::where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get();
         
         return view('fiscal.reports.index', compact('clients', 'drivers'));

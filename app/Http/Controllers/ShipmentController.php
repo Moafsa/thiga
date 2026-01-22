@@ -170,7 +170,7 @@ class ShipmentController extends Controller
     {
         $this->authorizeAccess($shipment);
         $tenant = Auth::user()->tenant;
-        $clients = Client::where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get();
+        $clients = Client::where('tenant_id', $tenant->id)->listed()->where('is_active', true)->orderBy('name')->get();
         $routes = Route::where('tenant_id', $tenant->id)->where('status', '!=', 'completed')->orderBy('scheduled_date')->get();
         $drivers = Driver::where('tenant_id', $tenant->id)->where('is_active', true)->orderBy('name')->get();
         return view('shipments.edit', compact('shipment', 'clients', 'routes', 'drivers'));

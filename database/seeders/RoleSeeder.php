@@ -144,6 +144,10 @@ class RoleSeeder extends Seeder
                 'view_shipments',
                 'track_shipments',
             ],
+            'Client' => [
+                'view_shipments',
+                'track_shipments',
+            ],
         ];
 
         foreach ($roles as $roleName => $rolePermissions) {

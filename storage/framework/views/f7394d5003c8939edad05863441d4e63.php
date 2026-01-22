@@ -1,10 +1,8 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Edit Client - TMS SaaS'); ?>
+<?php $__env->startSection('page-title', 'Edit Client'); ?>
 
-@section('title', 'Edit Client - TMS SaaS')
-@section('page-title', 'Edit Client')
-
-@push('styles')
-@include('shared.styles')
+<?php $__env->startPush('styles'); ?>
+<?php echo $__env->make('shared.styles', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <style>
     .form-section {
         background-color: var(--cor-secundaria);
@@ -75,82 +73,118 @@
         margin-bottom: 15px;
     }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="page-header">
     <div class="page-header-text">
         <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Edit Client</h1>
-        <h2>{{ $client->name }}</h2>
+        <h2><?php echo e($client->name); ?></h2>
     </div>
-    <a href="{{ route('clients.show', $client) }}" class="btn-secondary">
+    <a href="<?php echo e(route('clients.show', $client)); ?>" class="btn-secondary">
         <i class="fas fa-arrow-left"></i>
         Back
     </a>
 </div>
 
-<form action="{{ route('clients.update', $client) }}" method="POST">
-    @csrf
-    @method('PUT')
+<form action="<?php echo e(route('clients.update', $client)); ?>" method="POST">
+    <?php echo csrf_field(); ?>
+    <?php echo method_field('PUT'); ?>
 
     <div class="form-section">
         <h3><i class="fas fa-user"></i> Basic Information</h3>
         <div class="form-grid">
             <div class="form-group full-width">
                 <label for="name">Name *</label>
-                <input type="text" name="name" id="name" value="{{ old('name', $client->name) }}" required>
-                @error('name')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
-                @enderror
+                <input type="text" name="name" id="name" value="<?php echo e(old('name', $client->name)); ?>" required>
+                <?php $__errorArgs = ['name'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
 
             <div class="form-group">
                 <label for="cnpj">CNPJ</label>
-                <input type="text" name="cnpj" id="cnpj" value="{{ old('cnpj', $client->cnpj) }}" 
+                <input type="text" name="cnpj" id="cnpj" value="<?php echo e(old('cnpj', $client->cnpj)); ?>" 
                        placeholder="00.000.000/0000-00" maxlength="18">
-                @error('cnpj')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
-                @enderror
+                <?php $__errorArgs = ['cnpj'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
 
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" name="email" id="email" value="{{ old('email', $client->email) }}">
-                @error('email')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
-                @enderror
+                <input type="email" name="email" id="email" value="<?php echo e(old('email', $client->email)); ?>">
+                <?php $__errorArgs = ['email'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
 
             <div class="form-group">
                 <label for="phone">Phone</label>
-                <input type="text" name="phone" id="phone" value="{{ old('phone', $client->phone) }}" 
+                <input type="text" name="phone" id="phone" value="<?php echo e(old('phone', $client->phone)); ?>" 
                        placeholder="(00) 00000-0000">
                 <small style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin-top: 5px; display: block;">
                     Telefone ou e-mail usados para login no dashboard do cliente (código por WhatsApp ou e-mail).
                 </small>
-                @error('phone')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
-                @enderror
+                <?php $__errorArgs = ['phone'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
 
             <div class="form-group">
                 <label for="salesperson_id">Salesperson</label>
                 <select name="salesperson_id" id="salesperson_id">
                     <option value="">Select a salesperson</option>
-                    @foreach($salespeople as $salesperson)
-                        <option value="{{ $salesperson->id }}" {{ old('salesperson_id', $client->salesperson_id) == $salesperson->id ? 'selected' : '' }}>
-                            {{ $salesperson->name }}
+                    <?php $__currentLoopData = $salespeople; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $salesperson): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($salesperson->id); ?>" <?php echo e(old('salesperson_id', $client->salesperson_id) == $salesperson->id ? 'selected' : ''); ?>>
+                            <?php echo e($salesperson->name); ?>
+
                         </option>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </select>
-                @error('salesperson_id')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
-                @enderror
+                <?php $__errorArgs = ['salesperson_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
 
             <div class="form-group">
                 <label>
-                    <input type="checkbox" name="is_active" value="1" {{ old('is_active', $client->is_active) ? 'checked' : '' }}>
+                    <input type="checkbox" name="is_active" value="1" <?php echo e(old('is_active', $client->is_active) ? 'checked' : ''); ?>>
                     Active
                 </label>
             </div>
@@ -158,18 +192,26 @@
             <div class="form-group">
                 <label for="marker">Marcador/Classificação</label>
                 <select name="marker" id="marker">
-                    @foreach(\App\Models\Client::getAvailableMarkers() as $key => $marker)
-                        <option value="{{ $key }}" {{ old('marker', $client->marker ?? 'bronze') === $key ? 'selected' : '' }}>
-                            {{ $marker['label'] }}
+                    <?php $__currentLoopData = \App\Models\Client::getAvailableMarkers(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $marker): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($key); ?>" <?php echo e(old('marker', $client->marker ?? 'bronze') === $key ? 'selected' : ''); ?>>
+                            <?php echo e($marker['label']); ?>
+
                         </option>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </select>
                 <small style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin-top: 5px; display: block;">
                     Classifique o cliente com um marcador visual
                 </small>
-                @error('marker')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
-                @enderror
+                <?php $__errorArgs = ['marker'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
         </div>
     </div>
@@ -179,27 +221,27 @@
         <div class="form-grid">
             <div class="form-group full-width">
                 <label for="address">Address</label>
-                <input type="text" name="address" id="address" value="{{ old('address', $client->address) }}">
+                <input type="text" name="address" id="address" value="<?php echo e(old('address', $client->address)); ?>">
             </div>
 
             <div class="form-group">
                 <label for="city">City</label>
-                <input type="text" name="city" id="city" value="{{ old('city', $client->city) }}">
+                <input type="text" name="city" id="city" value="<?php echo e(old('city', $client->city)); ?>">
             </div>
 
             <div class="form-group">
                 <label for="state">State</label>
                 <select name="state" id="state">
                     <option value="">Select state</option>
-                    @foreach($states as $state)
-                        <option value="{{ $state }}" {{ old('state', $client->state) === $state ? 'selected' : '' }}>{{ $state }}</option>
-                    @endforeach
+                    <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($state); ?>" <?php echo e(old('state', $client->state) === $state ? 'selected' : ''); ?>><?php echo e($state); ?></option>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="zip_code">ZIP Code</label>
-                <input type="text" name="zip_code" id="zip_code" value="{{ old('zip_code', $client->zip_code) }}" 
+                <input type="text" name="zip_code" id="zip_code" value="<?php echo e(old('zip_code', $client->zip_code)); ?>" 
                        placeholder="00000-000" maxlength="10">
             </div>
         </div>
@@ -213,69 +255,69 @@
             </button>
         </div>
         <div id="addresses-container">
-            @foreach($client->addresses as $index => $address)
-                <div class="address-item" data-index="{{ $index }}">
+            <?php $__currentLoopData = $client->addresses; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $address): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <div class="address-item" data-index="<?php echo e($index); ?>">
                     <div class="address-header">
-                        <h4 style="color: var(--cor-acento); margin: 0;">Address {{ $index + 1 }}</h4>
+                        <h4 style="color: var(--cor-acento); margin: 0;">Address <?php echo e($index + 1); ?></h4>
                         <button type="button" class="btn-secondary remove-address" style="padding: 5px 10px;">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                     <div class="form-grid">
-                        <input type="hidden" name="addresses[{{ $index }}][id]" value="{{ $address->id }}">
+                        <input type="hidden" name="addresses[<?php echo e($index); ?>][id]" value="<?php echo e($address->id); ?>">
                         <div class="form-group">
                             <label>Type</label>
-                            <select name="addresses[{{ $index }}][type]" required>
-                                <option value="pickup" {{ $address->type === 'pickup' ? 'selected' : '' }}>Pickup</option>
-                                <option value="delivery" {{ $address->type === 'delivery' ? 'selected' : '' }}>Delivery</option>
+                            <select name="addresses[<?php echo e($index); ?>][type]" required>
+                                <option value="pickup" <?php echo e($address->type === 'pickup' ? 'selected' : ''); ?>>Pickup</option>
+                                <option value="delivery" <?php echo e($address->type === 'delivery' ? 'selected' : ''); ?>>Delivery</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Name</label>
-                            <input type="text" name="addresses[{{ $index }}][name]" value="{{ $address->name }}" required>
+                            <input type="text" name="addresses[<?php echo e($index); ?>][name]" value="<?php echo e($address->name); ?>" required>
                         </div>
                         <div class="form-group full-width">
                             <label>Address</label>
-                            <input type="text" name="addresses[{{ $index }}][address]" value="{{ $address->address }}" required>
+                            <input type="text" name="addresses[<?php echo e($index); ?>][address]" value="<?php echo e($address->address); ?>" required>
                         </div>
                         <div class="form-group">
                             <label>Number</label>
-                            <input type="text" name="addresses[{{ $index }}][number]" value="{{ $address->number }}" required>
+                            <input type="text" name="addresses[<?php echo e($index); ?>][number]" value="<?php echo e($address->number); ?>" required>
                         </div>
                         <div class="form-group">
                             <label>Complement</label>
-                            <input type="text" name="addresses[{{ $index }}][complement]" value="{{ $address->complement }}">
+                            <input type="text" name="addresses[<?php echo e($index); ?>][complement]" value="<?php echo e($address->complement); ?>">
                         </div>
                         <div class="form-group">
                             <label>Neighborhood</label>
-                            <input type="text" name="addresses[{{ $index }}][neighborhood]" value="{{ $address->neighborhood }}" required>
+                            <input type="text" name="addresses[<?php echo e($index); ?>][neighborhood]" value="<?php echo e($address->neighborhood); ?>" required>
                         </div>
                         <div class="form-group">
                             <label>City</label>
-                            <input type="text" name="addresses[{{ $index }}][city]" value="{{ $address->city }}" required>
+                            <input type="text" name="addresses[<?php echo e($index); ?>][city]" value="<?php echo e($address->city); ?>" required>
                         </div>
                         <div class="form-group">
                             <label>State</label>
-                            <select name="addresses[{{ $index }}][state]" required>
+                            <select name="addresses[<?php echo e($index); ?>][state]" required>
                                 <option value="">Select state</option>
-                                @foreach($states as $state)
-                                    <option value="{{ $state }}" {{ $address->state === $state ? 'selected' : '' }}>{{ $state }}</option>
-                                @endforeach
+                                <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <option value="<?php echo e($state); ?>" <?php echo e($address->state === $state ? 'selected' : ''); ?>><?php echo e($state); ?></option>
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>ZIP Code</label>
-                            <input type="text" name="addresses[{{ $index }}][zip_code]" value="{{ $address->zip_code }}" required maxlength="10">
+                            <input type="text" name="addresses[<?php echo e($index); ?>][zip_code]" value="<?php echo e($address->zip_code); ?>" required maxlength="10">
                         </div>
                         <div class="form-group">
                             <label>
-                                <input type="checkbox" name="addresses[{{ $index }}][is_default]" value="1" {{ $address->is_default ? 'checked' : '' }}>
+                                <input type="checkbox" name="addresses[<?php echo e($index); ?>][is_default]" value="1" <?php echo e($address->is_default ? 'checked' : ''); ?>>
                                 Default Address
                             </label>
                         </div>
                     </div>
                 </div>
-            @endforeach
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </div>
     </div>
 
@@ -288,38 +330,46 @@
             <div class="form-group full-width">
                 <label for="freight_tables">Tabelas de Frete Disponíveis</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 10px;">
-                    @foreach($freightTables as $freightTable)
+                    <?php $__currentLoopData = $freightTables; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $freightTable): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background-color: var(--cor-principal); border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.3s ease;"
                                onmouseover="this.style.borderColor='var(--cor-acento)'"
                                onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
                             <input type="checkbox" 
                                    name="freight_table_ids[]" 
-                                   value="{{ $freightTable->id }}"
-                                   {{ in_array($freightTable->id, $client->freightTables->pluck('id')->toArray()) ? 'checked' : '' }}
+                                   value="<?php echo e($freightTable->id); ?>"
+                                   <?php echo e(in_array($freightTable->id, $client->freightTables->pluck('id')->toArray()) ? 'checked' : ''); ?>
+
                                    style="width: 18px; height: 18px; cursor: pointer;">
                             <div style="flex: 1;">
-                                <div style="font-weight: 600; color: var(--cor-texto-claro);">{{ $freightTable->destination_name }}</div>
-                                @if($freightTable->destination_state)
-                                    <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.6);">{{ $freightTable->destination_state }}</div>
-                                @endif
+                                <div style="font-weight: 600; color: var(--cor-texto-claro);"><?php echo e($freightTable->destination_name); ?></div>
+                                <?php if($freightTable->destination_state): ?>
+                                    <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.6);"><?php echo e($freightTable->destination_state); ?></div>
+                                <?php endif; ?>
                             </div>
                         </label>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </div>
-                @if($freightTables->isEmpty())
+                <?php if($freightTables->isEmpty()): ?>
                     <p style="color: rgba(245, 245, 245, 0.6); font-style: italic; margin-top: 15px;">
-                        Nenhuma tabela de frete cadastrada. <a href="{{ route('freight-tables.create') }}" style="color: var(--cor-acento);">Criar tabela de frete</a>
+                        Nenhuma tabela de frete cadastrada. <a href="<?php echo e(route('freight-tables.create')); ?>" style="color: var(--cor-acento);">Criar tabela de frete</a>
                     </p>
-                @endif
-                @error('freight_table_ids.*')
-                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px; display: block;">{{ $message }}</span>
-                @enderror
+                <?php endif; ?>
+                <?php $__errorArgs = ['freight_table_ids.*'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px; display: block;"><?php echo e($message); ?></span>
+                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
             </div>
         </div>
     </div>
 
     <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 30px;">
-        <a href="{{ route('clients.show', $client) }}" class="btn-secondary">
+        <a href="<?php echo e(route('clients.show', $client)); ?>" class="btn-secondary">
             <i class="fas fa-times"></i>
             Cancel
         </a>
@@ -330,9 +380,9 @@
     </div>
 </form>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
-    let addressIndex = {{ $client->addresses->count() }};
+    let addressIndex = <?php echo e($client->addresses->count()); ?>;
 
     document.getElementById('add-address-btn').addEventListener('click', function() {
         const container = document.getElementById('addresses-container');
@@ -380,9 +430,9 @@
                         <label>State</label>
                         <select name="addresses[${addressIndex}][state]" required>
                             <option value="">Select state</option>
-                            @foreach($states as $state)
-                                <option value="{{ $state }}">{{ $state }}</option>
-                            @endforeach
+                            <?php $__currentLoopData = $states; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $state): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <option value="<?php echo e($state); ?>"><?php echo e($state); ?></option>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
                     </div>
                     <div class="form-group">
@@ -408,8 +458,8 @@
         }
     });
 </script>
-@endpush
-@endsection
+<?php $__env->stopPush(); ?>
+<?php $__env->stopSection(); ?>
 
 
 
@@ -427,3 +477,5 @@
 
 
 
+
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/clients/edit.blade.php ENDPATH**/ ?>

@@ -210,7 +210,7 @@
     <div class="page-wrapper">
         <div class="login-container">
             <a class="back-link" href="{{ route('client.login.phone') }}">
-                <i class="fas fa-arrow-left"></i> Voltar ao telefone
+                <i class="fas fa-arrow-left"></i> Voltar
             </a>
 
             <div class="logo">
@@ -218,7 +218,7 @@
             </div>
 
             <h1>Digite o código</h1>
-            <p class="subtitle">O código vale por 5 minutos e chega via WhatsApp</p>
+            <p class="subtitle">O código vale por 5 minutos</p>
 
             @if(isset($tenantName))
                 <div class="message-card success">
@@ -234,7 +234,7 @@
 
             @if(session('code_sent'))
                 <div class="message-card success">
-                    Já enviamos um código para {{ session('phone', $phone) }}.
+                    Código enviado para {{ $identifier ?? session('identifier') }}.
                 </div>
             @endif
 
@@ -247,17 +247,22 @@
             @endif
 
             <div class="info-box">
-                <i class="fab fa-whatsapp"></i>
-                Confira a conversa do WhatsApp e insira o código de 6 dígitos.
+                @if(($channel ?? 'whatsapp') === 'email')
+                    <i class="fas fa-envelope"></i>
+                    Confira sua caixa de e-mail e insira o código de 6 dígitos.
+                @else
+                    <i class="fab fa-whatsapp"></i>
+                    Confira o WhatsApp e insira o código de 6 dígitos.
+                @endif
             </div>
 
             <form method="POST" action="{{ route('client.login.verify-code') }}">
                 @csrf
 
                 <div class="form-group">
-                    <label>Telefone</label>
-                    <input type="text" value="{{ $phone }}" readonly>
-                    <input type="hidden" name="phone" value="{{ $phone }}">
+                    <label>Enviado para</label>
+                    <input type="text" value="{{ $identifier }}" readonly>
+                    <input type="hidden" name="identifier" value="{{ $identifier }}">
                 </div>
 
                 <div class="form-group">

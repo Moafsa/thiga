@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{proposal}/send', [App\Http\Controllers\ProposalController::class, 'send'])->name('send');
         Route::post('/{proposal}/accept', [App\Http\Controllers\ProposalController::class, 'accept'])->name('accept');
         Route::post('/{proposal}/reject', [App\Http\Controllers\ProposalController::class, 'reject'])->name('reject');
+        Route::post('/{proposal}/request-collection', [App\Http\Controllers\ProposalController::class, 'requestCollection'])->name('requestCollection');
         Route::post('/calculate-discount', [App\Http\Controllers\ProposalController::class, 'calculateDiscount'])->name('calculateDiscount');
     });
     
@@ -118,6 +119,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [App\Http\Controllers\FreightTableController::class, 'store'])->name('store');
         Route::get('/search-clients', [App\Http\Controllers\FreightTableController::class, 'searchClients'])->name('search-clients');
         Route::get('/export-all/pdf', [App\Http\Controllers\FreightTableController::class, 'exportAllPdf'])->name('export-all-pdf');
+        Route::get('/adjust', [App\Http\Controllers\FreightTableController::class, 'showAdjustForm'])->name('adjust');
+        Route::post('/adjust', [App\Http\Controllers\FreightTableController::class, 'applyAdjustment'])->name('apply-adjustment');
         Route::get('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'show'])->name('show');
         Route::get('/{freightTable}/edit', [App\Http\Controllers\FreightTableController::class, 'edit'])->name('edit');
         Route::get('/{freightTable}/export/pdf', [App\Http\Controllers\FreightTableController::class, 'exportPdf'])->name('export-pdf');
@@ -200,6 +203,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{client}/edit', [App\Http\Controllers\ClientController::class, 'edit'])->name('edit');
         Route::put('/{client}', [App\Http\Controllers\ClientController::class, 'update'])->name('update');
         Route::delete('/{client}', [App\Http\Controllers\ClientController::class, 'destroy'])->name('destroy');
+        Route::post('/{client}/restore-listing', [App\Http\Controllers\ClientController::class, 'restoreListing'])->name('restore-listing');
     });
     
     // Drivers routes
@@ -280,6 +284,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/proposals/{proposal}', [App\Http\Controllers\ClientDashboardController::class, 'showProposal'])->name('proposals.show');
         Route::post('/proposals/{proposal}/accept', [App\Http\Controllers\ClientDashboardController::class, 'acceptProposal'])->name('proposals.accept');
         Route::post('/proposals/{proposal}/reject', [App\Http\Controllers\ClientDashboardController::class, 'rejectProposal'])->name('proposals.reject');
+        Route::post('/proposals/{proposal}/request-collection', [App\Http\Controllers\ProposalController::class, 'requestCollection'])->name('proposals.requestCollection');
         Route::get('/invoices', [App\Http\Controllers\ClientDashboardController::class, 'invoices'])->name('invoices');
         Route::get('/invoices/{invoice}', [App\Http\Controllers\ClientDashboardController::class, 'showInvoice'])->name('invoices.show');
     });

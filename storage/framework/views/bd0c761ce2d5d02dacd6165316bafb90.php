@@ -1,10 +1,10 @@
-@extends('layouts.app')
 
-@section('title', 'Client Details - TMS SaaS')
-@section('page-title', 'Client Details')
 
-@push('styles')
-@include('shared.styles')
+<?php $__env->startSection('title', 'Client Details - TMS SaaS'); ?>
+<?php $__env->startSection('page-title', 'Client Details'); ?>
+
+<?php $__env->startPush('styles'); ?>
+<?php echo $__env->make('shared.styles', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <style>
     .detail-section {
         background-color: var(--cor-secundaria);
@@ -79,59 +79,41 @@
         font-size: 0.9em;
     }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="page-header">
     <div class="page-header-text">
-        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">{{ $client->name }}</h1>
+        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;"><?php echo e($client->name); ?></h1>
         <h2>Client Details</h2>
     </div>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="{{ route('clients.edit', $client) }}" class="btn-primary">
+    <div style="display: flex; gap: 10px;">
+        <a href="<?php echo e(route('clients.edit', $client)); ?>" class="btn-primary">
             <i class="fas fa-edit"></i>
-            Editar
+            Edit
         </a>
-        @if($client->isExcludedFromListing())
-            <form action="{{ route('clients.restore-listing', $client) }}" method="POST" style="display: inline;" onsubmit="return confirm('Incluir este cliente novamente na listagem?');">
-                @csrf
-                <button type="submit" class="btn-secondary">
-                    <i class="fas fa-undo"></i>
-                    Incluir na listagem
-                </button>
-            </form>
-        @else
-            <form action="{{ route('clients.destroy', $client) }}" method="POST" style="display: inline;" onsubmit="return confirm('Remover este cliente da listagem? Ele não será exibido na lista, mas permanecerá no sistema (propostas, entregas etc.).');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn-secondary">
-                    <i class="fas fa-eye-slash"></i>
-                    Excluir da listagem
-                </button>
-            </form>
-        @endif
-        <a href="{{ route('clients.index') }}" class="btn-secondary">
+        <a href="<?php echo e(route('clients.index')); ?>" class="btn-secondary">
             <i class="fas fa-arrow-left"></i>
-            Voltar
+            Back
         </a>
     </div>
 </div>
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-value">{{ $client->shipments->count() }}</div>
+        <div class="stat-value"><?php echo e($client->shipments->count()); ?></div>
         <div class="stat-label">Shipments</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">{{ $client->proposals->count() }}</div>
+        <div class="stat-value"><?php echo e($client->proposals->count()); ?></div>
         <div class="stat-label">Proposals</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">{{ $client->invoices->count() }}</div>
+        <div class="stat-value"><?php echo e($client->invoices->count()); ?></div>
         <div class="stat-label">Invoices</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">{{ $client->addresses->count() }}</div>
+        <div class="stat-value"><?php echo e($client->addresses->count()); ?></div>
         <div class="stat-label">Addresses</div>
     </div>
 </div>
@@ -141,151 +123,154 @@
     <div class="detail-grid">
         <div class="detail-item">
             <span class="detail-label">Name</span>
-            <span class="detail-value">{{ $client->name }}</span>
+            <span class="detail-value"><?php echo e($client->name); ?></span>
         </div>
-        @if($client->cnpj)
+        <?php if($client->cnpj): ?>
         <div class="detail-item">
             <span class="detail-label">CNPJ</span>
-            <span class="detail-value">{{ $client->cnpj }}</span>
+            <span class="detail-value"><?php echo e($client->cnpj); ?></span>
         </div>
-        @endif
-        @if($client->email)
+        <?php endif; ?>
+        <?php if($client->email): ?>
         <div class="detail-item">
             <span class="detail-label">Email</span>
-            <span class="detail-value">{{ $client->email }}</span>
+            <span class="detail-value"><?php echo e($client->email); ?></span>
         </div>
-        @endif
-        @if($client->phone)
+        <?php endif; ?>
+        <?php if($client->phone): ?>
         <div class="detail-item">
             <span class="detail-label">Phone</span>
-            <span class="detail-value">{{ $client->phone }}</span>
+            <span class="detail-value"><?php echo e($client->phone); ?></span>
         </div>
-        @endif
-        @if($client->salesperson)
+        <?php endif; ?>
+        <?php if($client->salesperson): ?>
         <div class="detail-item">
             <span class="detail-label">Salesperson</span>
-            <span class="detail-value">{{ $client->salesperson->name }}</span>
+            <span class="detail-value"><?php echo e($client->salesperson->name); ?></span>
         </div>
-        @endif
+        <?php endif; ?>
         <div class="detail-item">
             <span class="detail-label">Status</span>
-            <span class="status-badge" style="background-color: {{ $client->is_active ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $client->is_active ? '#4caf50' : '#f44336' }};">
-                {{ $client->is_active ? 'Active' : 'Inactive' }}
+            <span class="status-badge" style="background-color: <?php echo e($client->is_active ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'); ?>; color: <?php echo e($client->is_active ? '#4caf50' : '#f44336'); ?>;">
+                <?php echo e($client->is_active ? 'Active' : 'Inactive'); ?>
+
             </span>
         </div>
         <div class="detail-item">
             <span class="detail-label">Marcador/Classificação</span>
-            <span class="status-badge" style="background-color: {{ $client->marker_bg_color }}; color: {{ $client->marker_color }}; font-weight: 600;">
-                {{ $client->marker_label }}
+            <span class="status-badge" style="background-color: <?php echo e($client->marker_bg_color); ?>; color: <?php echo e($client->marker_color); ?>; font-weight: 600;">
+                <?php echo e($client->marker_label); ?>
+
             </span>
         </div>
     </div>
 </div>
 
-@if($client->address || $client->city)
+<?php if($client->address || $client->city): ?>
 <div class="detail-section">
     <h3><i class="fas fa-map-marker-alt"></i> Main Address</h3>
     <div class="detail-grid">
-        @if($client->address)
+        <?php if($client->address): ?>
         <div class="detail-item">
             <span class="detail-label">Address</span>
-            <span class="detail-value">{{ $client->address }}</span>
+            <span class="detail-value"><?php echo e($client->address); ?></span>
         </div>
-        @endif
-        @if($client->city)
+        <?php endif; ?>
+        <?php if($client->city): ?>
         <div class="detail-item">
             <span class="detail-label">City/State</span>
-            <span class="detail-value">{{ $client->city }}/{{ $client->state }}</span>
+            <span class="detail-value"><?php echo e($client->city); ?>/<?php echo e($client->state); ?></span>
         </div>
-        @endif
-        @if($client->zip_code)
+        <?php endif; ?>
+        <?php if($client->zip_code): ?>
         <div class="detail-item">
             <span class="detail-label">ZIP Code</span>
-            <span class="detail-value">{{ $client->zip_code }}</span>
+            <span class="detail-value"><?php echo e($client->zip_code); ?></span>
         </div>
-        @endif
+        <?php endif; ?>
     </div>
 </div>
-@endif
+<?php endif; ?>
 
-@if($client->addresses->count() > 0)
+<?php if($client->addresses->count() > 0): ?>
 <div class="detail-section">
     <h3><i class="fas fa-map"></i> Additional Addresses</h3>
-    @foreach($client->addresses as $address)
+    <?php $__currentLoopData = $client->addresses; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $address): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
         <div class="address-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h4 style="color: var(--cor-acento); margin: 0;">
-                    {{ ucfirst($address->type) }} Address
-                    @if($address->is_default)
+                    <?php echo e(ucfirst($address->type)); ?> Address
+                    <?php if($address->is_default): ?>
                         <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50; margin-left: 10px; font-size: 0.8em;">Default</span>
-                    @endif
+                    <?php endif; ?>
                 </h4>
             </div>
             <div class="detail-grid">
                 <div class="detail-item">
                     <span class="detail-label">Name</span>
-                    <span class="detail-value">{{ $address->name }}</span>
+                    <span class="detail-value"><?php echo e($address->name); ?></span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Address</span>
-                    <span class="detail-value">{{ $address->formatted_address }}</span>
+                    <span class="detail-value"><?php echo e($address->formatted_address); ?></span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">ZIP Code</span>
-                    <span class="detail-value">{{ $address->zip_code }}</span>
+                    <span class="detail-value"><?php echo e($address->zip_code); ?></span>
                 </div>
             </div>
         </div>
-    @endforeach
+    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 </div>
-@endif
+<?php endif; ?>
 
-@if($client->freightTables->count() > 0)
+<?php if($client->freightTables->count() > 0): ?>
 <div class="detail-section">
     <h3><i class="fas fa-table"></i> Tabelas de Frete Vinculadas</h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
-        @foreach($client->freightTables as $freightTable)
+        <?php $__currentLoopData = $client->freightTables; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $freightTable): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <div class="address-card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h4 style="color: var(--cor-acento); margin: 0 0 5px 0;">{{ $freightTable->destination_name }}</h4>
-                        @if($freightTable->destination_state)
-                            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em;">{{ $freightTable->destination_state }}</span>
-                        @endif
+                        <h4 style="color: var(--cor-acento); margin: 0 0 5px 0;"><?php echo e($freightTable->destination_name); ?></h4>
+                        <?php if($freightTable->destination_state): ?>
+                            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em;"><?php echo e($freightTable->destination_state); ?></span>
+                        <?php endif; ?>
                     </div>
-                    <a href="{{ route('freight-tables.show', $freightTable) }}" class="btn-secondary" style="padding: 5px 10px; font-size: 0.9em;">
+                    <a href="<?php echo e(route('freight-tables.show', $freightTable)); ?>" class="btn-secondary" style="padding: 5px 10px; font-size: 0.9em;">
                         <i class="fas fa-eye"></i>
                     </a>
                 </div>
             </div>
-        @endforeach
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
     </div>
 </div>
-@else
+<?php else: ?>
 <div class="detail-section">
     <h3><i class="fas fa-table"></i> Tabelas de Frete Vinculadas</h3>
     <p style="color: rgba(245, 245, 245, 0.6); font-style: italic;">
-        Nenhuma tabela de frete vinculada. <a href="{{ route('clients.edit', $client) }}" style="color: var(--cor-acento);">Vincular tabelas</a>
+        Nenhuma tabela de frete vinculada. <a href="<?php echo e(route('clients.edit', $client)); ?>" style="color: var(--cor-acento);">Vincular tabelas</a>
     </p>
 </div>
-@endif
+<?php endif; ?>
 
-@if(session('success'))
+<?php if(session('success')): ?>
     <div class="alert alert-success">
         <i class="fas fa-check mr-2"></i>
-        {{ session('success') }}
-    </div>
-@endif
+        <?php echo e(session('success')); ?>
 
-@push('scripts')
+    </div>
+<?php endif; ?>
+
+<?php $__env->startPush('scripts'); ?>
 <script>
     setTimeout(() => {
         const messages = document.querySelectorAll('.alert');
         messages.forEach(msg => msg.remove());
     }, 5000);
 </script>
-@endpush
-@endsection
+<?php $__env->stopPush(); ?>
+<?php $__env->stopSection(); ?>
 
 
 
@@ -303,3 +288,5 @@
 
 
 
+
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /var/www/resources/views/clients/show.blade.php ENDPATH**/ ?>

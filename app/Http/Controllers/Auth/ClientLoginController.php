@@ -17,7 +17,7 @@ class ClientLoginController extends Controller
     }
 
     /**
-     * Display the phone input form for clients.
+     * Display the login form (phone or email).
      */
     public function showPhoneForm()
     {
@@ -26,30 +26,36 @@ class ClientLoginController extends Controller
     }
 
     /**
-     * Send a verification code by WhatsApp.
+     * Send a verification code by WhatsApp (phone) or e-mail.
      */
     public function requestCode(Request $request)
     {
         $validated = $request->validate([
-            'phone' => ['required', 'string', 'min:8', 'max:20'],
+            'identifier' => ['required', 'string', 'min:5', 'max:255'],
             'tenant_id' => ['nullable', 'integer'],
         ]);
 
+        $identifier = trim($validated['identifier']);
+        $isEmail = str_contains($identifier, '@');
+
+        $assignments = $isEmail
+            ? $this->clientAuthService->getAssignmentsByEmail($identifier)
+            : $this->clientAuthService->getAssignmentsByPhone($identifier);
+
         $tenantId = $validated['tenant_id'] ?? null;
-        $assignments = $this->clientAuthService->getAssignmentsByPhone($validated['phone']);
 
         if ($assignments->isEmpty()) {
-            return back()
-                ->withErrors(['phone' => 'Não encontramos um cliente com este telefone.'])
-                ->withInput();
+            $msg = $isEmail
+                ? 'Não encontramos um cliente com este e-mail.'
+                : 'Não encontramos um cliente com este telefone.';
+            return back()->withErrors(['identifier' => $msg])->withInput();
         }
 
         if ($assignments->count() > 1 && !$tenantId) {
-            $tenantOptions = $assignments->map(fn ($assignment) => [
-                'tenant_id' => $assignment->tenant->id,
-                'tenant_name' => $assignment->tenant->name,
+            $tenantOptions = $assignments->map(fn ($a) => [
+                'tenant_id' => $a->tenant->id,
+                'tenant_name' => $a->tenant->name,
             ]);
-
             return back()
                 ->withErrors(['tenant_id' => 'Selecione a empresa para continuar.'])
                 ->withInput()
@@ -62,42 +68,55 @@ class ClientLoginController extends Controller
 
         if (!$assignment) {
             return back()
-                ->withErrors(['tenant_id' => 'A empresa selecionada não corresponde ao telefone informado.'])
+                ->withErrors(['tenant_id' => 'A empresa selecionada não corresponde ao informado.'])
                 ->withInput()
-                ->with('tenantOptions', $assignments->map(fn ($assignment) => [
-                    'tenant_id' => $assignment->tenant->id,
-                    'tenant_name' => $assignment->tenant->name,
+                ->with('tenantOptions', $assignments->map(fn ($a) => [
+                    'tenant_id' => $a->tenant->id,
+                    'tenant_name' => $a->tenant->name,
                 ]));
         }
 
         try {
-            $this->clientAuthService->requestLoginCode(
-                $validated['phone'],
-                $request->header('X-Device-ID'),
-                $assignment
-            );
+            if ($isEmail) {
+                $this->clientAuthService->requestLoginCodeByEmail(
+                    $identifier,
+                    $request->header('X-Device-ID'),
+                    $assignment
+                );
+            } else {
+                $this->clientAuthService->requestLoginCode(
+                    $identifier,
+                    $request->header('X-Device-ID'),
+                    $assignment
+                );
+            }
 
-            $request->session()->put('client_login_phone', $validated['phone']);
+            $request->session()->put('client_login_identifier', $identifier);
+            $request->session()->put('client_login_channel', $isEmail ? 'email' : 'whatsapp');
             $request->session()->put('client_login_assignment_id', $assignment->id);
             $request->session()->put('client_login_tenant_name', $assignment->tenant->name);
             $request->session()->forget('tenantOptions');
 
+            $successMsg = $isEmail
+                ? 'Código de verificação enviado por e-mail. Verifique sua caixa de entrada.'
+                : 'Código de verificação enviado via WhatsApp. Verifique suas mensagens.';
+
             return redirect()->route('client.login.code')
-                ->with('success', 'Código de verificação enviado via WhatsApp. Verifique suas mensagens.')
+                ->with('success', $successMsg)
                 ->with('code_sent', true)
-                ->with('phone', $validated['phone']);
+                ->with('identifier', $identifier);
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Client login code request failed', [
-                'phone' => $validated['phone'] ?? null,
+                'identifier' => $identifier,
+                'is_email' => $isEmail,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return back()->withErrors([
-                'phone' => 'Não foi possível enviar o código de verificação no momento. Verifique o número e tente novamente.',
-            ])->withInput();
+            $msg = 'Não foi possível enviar o código no momento. Verifique e tente novamente.';
+            return back()->withErrors(['identifier' => $msg])->withInput();
         }
     }
 
@@ -106,16 +125,17 @@ class ClientLoginController extends Controller
      */
     public function showCodeForm(Request $request)
     {
-        $phone = $request->session()->get('client_login_phone');
+        $identifier = $request->session()->get('client_login_identifier');
+        $channel = $request->session()->get('client_login_channel', 'whatsapp');
 
-        if (!$phone) {
+        if (!$identifier) {
             return redirect()->route('client.login.phone')
-                ->withErrors(['phone' => 'Por favor, informe seu número de telefone novamente antes de solicitar o código.']);
+                ->withErrors(['identifier' => 'Informe seu telefone ou e-mail novamente antes de solicitar o código.']);
         }
 
         $tenantName = $request->session()->get('client_login_tenant_name');
 
-        return view('auth.client-login-code', compact('phone', 'tenantName'));
+        return view('auth.client-login-code', compact('identifier', 'channel', 'tenantName'));
     }
 
     /**
@@ -124,9 +144,12 @@ class ClientLoginController extends Controller
     public function verifyCode(Request $request)
     {
         $validated = $request->validate([
-            'phone' => ['required', 'string', 'min:8', 'max:20'],
+            'identifier' => ['required', 'string', 'min:5', 'max:255'],
             'code' => ['required', 'string', 'size:6'],
         ]);
+
+        $identifier = trim($validated['identifier']);
+        $channel = $request->session()->get('client_login_channel', 'whatsapp');
 
         try {
             $assignmentId = $request->session()->get('client_login_assignment_id');
@@ -136,15 +159,22 @@ class ClientLoginController extends Controller
 
             if (!$assignment) {
                 return redirect()->route('client.login.phone')
-                    ->withErrors(['phone' => 'Por favor, solicite um novo código para seu número de telefone.']);
+                    ->withErrors(['identifier' => 'Solicite um novo código para continuar.']);
             }
 
-            $client = $this->clientAuthService->verifyLoginCode(
-                $validated['phone'],
-                $validated['code'],
-                $request->header('X-Device-ID'),
-                $assignment
-            );
+            $client = $channel === 'email'
+                ? $this->clientAuthService->verifyLoginCodeByEmail(
+                    $identifier,
+                    $validated['code'],
+                    $request->header('X-Device-ID'),
+                    $assignment
+                )
+                : $this->clientAuthService->verifyLoginCode(
+                    $identifier,
+                    $validated['code'],
+                    $request->header('X-Device-ID'),
+                    $assignment
+                );
 
             if (!$assignment->user) {
                 throw ValidationException::withMessages([
@@ -153,7 +183,8 @@ class ClientLoginController extends Controller
             }
 
             auth()->login($assignment->user);
-            $request->session()->forget('client_login_phone');
+            $request->session()->forget('client_login_identifier');
+            $request->session()->forget('client_login_channel');
             $request->session()->forget('client_login_assignment_id');
             $request->session()->forget('client_login_tenant_name');
 
@@ -162,9 +193,9 @@ class ClientLoginController extends Controller
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Client login code verification failed', [
-                'phone' => $validated['phone'] ?? null,
+                'identifier' => $identifier,
+                'channel' => $channel,
                 'assignment_id' => $assignment->id ?? null,
-                'tenant_id' => $assignment->tenant_id ?? null,
                 'error' => $e->getMessage(),
             ]);
 

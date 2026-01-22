@@ -33,6 +33,9 @@
                     @if($proposal->salesperson)
                         <p><i class="fas fa-user"></i> Vendedor: {{ $proposal->salesperson->name }}</p>
                     @endif
+                    @if($proposal->tenant)
+                        <p><i class="fas fa-building"></i> Transportadora: {{ $proposal->tenant->name }}</p>
+                    @endif
                 </div>
                 <div>
                     <span class="status-badge {{ $proposal->status }}">{{ $proposal->status_label }}</span>

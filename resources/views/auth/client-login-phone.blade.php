@@ -199,7 +199,7 @@
             </div>
 
             <h1>Login Cliente</h1>
-            <p class="subtitle">Digite o telefone cadastrado e receba o código via WhatsApp</p>
+            <p class="subtitle">Digite seu telefone ou e-mail cadastrado e receba um código de acesso</p>
 
             @php
                 $tenantOptionsData = $tenantOptions ?? session('tenantOptions', []);
@@ -239,32 +239,32 @@
             @endif
 
             <div class="info-box">
-                <i class="fab fa-whatsapp"></i>
-                Enviaremos um código de 6 dígitos através do WhatsApp.
+                <i class="fas fa-key"></i>
+                Enviaremos um código de 6 dígitos por <strong>WhatsApp</strong> (telefone) ou por <strong>e-mail</strong>, conforme o que você informar.
             </div>
 
             <form method="POST" action="{{ route('client.login.request-code') }}">
                 @csrf
 
                 <div class="form-group">
-                    <label for="phone">Telefone</label>
+                    <label for="identifier">Telefone ou e-mail</label>
                     <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        placeholder="(11) 99999-9999"
-                        value="{{ old('phone', session('client_login_phone')) }}"
+                        type="text"
+                        id="identifier"
+                        name="identifier"
+                        placeholder="(11) 99999-9999 ou email@exemplo.com"
+                        value="{{ old('identifier', session('client_login_identifier')) }}"
                         required
                         autofocus
-                        pattern="[0-9]{10,11}"
+                        autocomplete="email"
                     >
                     <small style="display:block; margin-top:4px; color: rgba(255,255,255,0.6); font-size:12px;">
-                        Digite apenas números com DDD (ex: 11999998888)
+                        Telefone: apenas números com DDD. E-mail: o cadastrado no seu cliente.
                     </small>
                 </div>
 
                 <button type="submit" class="btn-login">
-                    <i class="fab fa-whatsapp"></i> Enviar código
+                    <i class="fas fa-paper-plane"></i> Enviar código
                 </button>
             </form>
 
