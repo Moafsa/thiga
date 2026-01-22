@@ -57,6 +57,10 @@ class ClientController extends Controller
             $query->where('is_active', $request->is_active === '1');
         }
 
+        if ($request->filled('marker')) {
+            $query->where('marker', $request->marker);
+        }
+
         $clients = $query->orderBy('name')->paginate(20);
 
         $salespeople = Salesperson::where('tenant_id', $tenant->id)
@@ -142,6 +146,7 @@ class ClientController extends Controller
 
         $validated['tenant_id'] = $tenant->id;
         $validated['is_active'] = $request->has('is_active') ? true : false;
+        $validated['marker'] = $request->input('marker', 'bronze');
 
         $addresses = $validated['addresses'] ?? [];
         unset($validated['addresses']);
@@ -250,6 +255,7 @@ class ClientController extends Controller
         ]);
 
         $validated['is_active'] = $request->has('is_active') ? true : false;
+        $validated['marker'] = $request->input('marker', $client->marker ?? 'bronze');
 
         $addresses = $validated['addresses'] ?? [];
         unset($validated['addresses']);

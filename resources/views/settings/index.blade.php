@@ -62,6 +62,17 @@
         <p>Personalize as cores primária e secundária do seu dashboard</p>
     </a>
 
+    <a href="{{ route('settings.integrations.email.index') }}" class="settings-card" style="border: 2px solid var(--cor-acento);">
+        <div class="settings-card-icon" style="background: linear-gradient(135deg, var(--cor-acento) 0%, #ff8c5a 100%);">
+            <i class="fas fa-envelope"></i>
+        </div>
+        <h3>📧 Configuração de Email</h3>
+        <p>Configure servidores de email (Postmark, Mailchimp, SMTP) para envio automático de propostas</p>
+        <div style="margin-top: 10px; padding: 8px; background-color: rgba(255, 107, 53, 0.1); border-radius: 5px; font-size: 0.85em;">
+            <i class="fas fa-info-circle"></i> Envie propostas automaticamente por email quando criadas
+        </div>
+    </a>
+
     <a href="{{ route('settings.integrations.whatsapp.index') }}" class="settings-card">
         <div class="settings-card-icon">
             <i class="fab fa-whatsapp"></i>

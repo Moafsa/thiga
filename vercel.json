@@ -4,24 +4,16 @@
     {
       "src": "*.html",
       "use": "@vercel/static"
-    },
-    {
-      "src": "*.svg",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/(.*\\.svg)",
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*\\.html)",
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*)",
+      "src": "/",
       "dest": "/index.html"
+    },
+    {
+      "src": "/pracas",
+      "dest": "/pracas.html"
     }
   ]
 }

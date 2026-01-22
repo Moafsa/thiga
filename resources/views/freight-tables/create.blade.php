@@ -103,6 +103,55 @@
             </div>
 
             <div class="form-group">
+                <label for="client_search">Cliente Vinculado</label>
+                <div style="position: relative;">
+                    <input type="text" 
+                           id="client_search" 
+                           name="client_search" 
+                           autocomplete="off"
+                           placeholder="Buscar por nome, telefone, ID ou CNPJ..."
+                           value="{{ old('client_search') }}"
+                           style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); font-size: 1em;">
+                    <input type="hidden" name="client_id" id="client_id" value="{{ old('client_id') }}">
+                    <div id="client_search_results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--cor-secundaria); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; margin-top: 5px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+                    </div>
+                </div>
+                <div id="selected_client_display" style="margin-top: 10px; padding: 10px; background: rgba(255, 107, 53, 0.1); border-radius: 8px; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span id="selected_client_text" style="color: var(--cor-texto-claro);"></span>
+                        <button type="button" onclick="clearClientSelection()" style="background: none; border: none; color: #f44336; cursor: pointer; padding: 5px 10px;">
+                            <i class="fas fa-times"></i> Remover
+                        </button>
+                    </div>
+                </div>
+                <span class="help-text">Opcional: Busque e vincule esta tabela a um cliente específico. Busque por nome, telefone, ID ou CNPJ.</span>
+                @error('client_id')
+                    <span class="error-message">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="category_id">Categoria</label>
+                <select name="category_id" id="category_id">
+                    <option value="">Sem Categoria</option>
+                    @foreach($categories as $category)
+                        <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                            {{ $category->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <span class="help-text">
+                    Opcional: Organize esta tabela em uma categoria. 
+                    <a href="{{ route('freight-table-categories.create') }}" target="_blank" style="color: var(--cor-acento);">
+                        Criar nova categoria
+                    </a>
+                </span>
+                @error('category_id')
+                    <span class="error-message">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group">
                 <label for="destination_type">Tipo de Destino *</label>
                 <select name="destination_type" id="destination_type" required>
                     <option value="city" {{ old('destination_type') === 'city' ? 'selected' : '' }}>Cidade</option>
@@ -167,6 +216,14 @@
                     <input type="checkbox" name="is_default" value="1" {{ old('is_default') ? 'checked' : '' }}>
                     Definir como tabela padrão
                 </label>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="visible_to_clients" value="1" {{ old('visible_to_clients') ? 'checked' : '' }}>
+                    Visível no dashboard do cliente
+                </label>
+                <span class="help-text">Permite que clientes vejam esta tabela em seus dashboards</span>
             </div>
         </div>
     </div>
@@ -260,6 +317,13 @@
                 <label for="toll_per_100kg">Pedágio por 100kg (R$)</label>
                 <input type="number" name="toll_per_100kg" id="toll_per_100kg" value="{{ old('toll_per_100kg', 12.95) }}" 
                        step="0.01" min="0" placeholder="12.95">
+            </div>
+
+            <div class="form-group">
+                <label for="tda_rate">Taxa TDA - Dificuldade de Acesso (%)</label>
+                <input type="number" name="tda_rate" id="tda_rate" value="{{ old('tda_rate', 0) }}" 
+                       step="0.0001" min="0" placeholder="0.00">
+                <span class="help-text">Taxa aplicada sobre o frete base para locais de difícil acesso</span>
             </div>
 
             <div class="form-group">
@@ -372,6 +436,164 @@
 
 @push('scripts')
 <script>
+    let clientSearchTimeout;
+    let selectedClient = null;
+
+    // Client search functionality - Initialize after DOM is ready
+    let clientSearchInput, clientSearchResults, clientIdInput, selectedClientDisplay, selectedClientText;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        clientSearchInput = document.getElementById('client_search');
+        clientSearchResults = document.getElementById('client_search_results');
+        clientIdInput = document.getElementById('client_id');
+        selectedClientDisplay = document.getElementById('selected_client_display');
+        selectedClientText = document.getElementById('selected_client_text');
+        
+        if (!clientSearchInput || !clientSearchResults || !clientIdInput) {
+            console.error('Client search elements not found');
+            return;
+        }
+        
+        // Initialize search functionality
+        initializeClientSearch();
+    });
+    
+    function initializeClientSearch() {
+
+        // Load selected client if editing
+        @if(old('client_id'))
+            @php
+                $selectedClient = \App\Models\Client::find(old('client_id'));
+            @endphp
+            @if($selectedClient)
+                selectedClient = {
+                    id: {{ $selectedClient->id }},
+                    name: '{{ addslashes($selectedClient->name) }}',
+                    phone: '{{ addslashes($selectedClient->phone ?? '') }}',
+                    cnpj: '{{ addslashes($selectedClient->cnpj ?? '') }}'
+                };
+                if (clientSearchInput) {
+                    clientSearchInput.value = '{{ addslashes($selectedClient->name) }}';
+                }
+                updateClientDisplay();
+            @endif
+        @endif
+    }
+            const query = this.value.trim();
+            
+            clearTimeout(clientSearchTimeout);
+            
+            if (query.length < 1) {
+                clientSearchResults.style.display = 'none';
+                clientSearchResults.innerHTML = '';
+                return;
+            }
+
+            clientSearchTimeout = setTimeout(() => {
+                searchClients(query);
+            }, 300);
+        });
+    }
+
+    function searchClients(query) {
+        const url = '{{ route("freight-tables.search-clients") }}?q=' + encodeURIComponent(query);
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayClientResults(data);
+            })
+            .catch(error => {
+                console.error('Error searching clients:', error);
+                clientSearchResults.innerHTML = '<div style="padding: 15px; color: #f44336; text-align: center;">Erro ao buscar clientes. Tente novamente.</div>';
+                clientSearchResults.style.display = 'block';
+            });
+    }
+
+    function displayClientResults(clients) {
+        if (clients.length === 0) {
+            clientSearchResults.innerHTML = '<div style="padding: 15px; color: rgba(255,255,255,0.7); text-align: center;">Nenhum cliente encontrado</div>';
+            clientSearchResults.style.display = 'block';
+            return;
+        }
+
+        let html = '';
+        clients.forEach(client => {
+            // Escapar caracteres especiais para evitar problemas no HTML
+            const name = (client.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const phone = (client.phone || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const cnpj = (client.cnpj || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            html += `
+                <div class="client-result-item" 
+                     onclick="selectClient(${client.id}, '${name}', '${phone}', '${cnpj}')"
+                     style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background-color 0.2s;"
+                     onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'"
+                     onmouseout="this.style.backgroundColor='transparent'">
+                    <div style="font-weight: 600; color: var(--cor-texto-claro);">${client.name || 'Sem nome'}</div>
+                    <div style="font-size: 0.85em; color: rgba(255,255,255,0.7); margin-top: 5px;">
+                        ${client.phone ? '📞 ' + client.phone : ''}
+                        ${client.cnpj ? ' | 📄 ' + client.cnpj : ''}
+                        ${client.email ? ' | ✉️ ' + client.email : ''}
+                        <span style="margin-left: 10px; color: var(--cor-acento);">ID: ${client.id}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        clientSearchResults.innerHTML = html;
+        clientSearchResults.style.display = 'block';
+    }
+
+    function selectClient(id, name, phone, cnpj) {
+        selectedClient = { id, name, phone, cnpj };
+        if (clientIdInput) clientIdInput.value = id;
+        if (clientSearchInput) clientSearchInput.value = '';
+        if (clientSearchResults) clientSearchResults.style.display = 'none';
+        updateClientDisplay();
+    }
+
+    function updateClientDisplay() {
+        if (!selectedClientDisplay || !selectedClientText) return;
+        
+        if (selectedClient) {
+            let displayText = selectedClient.name;
+            if (selectedClient.phone) displayText += ' - ' + selectedClient.phone;
+            if (selectedClient.cnpj) displayText += ' - ' + selectedClient.cnpj;
+            displayText += ' (ID: ' + selectedClient.id + ')';
+            
+            selectedClientText.textContent = displayText;
+            selectedClientDisplay.style.display = 'block';
+        } else {
+            selectedClientDisplay.style.display = 'none';
+        }
+    }
+
+    function clearClientSelection() {
+        selectedClient = null;
+        if (clientIdInput) clientIdInput.value = '';
+        if (clientSearchInput) clientSearchInput.value = '';
+        if (selectedClientDisplay) selectedClientDisplay.style.display = 'none';
+    }
+
+    // Close results when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!clientSearchInput.contains(event.target) && !clientSearchResults.contains(event.target)) {
+            clientSearchResults.style.display = 'none';
+        }
+    });
+
     // Show/hide CEP range fields based on destination type
     document.getElementById('destination_type').addEventListener('change', function() {
         const cepFields = document.getElementById('cep_range_fields');

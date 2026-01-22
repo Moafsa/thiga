@@ -28,11 +28,89 @@ class Client extends Model
         'zip_code',
         'salesperson_id',
         'is_active',
+        'marker',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected $attributes = [
+        'marker' => 'bronze',
+    ];
+
+    /**
+     * Get available markers
+     */
+    public static function getAvailableMarkers(): array
+    {
+        return [
+            'bronze' => [
+                'label' => 'Bronze',
+                'color' => '#CD7F32',
+                'bg_color' => 'rgba(205, 127, 50, 0.2)',
+            ],
+            'silver' => [
+                'label' => 'Prata',
+                'color' => '#C0C0C0',
+                'bg_color' => 'rgba(192, 192, 192, 0.2)',
+            ],
+            'gold' => [
+                'label' => 'Ouro',
+                'color' => '#FFD700',
+                'bg_color' => 'rgba(255, 215, 0, 0.2)',
+            ],
+            'blue' => [
+                'label' => 'Azul',
+                'color' => '#2196F3',
+                'bg_color' => 'rgba(33, 150, 243, 0.2)',
+            ],
+            'yellow' => [
+                'label' => 'Amarelo',
+                'color' => '#FFEB3B',
+                'bg_color' => 'rgba(255, 235, 59, 0.2)',
+            ],
+            'red' => [
+                'label' => 'Vermelho',
+                'color' => '#F44336',
+                'bg_color' => 'rgba(244, 67, 54, 0.2)',
+            ],
+        ];
+    }
+
+    /**
+     * Get marker info
+     */
+    public function getMarkerInfo(): array
+    {
+        $markers = self::getAvailableMarkers();
+        $marker = $this->marker ?: 'bronze';
+        return $markers[$marker] ?? $markers['bronze'];
+    }
+
+    /**
+     * Get marker label
+     */
+    public function getMarkerLabelAttribute(): string
+    {
+        return $this->getMarkerInfo()['label'];
+    }
+
+    /**
+     * Get marker color
+     */
+    public function getMarkerColorAttribute(): string
+    {
+        return $this->getMarkerInfo()['color'];
+    }
+
+    /**
+     * Get marker background color
+     */
+    public function getMarkerBgColorAttribute(): string
+    {
+        return $this->getMarkerInfo()['bg_color'];
+    }
 
     /**
      * Get the tenant that owns the client.
@@ -99,7 +177,15 @@ class Client extends Model
     }
 
     /**
-     * Get the freight tables associated with this client.
+     * Get the freight tables that belong to this client (one-to-many relationship).
+     */
+    public function freightTablesOwned(): HasMany
+    {
+        return $this->hasMany(FreightTable::class);
+    }
+
+    /**
+     * Get the freight tables associated with this client (many-to-many relationship).
      */
     public function freightTables(): BelongsToMany
     {

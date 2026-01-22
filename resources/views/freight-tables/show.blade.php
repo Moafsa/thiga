@@ -144,6 +144,16 @@
             <span class="info-value">{{ ucfirst(str_replace('_', ' ', $freightTable->destination_type)) }}</span>
         </div>
         <div class="info-item">
+            <span class="info-label">Cliente Vinculado</span>
+            <span class="info-value">
+                @if($freightTable->client)
+                    <span style="color: var(--cor-acento);">{{ $freightTable->client->name }}</span>
+                @else
+                    <span style="opacity: 0.7;">Nenhum (Tabela Geral)</span>
+                @endif
+            </span>
+        </div>
+        <div class="info-item">
             <span class="info-label">Status</span>
             <span>
                 @if($freightTable->is_active)
@@ -153,6 +163,9 @@
                 @endif
                 @if($freightTable->is_default)
                     <span class="badge badge-default" style="margin-left: 10px;">Padrão</span>
+                @endif
+                @if($freightTable->visible_to_clients)
+                    <span class="badge" style="background-color: rgba(33, 150, 243, 0.2); color: #2196f3; margin-left: 10px;">Visível para Clientes</span>
                 @endif
             </span>
         </div>

@@ -48,7 +48,11 @@ class SalespersonController extends Controller
     {
         $this->authorize('view', $salesperson);
         
+        $tenant = Auth::user()->tenant;
+        
+        // Ensure we only show proposals from the same tenant
         $proposals = $salesperson->proposals()
+            ->where('tenant_id', $tenant->id)
             ->with(['client'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);

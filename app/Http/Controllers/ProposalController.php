@@ -10,6 +10,7 @@ use App\Models\Route;
 use App\Services\FreightCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ProposalController extends Controller
@@ -24,7 +25,16 @@ class ProposalController extends Controller
      */
     public function index(Request $request)
     {
-        $tenant = Auth::user()->tenant;
+        $user = Auth::user();
+        
+        if (!$user || !$user->tenant) {
+            Log::error('Tentativa de listar propostas sem tenant', [
+                'user_id' => Auth::id(),
+            ]);
+            return redirect()->route('dashboard')->withErrors(['error' => 'Usuário não possui tenant associado.']);
+        }
+        
+        $tenant = $user->tenant;
         $query = Proposal::where('tenant_id', $tenant->id)
             ->with(['client', 'salesperson']);
 
@@ -41,6 +51,12 @@ class ProposalController extends Controller
         $proposals = $query->orderBy('created_at', 'desc')->paginate(15);
         $salespeople = Salesperson::where('tenant_id', $tenant->id)->active()->get();
 
+        Log::debug('Listando propostas', [
+            'tenant_id' => $tenant->id,
+            'total_proposals' => $proposals->total(),
+            'filters' => $request->only(['status', 'salesperson_id']),
+        ]);
+
         return view('proposals.index', compact('proposals', 'salespeople'));
     }
 
@@ -49,6 +65,37 @@ class ProposalController extends Controller
      */
     public function show(Proposal $proposal)
     {
+        $user = Auth::user();
+        
+        // Garantir que a proposta tem tenant_id
+        if (!$proposal->tenant_id) {
+            // Se não tem tenant_id, tenta obter do usuário logado
+            if ($user && $user->tenant) {
+                $proposal->tenant_id = $user->tenant->id;
+                $proposal->save();
+            } else {
+                // Se não conseguiu, tenta obter do client ou salesperson
+                if ($proposal->client_id) {
+                    $client = $proposal->client;
+                    if ($client && $client->tenant_id) {
+                        $proposal->tenant_id = $client->tenant_id;
+                        $proposal->save();
+                    }
+                }
+                
+                if (!$proposal->tenant_id && $proposal->salesperson_id) {
+                    $salesperson = $proposal->salesperson;
+                    if ($salesperson && $salesperson->tenant_id) {
+                        $proposal->tenant_id = $salesperson->tenant_id;
+                        $proposal->save();
+                    }
+                }
+            }
+        }
+        
+        // Carregar relacionamentos necessários
+        $proposal->loadMissing(['tenant', 'client', 'salesperson']);
+        
         $this->authorize('view', $proposal);
         
         return view('proposals.show', compact('proposal'));
@@ -59,15 +106,29 @@ class ProposalController extends Controller
      */
     public function create(Request $request)
     {
-        $tenant = Auth::user()->tenant;
+        $user = Auth::user();
+        
+        if (!$user || !$user->tenant) {
+            return redirect()->route('dashboard')->withErrors(['error' => 'Usuário não possui tenant associado.']);
+        }
+        
+        $tenant = $user->tenant;
         $clients = Client::where('tenant_id', $tenant->id)->active()->get();
         $salespeople = Salesperson::where('tenant_id', $tenant->id)->active()->get();
         $freightTables = FreightTable::where('tenant_id', $tenant->id)->active()->get();
         
         $selectedClient = $request->get('client_id') ? 
-            Client::find($request->get('client_id')) : null;
+            Client::where('tenant_id', $tenant->id)->find($request->get('client_id')) : null;
         
-        return view('proposals.create', compact('clients', 'salespeople', 'selectedClient', 'freightTables', 'tenant'));
+        // Verificar se há email configurado
+        $hasEmailConfigured = !empty($tenant->email_provider) && !empty($tenant->email_config);
+        
+        // Verificar se há WhatsApp conectado
+        $hasWhatsAppConnected = $tenant->whatsappIntegrations()
+            ->where('status', 'connected')
+            ->exists();
+        
+        return view('proposals.create', compact('clients', 'salespeople', 'selectedClient', 'freightTables', 'tenant', 'hasEmailConfigured', 'hasWhatsAppConnected'));
     }
 
     /**
@@ -80,6 +141,11 @@ class ProposalController extends Controller
             'salesperson_id' => 'required|exists:salespeople,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'weight' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
+            'width' => 'nullable|numeric|min:0',
+            'length' => 'nullable|numeric|min:0',
+            'cubage' => 'nullable|numeric|min:0',
             'base_value' => 'required|numeric|min:0',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'valid_until' => 'nullable|date|after:today',
@@ -91,8 +157,42 @@ class ProposalController extends Controller
             'route_id' => 'nullable|exists:routes,id', // Para considerar taxa mínima da rota
         ]);
 
-        $tenant = Auth::user()->tenant;
-        $salesperson = Salesperson::findOrFail($request->salesperson_id);
+        $user = Auth::user();
+        
+        if (!$user || !$user->tenant) {
+            Log::error('Tentativa de criar proposta sem tenant', [
+                'user_id' => Auth::id(),
+            ]);
+            return redirect()->route('dashboard')->withErrors(['error' => 'Usuário não possui tenant associado.']);
+        }
+        
+        $tenant = $user->tenant;
+        
+        // Validate client belongs to tenant
+        $client = Client::where('id', $request->client_id)
+            ->where('tenant_id', $tenant->id)
+            ->first();
+            
+        if (!$client) {
+            Log::error('Cliente não pertence ao tenant', [
+                'client_id' => $request->client_id,
+                'tenant_id' => $tenant->id,
+            ]);
+            return back()->withErrors(['client_id' => 'Cliente inválido.'])->withInput();
+        }
+        
+        // Validate salesperson belongs to tenant
+        $salesperson = Salesperson::where('id', $request->salesperson_id)
+            ->where('tenant_id', $tenant->id)
+            ->first();
+            
+        if (!$salesperson) {
+            Log::error('Vendedor não pertence ao tenant', [
+                'salesperson_id' => $request->salesperson_id,
+                'tenant_id' => $tenant->id,
+            ]);
+            return back()->withErrors(['salesperson_id' => 'Vendedor inválido.'])->withInput();
+        }
 
         // Validate discount percentage
         if ($request->discount_percentage > $salesperson->max_discount_percentage) {
@@ -198,24 +298,137 @@ class ProposalController extends Controller
         // Generate proposal number
         $proposalNumber = 'PROP-' . strtoupper(Str::random(8));
 
-        $proposal = Proposal::create([
-            'tenant_id' => $tenant->id,
-            'client_id' => $request->client_id,
-            'salesperson_id' => $request->salesperson_id,
-            'proposal_number' => $proposalNumber,
-            'title' => $request->title,
-            'description' => $request->description,
-            'base_value' => $request->base_value,
-            'discount_percentage' => $discountPercentage,
-            'discount_value' => $discountValue,
-            'final_value' => $finalValue,
-            'valid_until' => $request->valid_until,
-            'notes' => $request->notes,
-            'status' => 'draft',
-        ]);
+        try {
+            // Garantir que tenant_id está sempre definido
+            $tenantId = $tenant->id ?? Auth::user()->tenant->id ?? null;
+            
+            if (!$tenantId) {
+                throw new \Exception('Não foi possível determinar o tenant do usuário.');
+            }
+            
+            $proposal = Proposal::create([
+                'tenant_id' => $tenantId, // Sempre definido automaticamente
+                'client_id' => $client->id,
+                'salesperson_id' => $salesperson->id,
+                'proposal_number' => $proposalNumber,
+                'title' => $request->title,
+                'description' => $request->description,
+                'weight' => $request->weight ? (float) $request->weight : null,
+                'height' => $request->height ? (float) $request->height : null,
+                'width' => $request->width ? (float) $request->width : null,
+                'length' => $request->length ? (float) $request->length : null,
+                'cubage' => $request->cubage ? (float) $request->cubage : null,
+                'base_value' => $request->base_value,
+                'discount_percentage' => $discountPercentage,
+                'discount_value' => $discountValue,
+                'final_value' => $finalValue,
+                'valid_until' => $request->valid_until,
+                'notes' => $request->notes,
+                'status' => 'draft',
+            ]);
+            
+            // Verificar se o tenant foi realmente salvo
+            if (!$proposal->tenant_id) {
+                Log::error('Proposta criada sem tenant_id', [
+                    'proposal_id' => $proposal->id,
+                    'user_id' => Auth::id(),
+                ]);
+                throw new \Exception('Erro ao vincular tenant à proposta.');
+            }
 
-        return redirect()->route('proposals.show', $proposal)
-            ->with('success', 'Proposta criada com sucesso!');
+            // Recarregar a proposta para garantir que tem todos os dados
+            $proposal->refresh();
+            
+            Log::info('Proposta criada com sucesso', [
+                'proposal_id' => $proposal->id,
+                'proposal_number' => $proposal->proposal_number,
+                'salesperson_id' => $proposal->salesperson_id,
+                'client_id' => $proposal->client_id,
+                'tenant_id' => $proposal->tenant_id,
+                'final_value' => $proposal->final_value,
+            ]);
+
+            // Verificar novamente se o tenant foi salvo antes de redirecionar
+            if (!$proposal->tenant_id) {
+                Log::error('Proposta criada mas tenant_id não foi salvo', [
+                    'proposal_id' => $proposal->id,
+                ]);
+                // Tenta corrigir o tenant_id antes de redirecionar
+                if ($user && $user->tenant) {
+                    $proposal->tenant_id = $user->tenant->id;
+                    $proposal->save();
+                }
+            }
+
+            // Enviar notificações (email e/ou WhatsApp) se solicitado no formulário
+            $sendByEmail = $request->has('send_by_email') && $request->input('send_by_email') == '1';
+            $sendByWhatsApp = $request->has('send_by_whatsapp') && $request->input('send_by_whatsapp') == '1';
+            
+            if ($sendByEmail || $sendByWhatsApp) {
+                try {
+                    // Temporariamente atualizar as configurações do tenant para este envio específico
+                    $originalEmailSetting = $tenant->send_proposal_by_email;
+                    $originalWhatsAppSetting = $tenant->send_proposal_by_whatsapp;
+                    
+                    $tenant->send_proposal_by_email = $sendByEmail;
+                    $tenant->send_proposal_by_whatsapp = $sendByWhatsApp;
+                    
+                    $notificationService = app(ProposalNotificationService::class);
+                    $notificationResults = $notificationService->sendProposalNotifications($proposal, $sendByEmail, $sendByWhatsApp);
+                    
+                    // Restaurar configurações originais
+                    $tenant->send_proposal_by_email = $originalEmailSetting;
+                    $tenant->send_proposal_by_whatsapp = $originalWhatsAppSetting;
+                    
+                    $messages = ['Proposta criada com sucesso!'];
+                    
+                    if ($sendByEmail && $notificationResults['email']['success']) {
+                        $messages[] = 'Email enviado ao cliente.';
+                    } elseif ($sendByEmail && !$notificationResults['email']['success']) {
+                        Log::warning('Falha ao enviar email de proposta', [
+                            'proposal_id' => $proposal->id,
+                            'error' => $notificationResults['email']['message'] ?? 'Erro desconhecido',
+                        ]);
+                        $messages[] = 'Email não pôde ser enviado.';
+                    }
+                    
+                    if ($sendByWhatsApp && $notificationResults['whatsapp']['success']) {
+                        $messages[] = 'WhatsApp enviado ao cliente.';
+                    } elseif ($sendByWhatsApp && !$notificationResults['whatsapp']['success']) {
+                        Log::warning('Falha ao enviar WhatsApp de proposta', [
+                            'proposal_id' => $proposal->id,
+                            'error' => $notificationResults['whatsapp']['message'] ?? 'Erro desconhecido',
+                        ]);
+                        $messages[] = 'WhatsApp não pôde ser enviado.';
+                    }
+                    
+                    return redirect()->route('proposals.show', $proposal)
+                        ->with('success', implode(' ', $messages));
+                } catch (\Exception $e) {
+                    // Se houver erro no envio de notificações, não falha a criação da proposta
+                    Log::error('Erro ao enviar notificações de proposta', [
+                        'proposal_id' => $proposal->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    return redirect()->route('proposals.show', $proposal)
+                        ->with('success', 'Proposta criada com sucesso!')
+                        ->with('warning', 'Proposta criada, mas houve um problema ao enviar as notificações.');
+                }
+            }
+            
+            return redirect()->route('proposals.show', $proposal)
+                ->with('success', 'Proposta criada com sucesso!');
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar proposta', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['password', '_token']),
+                'tenant_id' => $tenant->id,
+            ]);
+
+            return back()->withErrors(['error' => 'Erro ao criar proposta: ' . $e->getMessage()])->withInput();
+        }
     }
 
     /**
@@ -228,8 +441,9 @@ class ProposalController extends Controller
         $tenant = Auth::user()->tenant;
         $clients = Client::where('tenant_id', $tenant->id)->active()->get();
         $salespeople = Salesperson::where('tenant_id', $tenant->id)->active()->get();
+        $freightTables = FreightTable::where('tenant_id', $tenant->id)->active()->get();
         
-        return view('proposals.edit', compact('proposal', 'clients', 'salespeople'));
+        return view('proposals.edit', compact('proposal', 'clients', 'salespeople', 'freightTables'));
     }
 
     /**
@@ -244,6 +458,11 @@ class ProposalController extends Controller
             'salesperson_id' => 'required|exists:salespeople,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'weight' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
+            'width' => 'nullable|numeric|min:0',
+            'length' => 'nullable|numeric|min:0',
+            'cubage' => 'nullable|numeric|min:0',
             'base_value' => 'required|numeric|min:0',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'valid_until' => 'nullable|date|after:today',
@@ -269,6 +488,11 @@ class ProposalController extends Controller
             'salesperson_id' => $request->salesperson_id,
             'title' => $request->title,
             'description' => $request->description,
+            'weight' => $request->weight ? (float) $request->weight : null,
+            'height' => $request->height ? (float) $request->height : null,
+            'width' => $request->width ? (float) $request->width : null,
+            'length' => $request->length ? (float) $request->length : null,
+            'cubage' => $request->cubage ? (float) $request->cubage : null,
             'base_value' => $request->base_value,
             'discount_percentage' => $discountPercentage,
             'discount_value' => $discountValue,
@@ -360,23 +584,39 @@ class ProposalController extends Controller
      */
     public function calculateFreight(Request $request)
     {
-        $request->validate([
-            'destination' => 'required|string',
-            'weight' => 'required|numeric|min:0',
-            'cubage' => 'nullable|numeric|min:0',
-            'invoice_value' => 'required|numeric|min:0',
-        ]);
+        try {
+            $validated = $request->validate([
+                'destination' => 'required|string',
+                'weight' => 'required|numeric|min:0',
+                'cubage' => 'nullable|numeric|min:0',
+                'invoice_value' => 'required|numeric|min:0',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Dados inválidos',
+                'errors' => $e->errors(),
+            ], 422);
+        }
 
         $tenant = Auth::user()->tenant;
+        
+        if (!$tenant) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Tenant não encontrado',
+            ], 404);
+        }
+
         $freightService = app(FreightCalculationService::class);
 
         try {
             $result = $freightService->calculate(
                 $tenant,
-                $request->destination,
-                (float) $request->weight,
-                (float) ($request->cubage ?? 0),
-                (float) $request->invoice_value,
+                $validated['destination'],
+                (float) $validated['weight'],
+                (float) ($validated['cubage'] ?? 0),
+                (float) $validated['invoice_value'],
                 []
             );
 
@@ -385,10 +625,16 @@ class ProposalController extends Controller
                 'data' => $result,
             ]);
         } catch (\Exception $e) {
+            Log::error('Erro ao calcular frete', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
-            ], 422);
+            ], 500);
         }
     }
 

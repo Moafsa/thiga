@@ -1,0 +1,19 @@
+# Ignorar tudo exceto os arquivos necessários para o deploy
+*
+
+# Incluir arquivos HTML principais
+!index.html
+!pracas.html
+!apresenta.html
+
+# Incluir arquivos de configuração
+!vercel.json
+!package.json
+
+# Incluir arquivos de logo/imagens
+!LOGO.svg
+!LOGO-black.svg
+!new-logo.svg
+
+# Incluir documentação
+!README.md

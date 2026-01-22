@@ -441,6 +441,12 @@
                                     <span class="text-gray-700">Frete Peso:</span>
                                     <span class="font-medium">R$ ${breakdown.freight_weight.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                 </div>
+                                ${breakdown.tda > 0 ? `
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">TDA (Taxa de Dificuldade de Acesso):</span>
+                                    <span class="font-medium">R$ ${breakdown.tda.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                </div>
+                                ` : ''}
                                 <div class="flex justify-between">
                                     <span class="text-gray-700">Ad-Valorem:</span>
                                     <span class="font-medium">R$ ${breakdown.ad_valorem.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>

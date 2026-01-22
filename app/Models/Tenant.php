@@ -24,6 +24,10 @@ class Tenant extends Model
         'is_active',
         'trial_ends_at',
         'subscription_status',
+        'email_provider',
+        'email_config',
+        'send_proposal_by_email',
+        'send_proposal_by_whatsapp',
     ];
 
     protected $hidden = [
@@ -33,6 +37,9 @@ class Tenant extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'trial_ends_at' => 'datetime',
+        'email_config' => 'array',
+        'send_proposal_by_email' => 'boolean',
+        'send_proposal_by_whatsapp' => 'boolean',
     ];
 
     /**

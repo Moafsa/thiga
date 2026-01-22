@@ -172,6 +172,18 @@
         }
         #result-section p { margin: 0; font-size: 18px; }
         #result-section .price { font-size: 28px; font-weight: 700; color: #245a49; }
+        #whatsapp-btn {
+            background-color: #25D366;
+            margin-top: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #whatsapp-btn:hover { background-color: #20BA5A; }
+        #whatsapp-btn::before {
+            content: "💬";
+            font-size: 20px;
+        }
         
         .generalidades ol { padding-left: 20px; font-size: 14px; column-count: 2; }
         .generalidades li { margin-bottom: 12px; }
@@ -217,7 +229,9 @@
 
     <div class="container" id="proposal-content">
         <header class="header">
-            <img src="https://www.thiga.com.br/LOGO-black.svg" alt="Logo Thiga Transportes">
+            <a href="index.html">
+                <img src="https://ws3.conext.click/thiga/LOGO-black.svg" alt="Logo Thiga Transportes">
+            </a>
             <div class="header-info">
                 <h1>Proposta Comercial</h1>
                 <p>Proposta Nº: <span id="proposal-number"></span> | Data: <span id="proposal-date"></span></p>
@@ -263,9 +277,31 @@
                             <label for="weight">Peso Real (em Kg)</label>
                             <input type="number" id="weight" name="weight" placeholder="Ex: 55">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group full-width">
+                            <label>
+                                <input type="radio" name="cubagem-mode" value="direct" checked style="width: auto; margin-right: 5px;">
+                                Informar cubagem diretamente
+                            </label>
+                            <label style="margin-left: 20px;">
+                                <input type="radio" name="cubagem-mode" value="dimensions" style="width: auto; margin-right: 5px;">
+                                Informar medidas (altura, largura, comprimento)
+                            </label>
+                        </div>
+                        <div class="form-group" id="cubagem-direct-group">
                             <label for="cubagem">Cubagem (m³)</label>
                             <input type="number" id="cubagem" name="cubagem" step="0.01" placeholder="Ex: 0.5">
+                        </div>
+                        <div class="form-group" id="dimensions-group" style="display: none;">
+                            <label for="altura">Altura (m)</label>
+                            <input type="number" id="altura" name="altura" step="0.01" placeholder="Ex: 0.5">
+                        </div>
+                        <div class="form-group" id="largura-group" style="display: none;">
+                            <label for="largura">Largura (m)</label>
+                            <input type="number" id="largura" name="largura" step="0.01" placeholder="Ex: 0.5">
+                        </div>
+                        <div class="form-group" id="comprimento-group" style="display: none;">
+                            <label for="comprimento">Comprimento (m)</label>
+                            <input type="number" id="comprimento" name="comprimento" step="0.01" placeholder="Ex: 0.5">
                         </div>
                         <div class="form-group full-width">
                             <label for="valor-nf">Valor da Nota Fiscal (R$)</label>
@@ -281,64 +317,6 @@
                 </div>
             </section>
             
-            <div class="intro">
-                <p>Apresentamos nossas condições comerciais para a prestação de serviços de transporte rodoviário de suas mercadorias na modalidade "Carga Seca".</p>
-            </div>
-
-            <h2>Tabela de Fretes</h2>
-            <table class="price-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2">DESTINO</th>
-                        <th colspan="4">ATÉ 100Kgs</th>
-                        <th colspan="2">ACIMA DE 100Kgs</th>
-                    </tr>
-                    <tr>
-                        <th>De 0 à 30kgs</th>
-                        <th>De 31 à 50kgs</th>
-                        <th>De 51 à 70kgs</th>
-                        <th>De 71 à 100kgs</th>
-                        <th>FRETE PESO</th>
-                        <th>TAXA CTRC</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr> <td>BELO HORIZONTE - MG*</td> <td>R$ 78,30</td> <td>R$ 87,08</td> <td>R$ 103,75</td> <td>R$ 118,60</td> <td>R$ 0,86</td> <td>R$ 60,45</td> </tr>
-                    <tr> <td>GRANDE BH - MG*</td> <td>R$ 83,46</td> <td>R$ 92,78</td> <td>R$ 110,86</td> <td>R$ 122,50</td> <td>R$ 0,90</td> <td>R$ 60,45</td> </tr>
-                    <tr> <td>SETE LAGOAS - MG*</td> <td>R$ 86,05</td> <td>R$ 95,35</td> <td>R$ 114,75</td> <td>R$ 126,35</td> <td>R$ 1,00</td> <td>R$ 60,45</td> </tr>
-                    <tr> <td>DIVINÓPOLIS – ITAÚNA - PARÁ MINAS - MG*</td> <td>R$ 90,20</td> <td>R$ 102,20</td> <td>R$ 117,30</td> <td>R$ 131,50</td> <td>R$ 1,50</td> <td>R$ 60,45</td> </tr>
-                    <tr> <td>JUIZ DE FORA - MG*</td> <td>R$ 96,65</td> <td>R$ 105,70</td> <td>R$ 118,60</td> <td>R$ 134,10</td> <td>R$ 1,60</td> <td>R$ 60,45</td> </tr>
-                    <tr> <td>DEMAIS CIDADES - MG*</td> <td>R$ 99,90</td> <td>R$ 108,30</td> <td>R$ 123,80</td> <td>R$ 136,70</td> <td>R$ 1,85</td> <td>R$ 72,00</td> </tr>
-                    <tr> <td>NORTE DE MINAS - MG*</td> <td>R$ 107,60</td> <td>R$ 115,85</td> <td>R$ 126,40</td> <td>R$ 149,30</td> <td>R$ 1,95</td> <td>R$ 72,00</td> </tr>
-                </tbody>
-            </table>
-
-            <div class="generalidades">
-                <h2>Condições Gerais</h2>
-                <ol>
-                    <li>Não emitimos CTRC com valor inferior a 1% da nota fiscal, acrescenta-se pedágio + taxas se houver.</li>
-                    <li>Ad-valorem: 0,40% sobre o valor da Nota Fiscal.</li>
-                    <li>GRIS: 0,30% sobre o valor da Nota Fiscal, com mínimo de R$ 8,70.</li>
-                    <li>Pedágio: R$ 12,95 a cada fração de 100kgs.</li>
-                    <li>Taxa Emissão CTRC: Acrescenta-se ao frete peso somente para frações acima de 100kgs.</li>
-                    <li>TDE (Mercados, etc): R$ 300,00 + frete.</li>
-                    <li>TDE (CD'S Supermercados): R$ 450,00 + frete.</li>
-                    <li>Paletização: R$ 40,00 por pallet.</li>
-                    <li>Carga assegurada conforme apólice.</li>
-                    <li>ICMS de acordo com a legislação vigente.</li>
-                    <li>Mercadorias devem estar devidamente embaladas. Não indenizamos avarias de vidros e similares.</li>
-                    <li>Responsabilidade do remetente sobre as informações da mercadoria.</li>
-                    <li>Preços sujeitos a reajuste conforme aumento de combustível.</li>
-                    <li>Taxa para Entrega/coleta Sábado, Domingo e Feriado: 30% sobre o frete original.</li>
-                    <li>Cubagem de 300 kgs/m³.</li>
-                    <li>Reentrega: 50% do frete original ou frete mínimo da praça.</li>
-                    <li>Devolução: 100% do frete original.</li>
-                    <li>Taxa de descarga: R$ 90,00 p/ nota + descarga + impostos, conforme procedimento de cada cliente.</li>
-                    <li>Ocorrências: Prazo de 24 horas para solução, caso contrário será devolvido com cobrança de frete.</li>
-                    <li>Faturamento Semanal com 7 dias. Desp. bancária R$ 3,50 para faturamento abaixo de R$ 500,00.</li>
-                    <li>Algumas cidades possuem taxas de emplacamento (consultar Relação de Cidades).</li>
-                </ol>
-            </div>
 
             <div class="cities-section">
                 <h2>Relação de Cidades Atendidas em Minas Gerais</h2>
@@ -497,6 +475,35 @@
                 }
                 e.target.value = value;
             });
+
+            // Toggle entre cubagem direta e medidas
+            const cubagemModeRadios = document.querySelectorAll('input[name="cubagem-mode"]');
+            const cubagemDirectGroup = document.getElementById('cubagem-direct-group');
+            const dimensionsGroup = document.getElementById('dimensions-group');
+            const larguraGroup = document.getElementById('largura-group');
+            const comprimentoGroup = document.getElementById('comprimento-group');
+
+            cubagemModeRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'direct') {
+                        cubagemDirectGroup.style.display = 'flex';
+                        dimensionsGroup.style.display = 'none';
+                        larguraGroup.style.display = 'none';
+                        comprimentoGroup.style.display = 'none';
+                        // Limpar campos de dimensões
+                        document.getElementById('altura').value = '';
+                        document.getElementById('largura').value = '';
+                        document.getElementById('comprimento').value = '';
+                    } else {
+                        cubagemDirectGroup.style.display = 'none';
+                        dimensionsGroup.style.display = 'flex';
+                        larguraGroup.style.display = 'flex';
+                        comprimentoGroup.style.display = 'flex';
+                        // Limpar campo de cubagem direta
+                        document.getElementById('cubagem').value = '';
+                    }
+                });
+            });
         });
 
         const priceData = {
@@ -513,21 +520,48 @@
             // --- 1. Obter os dados do formulário ---
             const destination = document.getElementById('destination').value;
             const weight = parseFloat(document.getElementById('weight').value) || 0;
-            const cubagem = parseFloat(document.getElementById('cubagem').value) || 0;
             const valorNF = parseFloat(document.getElementById('valor-nf').value) || 0;
             const whatsapp = document.getElementById('whatsapp').value;
             const resultSection = document.getElementById('result-section');
+            
+            // Obter cubagem baseado no modo selecionado
+            const cubagemMode = document.querySelector('input[name="cubagem-mode"]:checked').value;
+            let cubagem = 0;
+            
+            if (cubagemMode === 'direct') {
+                cubagem = parseFloat(document.getElementById('cubagem').value) || 0;
+            } else {
+                const altura = parseFloat(document.getElementById('altura').value) || 0;
+                const largura = parseFloat(document.getElementById('largura').value) || 0;
+                const comprimento = parseFloat(document.getElementById('comprimento').value) || 0;
+                
+                if (altura > 0 && largura > 0 && comprimento > 0) {
+                    cubagem = altura * largura * comprimento;
+                }
+            }
 
             // --- 2. Validação dos campos obrigatórios ---
             if (!destination) {
                 alert("Por favor, selecione um destino.");
                 return;
             }
-             if (weight <= 0 && cubagem <= 0) {
+            if (weight <= 0 && cubagem <= 0) {
                 alert("Por favor, insira um Peso ou Cubagem válido.");
                 return;
             }
-             if (valorNF <= 0) {
+            if (cubagemMode === 'dimensions') {
+                const altura = parseFloat(document.getElementById('altura').value) || 0;
+                const largura = parseFloat(document.getElementById('largura').value) || 0;
+                const comprimento = parseFloat(document.getElementById('comprimento').value) || 0;
+                if (altura <= 0 || largura <= 0 || comprimento <= 0) {
+                    alert("Por favor, preencha todas as medidas (altura, largura e comprimento).");
+                    return;
+                }
+            } else if (cubagemMode === 'direct' && cubagem <= 0) {
+                alert("Por favor, insira uma cubagem válida.");
+                return;
+            }
+            if (valorNF <= 0) {
                 alert("Por favor, insira um Valor de Nota Fiscal válido.");
                 return;
             }
@@ -592,21 +626,75 @@
                 appliedMinFreightNote = `<br><em>* Aplicado frete mínimo de 1% do valor da NF (R$ ${minFreightVsNf.toFixed(2).replace('.', ',')})</em>`;
             }
 
-            // --- 9. Exibir o resultado detalhado ---
+            // --- 9. Exibir o resultado (apenas valor final) ---
+            const clientName = document.getElementById('client-name').value || 'Cliente';
+            const email = document.getElementById('email').value || '';
+            const origin = document.getElementById('origin').value;
+            const destinationText = document.getElementById('destination').options[document.getElementById('destination').selectedIndex].text;
+            
+            // Formatar dados para mensagem
+            let cubagemText = '';
+            if (cubagemMode === 'direct') {
+                cubagemText = `${cubagem.toFixed(3).replace('.', ',')} m³`;
+            } else {
+                const altura = parseFloat(document.getElementById('altura').value) || 0;
+                const largura = parseFloat(document.getElementById('largura').value) || 0;
+                const comprimento = parseFloat(document.getElementById('comprimento').value) || 0;
+                cubagemText = `${altura.toFixed(2).replace('.', ',')}m x ${largura.toFixed(2).replace('.', ',')}m x ${comprimento.toFixed(2).replace('.', ',')}m = ${cubagem.toFixed(3).replace('.', ',')} m³`;
+            }
+            
             resultSection.innerHTML = `
-                <p>Valor Aproximado do Frete (com taxas):</p>
+                <p>Valor Aproximado do Frete:</p>
                 <p class="price" id="freight-result">R$ ${totalFreight.toFixed(2).replace('.', ',')}</p>
-                <div style="font-size: 14px; text-align: left; margin-top: 15px; background-color: #d4e0e7; padding: 10px; border-radius: 4px;">
-                    <strong>Detalhamento do Cálculo:</strong><br>
-                    - Peso Taxado: ${chargeableWeight.toFixed(2).replace('.', ',')} kg <em style="font-size:12px;">(maior valor entre peso real e cubado)</em><br>
-                    - Frete Peso Base: R$ ${fretePeso.toFixed(2).replace('.', ',')} ${freteBaseDetalhe}<br>
-                    - Ad Valorem (0,40%): R$ ${adValorem.toFixed(2).replace('.', ',')}<br>
-                    - GRIS (0,30%, mín. R$ 8,70): R$ ${gris.toFixed(2).replace('.', ',')}<br>
-                    - Pedágio (R$ 12,95 x fração de 100kg): R$ ${pedagio.toFixed(2).replace('.', ',')}
-                    ${appliedMinFreightNote}
-                </div>
+                <button id="whatsapp-btn" class="btn" onclick="sendToWhatsApp()">Chamar no WhatsApp</button>
             `;
             resultSection.style.display = 'block';
+            
+            // Armazenar dados para uso na função sendToWhatsApp
+            window.proposalData = {
+                clientName: clientName,
+                whatsapp: whatsapp,
+                email: email,
+                origin: origin,
+                destination: destinationText,
+                weight: weight,
+                cubagem: cubagem,
+                cubagemText: cubagemText,
+                valorNF: valorNF,
+                totalFreight: totalFreight,
+                proposalNumber: document.getElementById('proposal-number').textContent,
+                proposalDate: document.getElementById('proposal-date').textContent
+            };
+        }
+
+        function sendToWhatsApp() {
+            if (!window.proposalData) {
+                alert("Por favor, calcule o frete primeiro.");
+                return;
+            }
+            
+            const data = window.proposalData;
+            const message = `*Nova Proposta de Frete - Thiga Transportes*\n\n` +
+                `*Proposta Nº:* ${data.proposalNumber}\n` +
+                `*Data:* ${data.proposalDate}\n\n` +
+                `*Cliente:* ${data.clientName}\n` +
+                `*WhatsApp:* ${data.whatsapp}\n` +
+                (data.email ? `*Email:* ${data.email}\n` : '') +
+                `\n*Dados da Carga:*\n` +
+                `• Origem: ${data.origin}\n` +
+                `• Destino: ${data.destination}\n` +
+                `• Peso Real: ${data.weight.toFixed(2).replace('.', ',')} kg\n` +
+                `• Cubagem: ${data.cubagemText}\n` +
+                `• Valor da NF: R$ ${data.valorNF.toFixed(2).replace('.', ',')}\n\n` +
+                `*Valor Aproximado do Frete:*\n` +
+                `R$ ${data.totalFreight.toFixed(2).replace('.', ',')}\n\n` +
+                `_Esta é uma proposta gerada automaticamente._`;
+            
+            const whatsappNumber = '5499484342'; // (54) 9948-4342 sem formatação
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+            
+            window.open(whatsappUrl, '_blank');
         }
 
         function exportToPDF() {

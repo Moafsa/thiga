@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thiga Transportes - Soluções em Logística e Transporte</title>
-    <link rel="icon" type="image/svg+xml" href="LOGO.svg">
+    <link rel="icon" type="image/svg+xml" href="LOGO-black.svg">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -364,6 +364,29 @@
             font-weight: 700;
             color: var(--cor-acento);
             margin-top: 10px;
+        }
+
+        #whatsapp-btn {
+            background-color: #25D366;
+            color: white;
+            margin-top: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+        #whatsapp-btn:hover {
+            background-color: #20BA5A;
+        }
+        #whatsapp-btn::before {
+            content: "💬";
+            font-size: 20px;
+        }
+
+        input[type="radio"] {
+            width: auto;
+            margin-right: 5px;
+            cursor: pointer;
         }
 
         /* Estilos da Tabela de Preços */
@@ -934,7 +957,7 @@
     <header>
         <div class="container">
             <a href="#" class="logo">
-                <img src="LOGO.svg" alt="Thiga Transportes" class="logo-svg">
+                <img src="https://ws3.conext.click/thiga/LOGO.svg" alt="Thiga Transportes" class="logo-svg">
             </a>
             <nav>
                 <ul>
@@ -1020,12 +1043,58 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
+                                <label for="client-name">Nome do Cliente</label>
+                                <input type="text" id="client-name" placeholder="Digite o nome da sua empresa ou cliente">
+                            </div>
+                            <div class="form-group">
+                                <label for="whatsapp">WhatsApp *</label>
+                                <input type="tel" id="whatsapp" placeholder="(11) 99999-9999" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label for="email">Email (opcional)</label>
+                                <input type="email" id="email" placeholder="seu@email.com">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
                                 <label for="weight">Peso Real (em Kg)</label>
                                 <input type="number" id="weight" placeholder="Ex: 55">
                             </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group full-width" style="margin-bottom: 15px;">
+                                <label style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                    <span style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="radio" name="cubagem-mode" value="direct" checked style="width: auto; margin: 0;">
+                                        Informar cubagem diretamente
+                                    </span>
+                                    <span style="display: flex; align-items: center; gap: 5px;">
+                                        <input type="radio" name="cubagem-mode" value="dimensions" style="width: auto; margin: 0;">
+                                        Informar medidas (altura, largura, comprimento)
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-row" id="cubagem-direct-row">
                             <div class="form-group">
                                 <label for="cubagem">Cubagem (m³)</label>
                                 <input type="number" id="cubagem" step="0.01" placeholder="Ex: 0.5">
+                            </div>
+                        </div>
+                        <div class="form-row" id="dimensions-row" style="display: none;">
+                            <div class="form-group">
+                                <label for="altura">Altura (m)</label>
+                                <input type="number" id="altura" step="0.01" placeholder="Ex: 0.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="largura">Largura (m)</label>
+                                <input type="number" id="largura" step="0.01" placeholder="Ex: 0.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="comprimento">Comprimento (m)</label>
+                                <input type="number" id="comprimento" step="0.01" placeholder="Ex: 0.5">
                             </div>
                         </div>
                         <div class="form-row">
@@ -1533,7 +1602,7 @@
     <footer>
         <div class="container footer-content">
             <a href="#" class="footer-logo">
-                <img src="LOGO.svg" alt="Thiga Transportes" class="footer-logo-svg">
+                <img src="https://ws3.conext.click/thiga/LOGO.svg" alt="Thiga Transportes" class="footer-logo-svg">
             </a>
             <div>
                 <p>© <span id="ano-atual"></span> Thiga Transportes. Todos os direitos reservados.</p>
@@ -1574,22 +1643,56 @@
         };
 
         function calculateFreight() {
+            // --- 1. Obter os dados do formulário ---
             const destination = document.getElementById('destination').value;
             const weight = parseFloat(document.getElementById('weight').value) || 0;
-            const cubagem = parseFloat(document.getElementById('cubagem').value) || 0;
             const valorNF = parseFloat(document.getElementById('valor-nf').value) || 0;
+            const whatsapp = document.getElementById('whatsapp').value;
             const resultSection = document.getElementById('result-section');
+            
+            // Obter cubagem baseado no modo selecionado
+            const cubagemMode = document.querySelector('input[name="cubagem-mode"]:checked').value;
+            let cubagem = 0;
+            
+            if (cubagemMode === 'direct') {
+                cubagem = parseFloat(document.getElementById('cubagem').value) || 0;
+            } else {
+                const altura = parseFloat(document.getElementById('altura').value) || 0;
+                const largura = parseFloat(document.getElementById('largura').value) || 0;
+                const comprimento = parseFloat(document.getElementById('comprimento').value) || 0;
+                
+                if (altura > 0 && largura > 0 && comprimento > 0) {
+                    cubagem = altura * largura * comprimento;
+                }
+            }
 
+            // --- 2. Validação dos campos obrigatórios ---
             if (!destination) {
                 alert("Por favor, selecione um destino.");
                 return;
             }
-             if (weight <= 0 && cubagem <= 0) {
+            if (weight <= 0 && cubagem <= 0) {
                 alert("Por favor, insira um Peso ou Cubagem válido.");
                 return;
             }
-             if (valorNF <= 0) {
+            if (cubagemMode === 'dimensions') {
+                const altura = parseFloat(document.getElementById('altura').value) || 0;
+                const largura = parseFloat(document.getElementById('largura').value) || 0;
+                const comprimento = parseFloat(document.getElementById('comprimento').value) || 0;
+                if (altura <= 0 || largura <= 0 || comprimento <= 0) {
+                    alert("Por favor, preencha todas as medidas (altura, largura e comprimento).");
+                    return;
+                }
+            } else if (cubagemMode === 'direct' && cubagem <= 0) {
+                alert("Por favor, insira uma cubagem válida.");
+                return;
+            }
+            if (valorNF <= 0) {
                 alert("Por favor, insira um Valor de Nota Fiscal válido.");
+                return;
+            }
+            if (!whatsapp || whatsapp.trim().length < 14) {
+                alert("Por favor, preencha o campo WhatsApp corretamente.");
                 return;
             }
 
@@ -1635,29 +1738,113 @@
             let totalFreight = fretePeso + adValorem + gris + pedagio;
 
             const minFreightVsNf = valorNF * MIN_FREIGHT_RATE_VS_NF;
-            let appliedMinFreightNote = '';
             if (totalFreight < minFreightVsNf) {
                 totalFreight = minFreightVsNf;
-                appliedMinFreightNote = `<br><em>* Aplicado frete mínimo de 1% do valor da NF (R$ ${minFreightVsNf.toFixed(2).replace('.', ',')})</em>`;
             }
 
+            // --- 9. Exibir o resultado (apenas valor final) ---
+            const clientName = document.getElementById('client-name').value || 'Cliente';
+            const email = document.getElementById('email').value || '';
+            const origin = document.getElementById('origin').value;
+            const destinationText = document.getElementById('destination').options[document.getElementById('destination').selectedIndex].text;
+            
+            // Formatar dados para mensagem
+            let cubagemText = '';
+            if (cubagemMode === 'direct') {
+                cubagemText = `${cubagem.toFixed(3).replace('.', ',')} m³`;
+            } else {
+                const altura = parseFloat(document.getElementById('altura').value) || 0;
+                const largura = parseFloat(document.getElementById('largura').value) || 0;
+                const comprimento = parseFloat(document.getElementById('comprimento').value) || 0;
+                cubagemText = `${altura.toFixed(2).replace('.', ',')}m x ${largura.toFixed(2).replace('.', ',')}m x ${comprimento.toFixed(2).replace('.', ',')}m = ${cubagem.toFixed(3).replace('.', ',')} m³`;
+            }
+            
             resultSection.innerHTML = `
-                <p>Valor Aproximado do Frete (com taxas):</p>
+                <p>Valor Aproximado do Frete:</p>
                 <p class="price-result">R$ ${totalFreight.toFixed(2).replace('.', ',')}</p>
-                <div style="font-size: 14px; text-align: left; margin-top: 15px; background-color: var(--cor-principal); padding: 10px; border-radius: 4px; border: 1px solid #444;">
-                    <strong>Detalhamento do Cálculo:</strong><br>
-                    - Peso Taxado: ${chargeableWeight.toFixed(2).replace('.', ',')} kg<br>
-                    - Frete Peso Base: R$ ${fretePeso.toFixed(2).replace('.', ',')} ${freteBaseDetalhe}<br>
-                    - Ad Valorem (0,40%): R$ ${adValorem.toFixed(2).replace('.', ',')}<br>
-                    - GRIS (0,30%, mín. R$ 8,70): R$ ${gris.toFixed(2).replace('.', ',')}<br>
-                    - Pedágio (R$ 12,95 x fração): R$ ${pedagio.toFixed(2).replace('.', ',')}
-                    ${appliedMinFreightNote}
-                </div>
+                <button id="whatsapp-btn" class="btn-calculate" onclick="sendToWhatsApp()">Chamar no WhatsApp</button>
             `;
             resultSection.style.display = 'block';
+            
+            // Armazenar dados para uso na função sendToWhatsApp
+            window.proposalData = {
+                clientName: clientName,
+                whatsapp: whatsapp,
+                email: email,
+                origin: origin,
+                destination: destinationText,
+                weight: weight,
+                cubagem: cubagem,
+                cubagemText: cubagemText,
+                valorNF: valorNF,
+                totalFreight: totalFreight
+            };
+        }
+
+        function sendToWhatsApp() {
+            if (!window.proposalData) {
+                alert("Por favor, calcule o frete primeiro.");
+                return;
+            }
+            
+            const data = window.proposalData;
+            const message = `*Nova Proposta de Frete - Thiga Transportes*\n\n` +
+                `*Cliente:* ${data.clientName}\n` +
+                `*WhatsApp:* ${data.whatsapp}\n` +
+                (data.email ? `*Email:* ${data.email}\n` : '') +
+                `\n*Dados da Carga:*\n` +
+                `• Origem: ${data.origin}\n` +
+                `• Destino: ${data.destination}\n` +
+                `• Peso Real: ${data.weight.toFixed(2).replace('.', ',')} kg\n` +
+                `• Cubagem: ${data.cubagemText}\n` +
+                `• Valor da NF: R$ ${data.valorNF.toFixed(2).replace('.', ',')}\n\n` +
+                `*Valor Aproximado do Frete:*\n` +
+                `R$ ${data.totalFreight.toFixed(2).replace('.', ',')}\n\n` +
+                `_Esta é uma proposta gerada automaticamente._`;
+            
+            const whatsappNumber = '5499484342'; // (54) 9948-4342 sem formatação
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+            
+            window.open(whatsappUrl, '_blank');
         }
 
         document.getElementById('calculate-btn').addEventListener('click', calculateFreight);
+        
+        // Máscara para WhatsApp
+        const whatsappInput = document.getElementById('whatsapp');
+        if (whatsappInput) {
+            whatsappInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 0) {
+                    value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+                }
+                e.target.value = value;
+            });
+        }
+
+        // Toggle entre cubagem direta e medidas
+        const cubagemModeRadios = document.querySelectorAll('input[name="cubagem-mode"]');
+        const cubagemDirectRow = document.getElementById('cubagem-direct-row');
+        const dimensionsRow = document.getElementById('dimensions-row');
+
+        cubagemModeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'direct') {
+                    cubagemDirectRow.style.display = 'flex';
+                    dimensionsRow.style.display = 'none';
+                    // Limpar campos de dimensões
+                    document.getElementById('altura').value = '';
+                    document.getElementById('largura').value = '';
+                    document.getElementById('comprimento').value = '';
+                } else {
+                    cubagemDirectRow.style.display = 'none';
+                    dimensionsRow.style.display = 'flex';
+                    // Limpar campo de cubagem direta
+                    document.getElementById('cubagem').value = '';
+                }
+            });
+        });
         
         // FAQ Accordion
         const faqItems = document.querySelectorAll('.faq-item');

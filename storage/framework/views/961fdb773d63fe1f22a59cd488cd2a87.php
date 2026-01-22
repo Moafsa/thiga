@@ -33,10 +33,12 @@
                 <label>Status</label>
                 <select name="status">
                     <option value="">Todos</option>
-                    <option value="pending" <?php echo e(request('status') === 'pending' ? 'selected' : ''); ?>>Pendente</option>
+                    <option value="draft" <?php echo e(request('status') === 'draft' ? 'selected' : ''); ?>>Rascunho</option>
                     <option value="sent" <?php echo e(request('status') === 'sent' ? 'selected' : ''); ?>>Enviada</option>
+                    <option value="negotiating" <?php echo e(request('status') === 'negotiating' ? 'selected' : ''); ?>>Em Negociação</option>
                     <option value="accepted" <?php echo e(request('status') === 'accepted' ? 'selected' : ''); ?>>Aceita</option>
                     <option value="rejected" <?php echo e(request('status') === 'rejected' ? 'selected' : ''); ?>>Rejeitada</option>
+                    <option value="expired" <?php echo e(request('status') === 'expired' ? 'selected' : ''); ?>>Expirada</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -92,7 +94,7 @@
                             <div><?php echo e($proposal->salesperson->name ?? 'N/A'); ?></div>
                         </td>
                         <td style="font-weight: 600;">
-                            R$ <?php echo e(number_format($proposal->total_amount ?? 0, 2, ',', '.')); ?>
+                            R$ <?php echo e(number_format($proposal->final_value ?? 0, 2, ',', '.')); ?>
 
                         </td>
                         <td>
@@ -101,18 +103,8 @@
                         </td>
                         <td>
                             <span class="status-badge status-<?php echo e($proposal->status); ?>">
-                                <?php if($proposal->status === 'pending'): ?>
-                                    Pendente
-                                <?php elseif($proposal->status === 'sent'): ?>
-                                    Enviada
-                                <?php elseif($proposal->status === 'accepted'): ?>
-                                    Aceita
-                                <?php elseif($proposal->status === 'rejected'): ?>
-                                    Rejeitada
-                                <?php else: ?>
-                                    <?php echo e(ucfirst($proposal->status)); ?>
+                                <?php echo e($proposal->status_label); ?>
 
-                                <?php endif; ?>
                             </span>
                         </td>
                         <td style="text-align: center;">

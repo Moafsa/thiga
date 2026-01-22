@@ -157,6 +157,16 @@
                 <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Inativo</option>
             </select>
         </div>
+        <div>
+            <label for="marker" style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px;">Marcador</label>
+            <select name="marker" id="marker" 
+                    style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                <option value="">Todos os Marcadores</option>
+                @foreach(\App\Models\Client::getAvailableMarkers() as $key => $marker)
+                    <option value="{{ $key }}" {{ request('marker') === $key ? 'selected' : '' }}>{{ $marker['label'] }}</option>
+                @endforeach
+            </select>
+        </div>
         <div style="display: flex; align-items: flex-end; gap: 10px;">
             <button type="submit" class="btn-primary" style="flex: 1;">
                 <i class="fas fa-search"></i>
@@ -178,7 +188,12 @@
                         <i class="fas fa-building"></i>
                     </div>
                     <div class="client-info">
-                        <h3>{{ $client->name }}</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h3 style="margin: 0;">{{ $client->name }}</h3>
+                            <span class="status-badge" style="background-color: {{ $client->marker_bg_color }}; color: {{ $client->marker_color }}; font-size: 0.85em; padding: 4px 10px; border-radius: 12px; font-weight: 600;">
+                                {{ $client->marker_label }}
+                            </span>
+                        </div>
                         @if($client->salesperson)
                             <p>Vendedor: {{ $client->salesperson->name }}</p>
                         @endif

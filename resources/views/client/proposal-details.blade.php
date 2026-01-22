@@ -23,6 +23,21 @@
         <p><strong>Valor Final:</strong> R$ {{ number_format($proposal->final_value, 2, ',', '.') }}</p>
     </div>
 
+    @if($proposal->weight || $proposal->cubage || ($proposal->height && $proposal->width && $proposal->length))
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: var(--cor-acento); margin-bottom: 10px;">Dados da Carga</h4>
+            @if($proposal->weight)
+                <p><strong>Peso Real:</strong> {{ number_format($proposal->weight, 2, ',', '.') }} kg</p>
+            @endif
+            @if($proposal->height && $proposal->width && $proposal->length)
+                <p><strong>Medidas:</strong> {{ number_format($proposal->height, 3, ',', '.') }}m (Altura) × {{ number_format($proposal->width, 3, ',', '.') }}m (Largura) × {{ number_format($proposal->length, 3, ',', '.') }}m (Comprimento)</p>
+            @endif
+            @if($proposal->cubage)
+                <p><strong>Cubagem:</strong> {{ number_format($proposal->cubage, 3, ',', '.') }} m³</p>
+            @endif
+        </div>
+    @endif
+
     @if($proposal->description)
         <div style="margin-bottom: 20px;">
             <h4 style="color: var(--cor-acento); margin-bottom: 10px;">Descrição</h4>

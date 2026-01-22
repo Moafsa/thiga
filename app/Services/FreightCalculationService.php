@@ -41,6 +41,12 @@ class FreightCalculationService
         // Calculate base freight (weight)
         $freightWeight = $freightTable->getWeightValue($chargeableWeight);
 
+        // Calculate TDA (Taxa de Dificuldade de Acesso) - aplicada sobre o frete peso
+        $tda = 0;
+        if ($freightTable->tda_rate && $freightTable->tda_rate > 0) {
+            $tda = $freightWeight * ($freightTable->tda_rate ?? 0);
+        }
+
         // Calculate additional taxes
         $adValorem = $invoiceValue * ($freightTable->ad_valorem_rate ?? 0.0040);
         $gris = max(
@@ -50,7 +56,7 @@ class FreightCalculationService
         $toll = ($chargeableWeight / 100) * ($freightTable->toll_per_100kg ?? 12.95);
 
         // Calculate subtotal
-        $subtotal = $freightWeight + $adValorem + $gris + $toll;
+        $subtotal = $freightWeight + $tda + $adValorem + $gris + $toll;
 
         // Apply additional services
         $additionalServices = 0;
@@ -146,6 +152,7 @@ class FreightCalculationService
                 'real_weight' => round($weight, 2),
                 'volumetric_weight' => round($volumetricWeight, 2),
                 'freight_weight' => round($freightWeight, 2),
+                'tda' => round($tda, 2),
                 'weight_breakdown' => $weightBreakdown,
                 'ad_valorem' => round($adValorem, 2),
                 'gris' => round($gris, 2),

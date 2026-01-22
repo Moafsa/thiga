@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\FreightTable;
+use App\Models\Client;
+use App\Models\FreightTableCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,11 +28,20 @@ class FreightTableController extends Controller
         }
         
         $freightTables = FreightTable::where('tenant_id', $tenant->id)
+            ->with(['client', 'category'])
             ->orderBy('is_default', 'desc')
             ->orderBy('destination_name')
             ->get();
         
-        return view('freight-tables.index', compact('freightTables'));
+        $categories = FreightTableCategory::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
+        
+        $uncategorizedTables = $freightTables->whereNull('category_id');
+        
+        return view('freight-tables.index', compact('freightTables', 'categories', 'uncategorizedTables'));
     }
 
     /**
@@ -38,7 +49,15 @@ class FreightTableController extends Controller
      */
     public function create()
     {
-        return view('freight-tables.create');
+        $tenant = Auth::user()->tenant;
+        
+        $categories = FreightTableCategory::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
+        
+        return view('freight-tables.create', compact('categories'));
     }
 
     /**
@@ -48,6 +67,8 @@ class FreightTableController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'client_id' => 'nullable|exists:clients,id',
+            'category_id' => 'nullable|exists:freight_table_categories,id',
             'destination_name' => 'required|string|max:255',
             'destination_state' => 'nullable|string|max:2',
             'origin_name' => 'nullable|string|max:255',
@@ -59,6 +80,7 @@ class FreightTableController extends Controller
             'weight_over_100_rate' => 'required|numeric|min:0',
             'ctrc_tax' => 'required|numeric|min:0',
             'is_default' => 'nullable|boolean',
+            'visible_to_clients' => 'nullable|boolean',
         ], [
             'weight_0_30.required' => 'O valor para 0 a 30 kg é obrigatório.',
             'weight_31_50.required' => 'O valor para 31 a 50 kg é obrigatório.',
@@ -78,6 +100,8 @@ class FreightTableController extends Controller
 
         $freightTable = FreightTable::create([
             'tenant_id' => $tenant->id,
+            'client_id' => $request->client_id ?: null,
+            'category_id' => $request->category_id ?: null,
             'name' => $request->name,
             'description' => $request->description,
             'destination_type' => $request->destination_type ?? 'city',
@@ -97,6 +121,7 @@ class FreightTableController extends Controller
             'gris_rate' => $this->convertPercentageToDecimal($request->gris_rate) ?? 0.0030,
             'gris_minimum' => $request->gris_minimum ?? 8.70,
             'toll_per_100kg' => $request->toll_per_100kg ?? 12.95,
+            'tda_rate' => $this->convertPercentageToDecimal($request->tda_rate) ?? null,
             'cubage_factor' => $request->cubage_factor ?? 300,
             'min_freight_rate_vs_nf' => $this->convertPercentageToDecimal($request->min_freight_rate_vs_nf) ?? 0.01,
             'min_freight_rate_type' => $request->min_freight_rate_type ?? null,
@@ -123,6 +148,8 @@ class FreightTableController extends Controller
     {
         $this->authorizeAccess($freightTable);
         
+        $freightTable->load('client');
+        
         return view('freight-tables.show', compact('freightTable'));
     }
 
@@ -133,7 +160,15 @@ class FreightTableController extends Controller
     {
         $this->authorizeAccess($freightTable);
         
-        return view('freight-tables.edit', compact('freightTable'));
+        $tenant = Auth::user()->tenant;
+        
+        $categories = FreightTableCategory::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
+        
+        return view('freight-tables.edit', compact('freightTable', 'categories'));
     }
 
     /**
@@ -145,6 +180,8 @@ class FreightTableController extends Controller
         
         $request->validate([
             'name' => 'required|string|max:255',
+            'client_id' => 'nullable|exists:clients,id',
+            'category_id' => 'nullable|exists:freight_table_categories,id',
             'destination_name' => 'required|string|max:255',
             'destination_state' => 'nullable|string|max:2',
             'origin_name' => 'nullable|string|max:255',
@@ -155,6 +192,7 @@ class FreightTableController extends Controller
             'weight_71_100' => 'nullable|numeric|min:0',
             'weight_over_100_rate' => 'nullable|numeric|min:0',
             'ctrc_tax' => 'nullable|numeric|min:0',
+            'visible_to_clients' => 'nullable|boolean',
         ]);
 
         // If setting as default, unset other defaults
@@ -165,7 +203,17 @@ class FreightTableController extends Controller
         }
 
         // Prepare data with percentage conversion
-        $data = $request->except(['ad_valorem_rate', 'gris_rate', 'min_freight_rate_vs_nf', 'weekend_holiday_rate', 'redelivery_rate', 'return_rate']);
+        $data = $request->except(['ad_valorem_rate', 'gris_rate', 'min_freight_rate_vs_nf', 'tda_rate', 'weekend_holiday_rate', 'redelivery_rate', 'return_rate']);
+        
+        // Handle client_id - set to null if empty string
+        if ($request->has('client_id') && $request->client_id === '') {
+            $data['client_id'] = null;
+        }
+        
+        // Handle category_id - set to null if empty string
+        if ($request->has('category_id') && $request->category_id === '') {
+            $data['category_id'] = null;
+        }
         
         // Convert percentages to decimals
         if ($request->has('ad_valorem_rate')) {
@@ -176,6 +224,9 @@ class FreightTableController extends Controller
         }
         if ($request->has('min_freight_rate_vs_nf')) {
             $data['min_freight_rate_vs_nf'] = $this->convertPercentageToDecimal($request->min_freight_rate_vs_nf);
+        }
+        if ($request->has('tda_rate')) {
+            $data['tda_rate'] = $this->convertPercentageToDecimal($request->tda_rate);
         }
         
         // Process minimum freight rate fields
@@ -292,6 +343,79 @@ class FreightTableController extends Controller
         if (!$tenant || $freightTable->tenant_id !== $tenant->id) {
             abort(403, 'Unauthorized access to freight table');
         }
+    }
+
+    /**
+     * Search clients for autocomplete
+     */
+    public function searchClients(Request $request)
+    {
+        $tenant = Auth::user()->tenant;
+        
+        if (!$tenant) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $search = trim($request->get('q', ''));
+        
+        if (empty($search) || strlen($search) < 1) {
+            return response()->json([]);
+        }
+
+        $query = Client::where('tenant_id', $tenant->id)
+            ->where('is_active', true);
+
+        // Limpar telefone para busca (remover caracteres não numéricos)
+        $cleanSearch = preg_replace('/\D/', '', $search);
+        $isNumericOnly = is_numeric($search) && strlen($search) <= 10;
+
+        // Buscar por ID, nome, telefone ou CNPJ
+        $query->where(function($q) use ($search, $cleanSearch, $isNumericOnly) {
+            // Se for numérico e curto, busca por ID
+            if ($isNumericOnly) {
+                $q->where('id', $search);
+            }
+            
+            // Busca por nome (sempre)
+            $q->orWhere('name', 'like', "%{$search}%");
+            
+            // Busca por telefone (formato limpo ou com formatação)
+            if (!empty($search)) {
+                $q->orWhere('phone', 'like', "%{$search}%");
+            }
+            if (!empty($cleanSearch) && strlen($cleanSearch) >= 8) {
+                $q->orWhere('phone_e164', 'like', "%{$cleanSearch}%");
+            }
+            
+            // Busca por CNPJ (com ou sem formatação)
+            if (!empty($search)) {
+                $q->orWhere('cnpj', 'like', "%{$search}%");
+            }
+            if (!empty($cleanSearch) && strlen($cleanSearch) >= 8) {
+                $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(cnpj, ''), '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanSearch}%"]);
+            }
+            
+            // Busca por email
+            if (!empty($search)) {
+                $q->orWhere('email', 'like', "%{$search}%");
+            }
+        });
+
+        $clients = $query->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'name', 'phone', 'phone_e164', 'cnpj', 'email']);
+
+        return response()->json($clients->map(function($client) {
+            return [
+                'id' => $client->id,
+                'name' => $client->name,
+                'phone' => $client->phone,
+                'phone_e164' => $client->phone_e164,
+                'cnpj' => $client->cnpj,
+                'email' => $client->email,
+                'display' => $client->name . ($client->phone ? ' - ' . $client->phone : '') . ($client->cnpj ? ' - ' . $client->cnpj : ''),
+            ];
+        }));
     }
 
     /**

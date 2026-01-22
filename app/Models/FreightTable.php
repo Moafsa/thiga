@@ -6,6 +6,7 @@ use App\Traits\HasActiveScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class FreightTable extends Model
 {
@@ -13,6 +14,8 @@ class FreightTable extends Model
 
     protected $fillable = [
         'tenant_id',
+        'client_id',
+        'category_id',
         'name',
         'description',
         'is_active',
@@ -34,6 +37,7 @@ class FreightTable extends Model
         'gris_rate',
         'gris_minimum',
         'toll_per_100kg',
+        'tda_rate',
         'cubage_factor',
         'min_freight_rate_vs_nf',
         'min_freight_rate_type',
@@ -51,6 +55,7 @@ class FreightTable extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_default' => 'boolean',
+        'visible_to_clients' => 'boolean',
         'weight_0_30' => 'decimal:2',
         'weight_31_50' => 'decimal:2',
         'weight_51_70' => 'decimal:2',
@@ -61,6 +66,7 @@ class FreightTable extends Model
         'gris_rate' => 'decimal:4',
         'gris_minimum' => 'decimal:2',
         'toll_per_100kg' => 'decimal:2',
+        'tda_rate' => 'decimal:4',
         'cubage_factor' => 'decimal:2',
         'min_freight_rate_vs_nf' => 'decimal:4',
         'min_freight_rate_value' => 'decimal:2',
@@ -79,8 +85,21 @@ class FreightTable extends Model
         return $this->belongsTo(Tenant::class);
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(FreightTableCategory::class, 'category_id');
+    }
+
     /**
-     * Get the clients associated with this freight table.
+     * Get the client associated with this freight table.
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * Get the clients associated with this freight table (many-to-many relationship).
      */
     public function clients(): BelongsToMany
     {

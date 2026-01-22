@@ -90,6 +90,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\ProposalController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\ProposalController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\ProposalController::class, 'store'])->name('store');
+        Route::post('/calculate-freight', [App\Http\Controllers\ProposalController::class, 'calculateFreight'])->name('calculateFreight');
         Route::get('/{proposal}', [App\Http\Controllers\ProposalController::class, 'show'])->name('show');
         Route::get('/{proposal}/edit', [App\Http\Controllers\ProposalController::class, 'edit'])->name('edit');
         Route::put('/{proposal}', [App\Http\Controllers\ProposalController::class, 'update'])->name('update');
@@ -100,11 +101,22 @@ Route::middleware('auth')->group(function () {
         Route::post('/calculate-discount', [App\Http\Controllers\ProposalController::class, 'calculateDiscount'])->name('calculateDiscount');
     });
     
+    // Freight Table Categories routes (per tenant)
+    Route::prefix('freight-table-categories')->name('freight-table-categories.')->group(function () {
+        Route::get('/', [App\Http\Controllers\FreightTableCategoryController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\FreightTableCategoryController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\FreightTableCategoryController::class, 'store'])->name('store');
+        Route::get('/{freightTableCategory}/edit', [App\Http\Controllers\FreightTableCategoryController::class, 'edit'])->name('edit');
+        Route::put('/{freightTableCategory}', [App\Http\Controllers\FreightTableCategoryController::class, 'update'])->name('update');
+        Route::delete('/{freightTableCategory}', [App\Http\Controllers\FreightTableCategoryController::class, 'destroy'])->name('destroy');
+    });
+
     // Freight Tables routes (per tenant)
     Route::prefix('freight-tables')->name('freight-tables.')->group(function () {
         Route::get('/', [App\Http\Controllers\FreightTableController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\FreightTableController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\FreightTableController::class, 'store'])->name('store');
+        Route::get('/search-clients', [App\Http\Controllers\FreightTableController::class, 'searchClients'])->name('search-clients');
         Route::get('/export-all/pdf', [App\Http\Controllers\FreightTableController::class, 'exportAllPdf'])->name('export-all-pdf');
         Route::get('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'show'])->name('show');
         Route::get('/{freightTable}/edit', [App\Http\Controllers\FreightTableController::class, 'edit'])->name('edit');
@@ -346,6 +358,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/whatsapp/{whatsappIntegration}/qr', [WhatsAppIntegrationController::class, 'qr'])->name('whatsapp.qr');
             Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::delete('/whatsapp/{whatsappIntegration}', [WhatsAppIntegrationController::class, 'destroy'])->name('whatsapp.destroy');
+            
+            Route::get('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'index'])->name('email.index');
+            Route::put('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'update'])->name('email.update');
+            Route::post('/email/test', [App\Http\Controllers\Settings\EmailConfigController::class, 'test'])->name('email.test');
         });
     });
 });

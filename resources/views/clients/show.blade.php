@@ -155,6 +155,12 @@
                 {{ $client->is_active ? 'Active' : 'Inactive' }}
             </span>
         </div>
+        <div class="detail-item">
+            <span class="detail-label">Marcador/Classificação</span>
+            <span class="status-badge" style="background-color: {{ $client->marker_bg_color }}; color: {{ $client->marker_color }}; font-weight: 600;">
+                {{ $client->marker_label }}
+            </span>
+        </div>
     </div>
 </div>
 

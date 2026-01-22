@@ -386,9 +386,46 @@
                         <input type="number" id="weight" name="weight" step="0.01" min="0" placeholder="Ex: 55" required>
                     </div>
 
+                    <div class="form-group full-width" style="margin-top: 10px; padding: 15px; background-color: #f0f7ff; border-left: 4px solid var(--cor-acento); border-radius: 4px;">
+                        <label style="font-weight: 600; color: var(--cor-principal); margin-bottom: 10px; display: block;">
+                            <input type="radio" name="cubage_input_method" id="cubage_method_direct" value="direct" checked style="margin-right: 8px;">
+                            Informar Cubagem Diretamente
+                        </label>
+                        <label style="font-weight: 600; color: var(--cor-principal); margin-bottom: 10px; display: block;">
+                            <input type="radio" name="cubage_input_method" id="cubage_method_measures" value="measures" style="margin-right: 8px;">
+                            Calcular Cubagem pelas Medidas
+                        </label>
+                    </div>
+
                     <div class="form-group">
                         <label for="cubage">Cubagem (m³)</label>
                         <input type="number" id="cubage" name="cubage" step="0.01" min="0" placeholder="Ex: 0.5">
+                        <small id="cubage-help-text" style="color: rgba(0,0,0,0.6); font-size: 0.85em; display: block; margin-top: 5px;">
+                            Informe a cubagem em metros cúbicos (m³)
+                        </small>
+                    </div>
+
+                    <div id="cubage-measures-section" class="form-group" style="display: none;">
+                        <div class="form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                            <div class="form-group">
+                                <label for="height">Altura (m) *</label>
+                                <input type="number" id="height" name="height" step="0.01" min="0" placeholder="Ex: 1.2">
+                            </div>
+                            <div class="form-group">
+                                <label for="width">Largura (m) *</label>
+                                <input type="number" id="width" name="width" step="0.01" min="0" placeholder="Ex: 0.8">
+                            </div>
+                            <div class="form-group">
+                                <label for="length">Comprimento (m) *</label>
+                                <input type="number" id="length" name="length" step="0.01" min="0" placeholder="Ex: 1.5">
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background-color: #e8f5e9; border-left: 3px solid #4caf50; border-radius: 4px;">
+                            <strong style="color: #2e7d32;">Cubagem Calculada: <span id="calculated-cubage">0.00</span> m³</strong>
+                            <small style="color: #2e7d32; display: block; margin-top: 5px;">
+                                Cubagem = Altura × Largura × Comprimento
+                            </small>
+                        </div>
                     </div>
 
                     <div class="form-group full-width">
@@ -452,6 +489,43 @@
                         <textarea name="notes" id="notes" rows="3" placeholder="Observações adicionais..."></textarea>
                     </div>
                 </div>
+
+                <!-- Opções de Envio -->
+                @if($hasEmailConfigured || $hasWhatsAppConnected)
+                <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--cor-acento);">
+                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--cor-principal); font-size: 1.1em;">
+                        <i class="fas fa-paper-plane"></i> Opções de Envio
+                    </h3>
+                    
+                    @if($hasEmailConfigured)
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <input type="checkbox" 
+                               name="send_by_email" 
+                               id="send_by_email" 
+                               value="1"
+                               checked
+                               style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="send_by_email" style="margin: 0; cursor: pointer; color: #333;">
+                            <i class="fas fa-envelope" style="color: #2196f3;"></i> Enviar proposta por email
+                        </label>
+                    </div>
+                    @endif
+
+                    @if($hasWhatsAppConnected)
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" 
+                               name="send_by_whatsapp" 
+                               id="send_by_whatsapp" 
+                               value="1"
+                               checked
+                               style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="send_by_whatsapp" style="margin: 0; cursor: pointer; color: #333;">
+                            <i class="fab fa-whatsapp" style="color: #25d366;"></i> Enviar proposta por WhatsApp
+                        </label>
+                    </div>
+                    @endif
+                </div>
+                @endif
 
                 <div class="buttons-container">
                     <button type="button" id="calculate-btn" class="btn-calculate">Calcular Frete</button>
@@ -620,6 +694,16 @@
         const freightForm = document.getElementById('freight-calculator-form');
         let calculatedFreightValue = 0;
 
+        // Variáveis para cubagem
+        const cubageMethodDirect = document.getElementById('cubage_method_direct');
+        const cubageMethodMeasures = document.getElementById('cubage_method_measures');
+        const cubageMeasuresSection = document.getElementById('cubage-measures-section');
+        const cubageInput = document.getElementById('cubage');
+        const heightInput = document.getElementById('height');
+        const widthInput = document.getElementById('width');
+        const lengthInput = document.getElementById('length');
+        const calculatedCubageSpan = document.getElementById('calculated-cubage');
+
         // Calculate freight
         calculateBtn.addEventListener('click', async function() {
             const destination = $('#destination').val() || document.getElementById('destination').value;
@@ -632,7 +716,29 @@
                 return;
             }
 
-            if (weight <= 0 && cubage <= 0) {
+            // Validar cubagem baseado no método selecionado
+            let cubageToUse = cubage;
+            if (cubageMethodMeasures.checked) {
+                const height = parseFloat(heightInput.value) || 0;
+                const width = parseFloat(widthInput.value) || 0;
+                const length = parseFloat(lengthInput.value) || 0;
+                
+                if (height <= 0 || width <= 0 || length <= 0) {
+                    alert("Por favor, preencha todas as medidas (Altura, Largura e Comprimento) para calcular a cubagem.");
+                    return;
+                }
+                
+                cubageToUse = height * width * length;
+                // Atualizar campo de cubagem com o valor calculado
+                cubageInput.value = cubageToUse.toFixed(3);
+            } else {
+                if (cubage <= 0) {
+                    // Cubagem não é obrigatória se não for informada
+                    cubageToUse = 0;
+                }
+            }
+
+            if (weight <= 0 && cubageToUse <= 0) {
                 alert("Por favor, insira um Peso ou Cubagem válido.");
                 return;
             }
@@ -650,15 +756,24 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: JSON.stringify({
                         destination: destination,
                         weight: weight,
-                        cubage: cubage,
+                        cubage: cubageToUse,
                         invoice_value: invoiceValue
                     })
                 });
+
+                // Check if response is actually JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Resposta inválida do servidor. Esperado JSON, recebido: ${contentType}. Resposta: ${text.substring(0, 200)}`);
+                }
 
                 const data = await response.json();
 
@@ -885,6 +1000,69 @@
         
         // Initialize on page load
         updateMinFreightRateFields();
+
+        // Funções para cubagem: Alternar entre método direto e por medidas
+        const cubageHelpText = document.getElementById('cubage-help-text');
+        
+        function toggleCubageInputMethod() {
+            if (cubageMethodDirect.checked) {
+                cubageMeasuresSection.style.display = 'none';
+                cubageInput.disabled = false;
+                cubageInput.style.backgroundColor = '#fff';
+                cubageInput.style.cursor = 'text';
+                cubageHelpText.textContent = 'Informe a cubagem em metros cúbicos (m³)';
+                // Limpar campos de medidas quando mudar para método direto
+                heightInput.value = '';
+                widthInput.value = '';
+                lengthInput.value = '';
+                calculatedCubageSpan.textContent = '0.00';
+            } else {
+                cubageMeasuresSection.style.display = 'block';
+                cubageInput.disabled = true;
+                cubageInput.style.backgroundColor = '#f5f5f5';
+                cubageInput.style.cursor = 'not-allowed';
+                cubageHelpText.textContent = 'A cubagem será calculada automaticamente pelas medidas informadas abaixo';
+                // Limpar campo de cubagem direta quando mudar para método por medidas
+                cubageInput.value = '';
+            }
+            // Recalcular cubagem se necessário
+            calculateCubageFromMeasures();
+        }
+
+        function calculateCubageFromMeasures() {
+            if (!cubageMethodMeasures.checked) {
+                return;
+            }
+
+            const height = parseFloat(heightInput.value) || 0;
+            const width = parseFloat(widthInput.value) || 0;
+            const length = parseFloat(lengthInput.value) || 0;
+
+            if (height > 0 && width > 0 && length > 0) {
+                const cubage = height * width * length;
+                calculatedCubageSpan.textContent = cubage.toFixed(3);
+                // Atualizar o campo de cubagem oculto para uso no cálculo
+                cubageInput.value = cubage.toFixed(3);
+            } else {
+                calculatedCubageSpan.textContent = '0.00';
+                cubageInput.value = '';
+            }
+        }
+
+        // Event listeners para alternar método
+        cubageMethodDirect.addEventListener('change', toggleCubageInputMethod);
+        cubageMethodMeasures.addEventListener('change', toggleCubageInputMethod);
+
+        // Event listeners para calcular cubagem quando medidas mudarem
+        heightInput.addEventListener('input', calculateCubageFromMeasures);
+        heightInput.addEventListener('blur', calculateCubageFromMeasures);
+        widthInput.addEventListener('input', calculateCubageFromMeasures);
+        widthInput.addEventListener('blur', calculateCubageFromMeasures);
+        lengthInput.addEventListener('input', calculateCubageFromMeasures);
+        lengthInput.addEventListener('blur', calculateCubageFromMeasures);
+
+        // Inicializar estado inicial
+        toggleCubageInputMethod();
     });
 </script>
 @endpush

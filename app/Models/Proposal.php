@@ -17,6 +17,11 @@ class Proposal extends Model
         'proposal_number',
         'title',
         'description',
+        'weight',
+        'height',
+        'width',
+        'length',
+        'cubage',
         'base_value',
         'discount_percentage',
         'discount_value',
@@ -30,7 +35,31 @@ class Proposal extends Model
         'attachments',
     ];
 
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Automatically set tenant_id from authenticated user if not set
+        static::creating(function ($proposal) {
+            // Se tenant_id não foi definido, obtém do usuário autenticado
+            if (!$proposal->tenant_id) {
+                $user = auth()->user();
+                if ($user && $user->tenant) {
+                    $proposal->tenant_id = $user->tenant->id;
+                }
+            }
+        });
+    }
+
     protected $casts = [
+        'weight' => 'decimal:2',
+        'height' => 'decimal:3',
+        'width' => 'decimal:3',
+        'length' => 'decimal:3',
+        'cubage' => 'decimal:3',
         'base_value' => 'decimal:2',
         'discount_percentage' => 'decimal:2',
         'discount_value' => 'decimal:2',

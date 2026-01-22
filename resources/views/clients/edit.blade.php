@@ -172,6 +172,23 @@
                     Active
                 </label>
             </div>
+
+            <div class="form-group">
+                <label for="marker">Marcador/Classificação</label>
+                <select name="marker" id="marker">
+                    @foreach(\App\Models\Client::getAvailableMarkers() as $key => $marker)
+                        <option value="{{ $key }}" {{ old('marker', $client->marker ?? 'bronze') === $key ? 'selected' : '' }}>
+                            {{ $marker['label'] }}
+                        </option>
+                    @endforeach
+                </select>
+                <small style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; margin-top: 5px; display: block;">
+                    Classifique o cliente com um marcador visual
+                </small>
+                @error('marker')
+                    <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
+                @enderror
+            </div>
         </div>
     </div>
 

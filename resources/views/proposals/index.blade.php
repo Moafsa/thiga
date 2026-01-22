@@ -33,10 +33,12 @@
                 <label>Status</label>
                 <select name="status">
                     <option value="">Todos</option>
-                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pendente</option>
+                    <option value="draft" {{ request('status') === 'draft' ? 'selected' : '' }}>Rascunho</option>
                     <option value="sent" {{ request('status') === 'sent' ? 'selected' : '' }}>Enviada</option>
+                    <option value="negotiating" {{ request('status') === 'negotiating' ? 'selected' : '' }}>Em Negociação</option>
                     <option value="accepted" {{ request('status') === 'accepted' ? 'selected' : '' }}>Aceita</option>
                     <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejeitada</option>
+                    <option value="expired" {{ request('status') === 'expired' ? 'selected' : '' }}>Expirada</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -91,24 +93,14 @@
                             <div>{{ $proposal->salesperson->name ?? 'N/A' }}</div>
                         </td>
                         <td style="font-weight: 600;">
-                            R$ {{ number_format($proposal->total_amount ?? 0, 2, ',', '.') }}
+                            R$ {{ number_format($proposal->final_value ?? 0, 2, ',', '.') }}
                         </td>
                         <td>
                             {{ $proposal->created_at->format('d/m/Y') }}
                         </td>
                         <td>
                             <span class="status-badge status-{{ $proposal->status }}">
-                                @if($proposal->status === 'pending')
-                                    Pendente
-                                @elseif($proposal->status === 'sent')
-                                    Enviada
-                                @elseif($proposal->status === 'accepted')
-                                    Aceita
-                                @elseif($proposal->status === 'rejected')
-                                    Rejeitada
-                                @else
-                                    {{ ucfirst($proposal->status) }}
-                                @endif
+                                {{ $proposal->status_label }}
                             </span>
                         </td>
                         <td style="text-align: center;">
