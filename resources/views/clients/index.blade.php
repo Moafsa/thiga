@@ -314,9 +314,11 @@
     @endforelse
 </div>
 
-<div style="margin-top: 30px;">
-    {{ $clients->links() }}
+@if($clients->isNotEmpty() && $clients->hasPages())
+<div class="pagination-wrap" style="margin-top: 30px;">
+    {{ $clients->withQueryString()->links('vendor.pagination.app') }}
 </div>
+@endif
 
 @if(session('success'))
     <div class="alert alert-success">

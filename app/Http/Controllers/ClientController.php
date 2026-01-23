@@ -75,6 +75,10 @@ class ClientController extends Controller
 
         $clients = $query->orderBy('name')->paginate(20);
 
+        if ($clients->isEmpty() && (int) $request->get('page', 1) > 1) {
+            return redirect()->route('clients.index', $request->except('page'));
+        }
+
         $salespeople = Salesperson::where('tenant_id', $tenant->id)
             ->where('is_active', true)
             ->orderBy('name')
@@ -127,7 +131,11 @@ class ClientController extends Controller
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|size:2',
             'zip_code' => 'nullable|string|max:10',
-            'salesperson_id' => 'nullable|exists:salespeople,id',
+            'salesperson_id' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($tenant) {
+                if ($value && !Salesperson::where('id', $value)->where('tenant_id', $tenant->id)->exists()) {
+                    $fail('O vendedor selecionado não existe ou não pertence à sua empresa.');
+                }
+            }],
             'is_active' => 'boolean',
             'addresses' => 'nullable|array',
             'addresses.*.type' => 'required_with:addresses|string|in:pickup,delivery',
@@ -147,6 +155,24 @@ class ClientController extends Controller
         }
 
         $validated = $request->validate($rules);
+        
+        // Garantir que salesperson_id vazio seja null (não string vazia)
+        if (empty($validated['salesperson_id'])) {
+            $validated['salesperson_id'] = null;
+        }
+
+        $duplicate = Client::findDuplicateInTenant($tenant->id, [
+            'cnpj' => $validated['cnpj'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'] ?? null,
+        ]);
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'cnpj' => 'Já existe um cliente cadastrado com este CNPJ, telefone ou e-mail.',
+                'phone' => 'Já existe um cliente cadastrado com este CNPJ, telefone ou e-mail.',
+                'email' => 'Já existe um cliente cadastrado com este CNPJ, telefone ou e-mail.',
+            ]);
+        }
 
         $validated['tenant_id'] = $tenant->id;
         $validated['is_active'] = $request->has('is_active') ? true : false;
@@ -254,6 +280,7 @@ class ClientController extends Controller
     public function update(Request $request, Client $client)
     {
         $this->authorizeAccess($client);
+        $tenant = Auth::user()->tenant;
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -264,7 +291,11 @@ class ClientController extends Controller
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|size:2',
             'zip_code' => 'nullable|string|max:10',
-            'salesperson_id' => 'nullable|exists:salespeople,id',
+            'salesperson_id' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($tenant) {
+                if ($value && !Salesperson::where('id', $value)->where('tenant_id', $tenant->id)->exists()) {
+                    $fail('O vendedor selecionado não existe ou não pertence à sua empresa.');
+                }
+            }],
             'is_active' => 'boolean',
             'freight_table_ids' => 'nullable|array',
             'freight_table_ids.*' => 'exists:freight_tables,id',
@@ -281,9 +312,27 @@ class ClientController extends Controller
             'addresses.*.zip_code' => 'required_with:addresses|string|max:10',
             'addresses.*.is_default' => 'boolean',
         ]);
+        
+        // Garantir que salesperson_id vazio seja null (não string vazia)
+        if (empty($validated['salesperson_id'])) {
+            $validated['salesperson_id'] = null;
+        }
 
         $validated['is_active'] = $request->has('is_active') ? true : false;
         $validated['marker'] = $request->input('marker', $client->marker ?? 'bronze');
+
+        $duplicate = Client::findDuplicateInTenant($tenant->id, [
+            'cnpj' => $validated['cnpj'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'] ?? null,
+        ], $client->id);
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'cnpj' => 'Já existe outro cliente cadastrado com este CNPJ, telefone ou e-mail.',
+                'phone' => 'Já existe outro cliente cadastrado com este CNPJ, telefone ou e-mail.',
+                'email' => 'Já existe outro cliente cadastrado com este CNPJ, telefone ou e-mail.',
+            ]);
+        }
 
         $addresses = $validated['addresses'] ?? [];
         unset($validated['addresses']);

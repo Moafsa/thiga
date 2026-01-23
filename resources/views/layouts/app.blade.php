@@ -61,7 +61,7 @@
             min-height: 100vh;
         }
 
-        /* Sidebar */
+        /* Sidebar - overflow hidden evita tooltips/ícones vazando para a área principal */
         .sidebar {
             width: var(--sidebar-width);
             background-color: var(--cor-secundaria);
@@ -76,11 +76,7 @@
             padding: 20px 0;
             z-index: 1000;
             overflow-y: auto;
-            overflow-x: visible;
-        }
-
-        .sidebar * {
-            overflow-x: visible;
+            overflow-x: hidden;
         }
 
         .sidebar-logo {
@@ -100,7 +96,6 @@
             flex-direction: column;
             gap: 10px;
             padding: 0 10px;
-            overflow: visible;
         }
 
         .sidebar-item {
@@ -109,7 +104,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: visible;
         }
 
         .sidebar-link {
@@ -141,63 +135,7 @@
             background-color: #FF885A;
         }
 
-        /* Tooltip */
-        .sidebar-link {
-            position: relative;
-        }
-
-        .sidebar-item {
-            overflow: visible !important;
-        }
-
-        .sidebar-link::before {
-            content: attr(data-tooltip);
-            position: absolute;
-            left: calc(100% + 15px);
-            top: 50%;
-            transform: translateY(-50%);
-            padding: 8px 14px;
-            background-color: var(--cor-secundaria);
-            color: var(--cor-texto-claro);
-            border-radius: 6px;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            font-size: 13px;
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            z-index: 10000;
-            min-width: max-content;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .sidebar-link:hover::before {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .sidebar-link::after {
-            content: '';
-            position: absolute;
-            left: calc(100% + 9px);
-            top: 50%;
-            transform: translateY(-50%);
-            border: 6px solid transparent;
-            border-right-color: var(--cor-secundaria);
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            z-index: 10001;
-        }
-
-        .sidebar-link:hover::after {
-            opacity: 1;
-            visibility: visible;
-        }
-
+        /* Tooltips removidos (overflow hidden). Use title="" nos links para tooltip nativo. */
         .sidebar-footer {
             margin-top: auto;
             padding-top: 20px;
@@ -226,58 +164,6 @@
         .sidebar-logout:hover {
             background-color: rgba(255, 107, 53, 0.2);
             color: var(--cor-acento);
-        }
-
-        .sidebar-logout {
-            position: relative;
-        }
-
-        .sidebar-logout::before {
-            content: 'Sair';
-            position: absolute;
-            left: calc(100% + 15px);
-            top: 50%;
-            transform: translateY(-50%);
-            padding: 8px 14px;
-            background-color: var(--cor-secundaria);
-            color: var(--cor-texto-claro);
-            border-radius: 6px;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            font-size: 13px;
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            z-index: 10000;
-            min-width: max-content;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .sidebar-logout:hover::before {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .sidebar-logout::after {
-            content: '';
-            position: absolute;
-            left: calc(100% + 9px);
-            top: 50%;
-            transform: translateY(-50%);
-            border: 6px solid transparent;
-            border-right-color: var(--cor-secundaria);
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            z-index: 10001;
-        }
-
-        .sidebar-logout:hover::after {
-            opacity: 1;
-            visibility: visible;
         }
 
         /* Main Content */
@@ -364,127 +250,127 @@
         
         <nav class="sidebar-nav">
             <div class="sidebar-item">
-                <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" data-tooltip="Painel">
+                <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" title="Painel">
                     <i class="fas fa-home"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('monitoring.index') }}" class="sidebar-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}" data-tooltip="Monitoramento">
+                <a href="{{ route('monitoring.index') }}" class="sidebar-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}" title="Monitoramento">
                     <i class="fas fa-map-location-dot"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('shipments.index') }}" class="sidebar-link {{ request()->routeIs('shipments.*') ? 'active' : '' }}" data-tooltip="Cargas">
+                <a href="{{ route('shipments.index') }}" class="sidebar-link {{ request()->routeIs('shipments.*') ? 'active' : '' }}" title="Cargas">
                     <i class="fas fa-truck-loading"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('routes.index') }}" class="sidebar-link {{ request()->routeIs('routes.*') ? 'active' : '' }}" data-tooltip="Rotas">
+                <a href="{{ route('routes.index') }}" class="sidebar-link {{ request()->routeIs('routes.*') ? 'active' : '' }}" title="Rotas">
                     <i class="fas fa-route"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('cte-xmls.index') }}" class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" data-tooltip="CT-e XMLs">
+                <a href="{{ route('cte-xmls.index') }}" class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" title="CT-e XMLs">
                     <i class="fas fa-file-code"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('fiscal.ctes.index') }}" class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" data-tooltip="CT-es">
+                <a href="{{ route('fiscal.ctes.index') }}" class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" title="CT-es">
                     <i class="fas fa-file-invoice"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('drivers.index') }}" class="sidebar-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}" data-tooltip="Motoristas">
+                <a href="{{ route('drivers.index') }}" class="sidebar-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}" title="Motoristas">
                     <i class="fas fa-user-tie"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('vehicles.index') }}" class="sidebar-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" data-tooltip="Veículos">
+                <a href="{{ route('vehicles.index') }}" class="sidebar-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" title="Veículos">
                     <i class="fas fa-car"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('salespeople.index') }}" class="sidebar-link {{ request()->routeIs('salespeople.*') ? 'active' : '' }}" data-tooltip="Vendedores">
+                <a href="{{ route('salespeople.index') }}" class="sidebar-link {{ request()->routeIs('salespeople.*') ? 'active' : '' }}" title="Vendedores">
                     <i class="fas fa-users"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('clients.index') }}" class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" data-tooltip="Clientes">
+                <a href="{{ route('clients.index') }}" class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" title="Clientes">
                     <i class="fas fa-user-friends"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('proposals.index') }}" class="sidebar-link {{ request()->routeIs('proposals.*') ? 'active' : '' }}" data-tooltip="Propostas">
+                <a href="{{ route('proposals.index') }}" class="sidebar-link {{ request()->routeIs('proposals.*') ? 'active' : '' }}" title="Propostas">
                     <i class="fas fa-file-contract"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('freight-tables.index') }}" class="sidebar-link {{ request()->routeIs('freight-tables.*') ? 'active' : '' }}" data-tooltip="Tabelas de Frete">
+                <a href="{{ route('freight-tables.index') }}" class="sidebar-link {{ request()->routeIs('freight-tables.*') ? 'active' : '' }}" title="Tabelas de Frete">
                     <i class="fas fa-table"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tooltip="Relatórios e Gráficos">
+                <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" title="Relatórios e Gráficos">
                     <i class="fas fa-chart-line"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('invoicing.index') }}" class="sidebar-link {{ request()->routeIs('invoicing.*') ? 'active' : '' }}" data-tooltip="Faturamento">
+                <a href="{{ route('invoicing.index') }}" class="sidebar-link {{ request()->routeIs('invoicing.*') ? 'active' : '' }}" title="Faturamento">
                     <i class="fas fa-file-invoice-dollar"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('accounts.receivable.index') }}" class="sidebar-link {{ request()->routeIs('accounts.receivable.*') ? 'active' : '' }}" data-tooltip="Contas a Receber">
+                <a href="{{ route('accounts.receivable.index') }}" class="sidebar-link {{ request()->routeIs('accounts.receivable.*') ? 'active' : '' }}" title="Contas a Receber">
                     <i class="fas fa-money-bill-wave"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('accounts.payable.index') }}" class="sidebar-link {{ request()->routeIs('accounts.payable.*') ? 'active' : '' }}" data-tooltip="Contas a Pagar">
+                <a href="{{ route('accounts.payable.index') }}" class="sidebar-link {{ request()->routeIs('accounts.payable.*') ? 'active' : '' }}" title="Contas a Pagar">
                     <i class="fas fa-credit-card"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('driver-expenses.index') }}" class="sidebar-link {{ request()->routeIs('driver-expenses.*') ? 'active' : '' }}" data-tooltip="Gastos dos Motoristas">
+                <a href="{{ route('driver-expenses.index') }}" class="sidebar-link {{ request()->routeIs('driver-expenses.*') ? 'active' : '' }}" title="Gastos dos Motoristas">
                     <i class="fas fa-receipt"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('cash-flow.index') }}" class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" data-tooltip="Fluxo de Caixa">
+                <a href="{{ route('cash-flow.index') }}" class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" title="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('companies.index') }}" class="sidebar-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" data-tooltip="Empresas">
+                <a href="{{ route('companies.index') }}" class="sidebar-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" title="Empresas">
                     <i class="fas fa-building"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('subscriptions.index') }}" class="sidebar-link {{ request()->routeIs('subscriptions.*') ? 'active' : '' }}" data-tooltip="Assinaturas">
+                <a href="{{ route('subscriptions.index') }}" class="sidebar-link {{ request()->routeIs('subscriptions.*') ? 'active' : '' }}" title="Assinaturas">
                     <i class="fas fa-receipt"></i>
                 </a>
             </div>
             
             <div class="sidebar-item">
-                <a href="{{ route('settings.index') }}" class="sidebar-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" data-tooltip="Configurações">
+                <a href="{{ route('settings.index') }}" class="sidebar-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" title="Configurações">
                     <i class="fas fa-cog"></i>
                 </a>
             </div>
@@ -493,7 +379,7 @@
         <div class="sidebar-footer">
             <form method="POST" action="{{ route('logout') }}" style="display: flex; justify-content: center;">
                 @csrf
-                <button type="submit" class="sidebar-logout">
+                <button type="submit" class="sidebar-logout" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </form>
@@ -535,35 +421,6 @@
     @stack('scripts')
     
     <script>
-        // Sidebar tooltips positioning
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebarLinks = document.querySelectorAll('.sidebar-link');
-            const sidebarLogout = document.querySelector('.sidebar-logout');
-            
-            function updateTooltipPosition(element) {
-                const rect = element.getBoundingClientRect();
-                const tooltip = element.querySelector('::before') || element;
-                const tooltipText = element.getAttribute('data-tooltip');
-                
-                if (tooltipText) {
-                    // Tooltip position is handled by CSS, but we ensure it's visible
-                    element.style.setProperty('--tooltip-top', rect.top + (rect.height / 2) + 'px');
-                }
-            }
-            
-            sidebarLinks.forEach(link => {
-                link.addEventListener('mouseenter', function() {
-                    updateTooltipPosition(this);
-                });
-            });
-            
-            if (sidebarLogout) {
-                sidebarLogout.addEventListener('mouseenter', function() {
-                    updateTooltipPosition(this);
-                });
-            }
-        });
-        
         // PWA Installation
         let deferredPrompt;
         const installButton = document.getElementById('install-pwa-btn');

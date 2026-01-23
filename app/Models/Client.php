@@ -226,6 +226,66 @@ class Client extends Model
     }
 
     /**
+     * Verifica se já existe outro cliente no tenant com mesmo CNPJ, telefone ou e-mail.
+     * Usado para evitar cadastro duplicado.
+     *
+     * @param int $tenantId
+     * @param array $data ['cnpj' => ?|null, 'phone' => ?|null, 'email' => ?|null]
+     * @param int|null $excludeClientId Excluir este ID (para update)
+     * @return Client|null Cliente duplicado encontrado ou null
+     */
+    public static function findDuplicateInTenant(int $tenantId, array $data, ?int $excludeClientId = null): ?Client
+    {
+        $cnpj = isset($data['cnpj']) ? preg_replace('/\D/', '', (string) $data['cnpj']) : null;
+        $cnpj = $cnpj !== '' ? $cnpj : null;
+        $phone = isset($data['phone']) ? trim((string) $data['phone']) : null;
+        $phone = $phone !== '' ? $phone : null;
+        $phoneDigits = $phone ? preg_replace('/\D/', '', $phone) : null;
+        $email = isset($data['email']) ? trim((string) $data['email']) : null;
+        if ($email !== '') {
+            $email = filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+        } else {
+            $email = null;
+        }
+
+        if (!$cnpj && !$phoneDigits && !$email) {
+            return null;
+        }
+
+        $query = self::where('tenant_id', $tenantId);
+
+        $query->where(function ($q) use ($cnpj, $phoneDigits, $email) {
+            if ($cnpj) {
+                $q->orWhereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(cnpj,''), '.', ''), '/', ''), '-', ''), ' ', '') = ?",
+                    [$cnpj]
+                );
+            }
+            if ($phoneDigits && strlen($phoneDigits) >= 8) {
+                $q->orWhere(function ($q2) use ($phoneDigits) {
+                    $q2->whereRaw(
+                        "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') = ?",
+                        [$phoneDigits]
+                    );
+                    if (Schema::hasColumn('clients', 'phone_e164')) {
+                        $q2->orWhere('phone_e164', $phoneDigits)
+                            ->orWhere('phone_e164', '55' . $phoneDigits);
+                    }
+                });
+            }
+            if ($email) {
+                $q->orWhereRaw('LOWER(TRIM(COALESCE(email,\'\'))) = ?', [strtolower($email)]);
+            }
+        });
+
+        if ($excludeClientId) {
+            $query->where('id', '!=', $excludeClientId);
+        }
+
+        return $query->first();
+    }
+
+    /**
      * Normalize phone number to E.164 format.
      */
     public static function normalizePhone(?string $phone): ?string

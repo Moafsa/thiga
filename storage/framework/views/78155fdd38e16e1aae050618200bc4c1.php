@@ -317,10 +317,12 @@
     <?php endif; ?>
 </div>
 
-<div style="margin-top: 30px;">
-    <?php echo e($clients->links()); ?>
+<?php if($clients->isNotEmpty() && $clients->hasPages()): ?>
+<div class="pagination-wrap" style="margin-top: 30px;">
+    <?php echo e($clients->withQueryString()->links('vendor.pagination.app')); ?>
 
 </div>
+<?php endif; ?>
 
 <?php if(session('success')): ?>
     <div class="alert alert-success">

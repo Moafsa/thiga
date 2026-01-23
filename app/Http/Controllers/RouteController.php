@@ -1307,13 +1307,6 @@ class RouteController extends Controller
         $cnpj = isset($addressData['cnpj']) ? preg_replace('/\D/', '', (string) $addressData['cnpj']) : null;
         $cnpj = $cnpj !== '' ? $cnpj : null;
 
-        $client = null;
-        if ($cnpj) {
-            $client = Client::where('tenant_id', $tenant->id)
-                ->where('cnpj', $cnpj)
-                ->first();
-        }
-
         $email = isset($addressData['email']) ? trim((string) $addressData['email']) : null;
         if ($email !== '') {
             $email = filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
@@ -1322,6 +1315,23 @@ class RouteController extends Controller
         }
         $phone = isset($addressData['phone']) ? trim((string) $addressData['phone']) : null;
         $phone = $phone !== '' ? $phone : null;
+
+        $client = null;
+        if ($cnpj) {
+            $client = Client::where('tenant_id', $tenant->id)
+                ->whereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(cnpj,''), '.', ''), '/', ''), '-', ''), ' ', '') = ?",
+                    [$cnpj]
+                )
+                ->first();
+        }
+        if (!$client && ($phone || $email)) {
+            $client = Client::findDuplicateInTenant($tenant->id, [
+                'cnpj' => $cnpj,
+                'phone' => $phone,
+                'email' => $email,
+            ]);
+        }
 
         if ($client) {
             $updateData = [];
