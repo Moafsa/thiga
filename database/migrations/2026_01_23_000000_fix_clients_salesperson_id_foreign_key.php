@@ -3,9 +3,9 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -13,15 +13,17 @@ return new class extends Migration
     {
         Schema::table('clients', function (Blueprint $table) {
             // Dropar a foreign key antiga que aponta para 'users'
-            $table->dropForeign(['salesperson_id']);
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->dropForeign(['salesperson_id']);
+            }
         });
 
         Schema::table('clients', function (Blueprint $table) {
             // Criar a foreign key correta apontando para 'salespeople'
             $table->foreign('salesperson_id')
-                  ->references('id')
-                  ->on('salespeople')
-                  ->onDelete('set null');
+                ->references('id')
+                ->on('salespeople')
+                ->onDelete('set null');
         });
     }
 
@@ -38,9 +40,9 @@ return new class extends Migration
         Schema::table('clients', function (Blueprint $table) {
             // Restaurar a foreign key antiga (apontando para 'users')
             $table->foreign('salesperson_id')
-                  ->references('id')
-                  ->on('users')
-                  ->onDelete('set null');
+                ->references('id')
+                ->on('users')
+                ->onDelete('set null');
         });
     }
 };

@@ -50,6 +50,13 @@ class CreateShipment extends Component
     public $freight_value;
     public $notes;
 
+    // Opções de Frete Extras
+    public $tde_markets = false;
+    public $tde_supermarkets_cd = false;
+    public $pallets = 0;
+    public $unloading = false;
+    public $is_weekend = false;
+
     public $clients = [];
     public $calculatedFreight = false;
 
@@ -121,7 +128,7 @@ class CreateShipment extends Component
                 'pickup_date' => 'required|date',
                 'delivery_date' => 'required|date|after_or_equal:pickup_date',
             ]);
-            
+
             // Calculate freight automatically when moving to step 3
             $this->calculateFreight();
         }
@@ -155,7 +162,15 @@ class CreateShipment extends Component
                 (float) $this->weight,
                 (float) ($this->volume ?? 0),
                 (float) ($this->value ?? 0),
-                []
+                [
+                    'tde_markets' => $this->tde_markets,
+                    'tde_supermarkets_cd' => $this->tde_supermarkets_cd,
+                    'pallets' => $this->pallets,
+                    'unloading' => $this->unloading,
+                    'is_weekend_or_holiday' => $this->is_weekend,
+                    'pickup_date' => $this->pickup_date,
+                    'delivery_date' => $this->delivery_date,
+                ]
             );
 
             $this->freight_calculation_result = $result;
@@ -186,6 +201,27 @@ class CreateShipment extends Component
         if ($this->step == 2) {
             $this->calculateFreight();
         }
+    }
+
+    public function updatedTdeMarkets()
+    {
+        $this->calculateFreight();
+    }
+    public function updatedTdeSupermarketsCd()
+    {
+        $this->calculateFreight();
+    }
+    public function updatedPallets()
+    {
+        $this->calculateFreight();
+    }
+    public function updatedUnloading()
+    {
+        $this->calculateFreight();
+    }
+    public function updatedIsWeekend()
+    {
+        $this->calculateFreight();
     }
 
     public function save()

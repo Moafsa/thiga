@@ -51,7 +51,7 @@ Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefi
 // Rotas protegidas
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
-    
+
     // Subscription routes
     Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
         Route::get('/', [App\Http\Controllers\SubscriptionController::class, 'index'])->name('index');
@@ -61,7 +61,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{subscription}', [App\Http\Controllers\SubscriptionController::class, 'showSubscription'])->name('details');
         Route::post('/{subscription}/cancel', [App\Http\Controllers\SubscriptionController::class, 'cancel'])->name('cancel');
     });
-    
+
     // Company routes
     Route::prefix('companies')->name('companies.')->group(function () {
         Route::get('/', [App\Http\Controllers\CompanyController::class, 'index'])->name('index');
@@ -72,7 +72,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{company}', [App\Http\Controllers\CompanyController::class, 'update'])->name('update');
         Route::delete('/{company}', [App\Http\Controllers\CompanyController::class, 'destroy'])->name('destroy');
     });
-    
+
     // Salesperson routes
     Route::prefix('salespeople')->name('salespeople.')->group(function () {
         Route::get('/', [App\Http\Controllers\SalespersonController::class, 'index'])->name('index');
@@ -84,7 +84,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{salesperson}', [App\Http\Controllers\SalespersonController::class, 'destroy'])->name('destroy');
         Route::post('/{salesperson}/discount-settings', [App\Http\Controllers\SalespersonController::class, 'updateDiscountSettings'])->name('updateDiscountSettings');
     });
-    
+
     // Proposal routes
     Route::prefix('proposals')->name('proposals.')->group(function () {
         Route::get('/', [App\Http\Controllers\ProposalController::class, 'index'])->name('index');
@@ -101,7 +101,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{proposal}/request-collection', [App\Http\Controllers\ProposalController::class, 'requestCollection'])->name('requestCollection');
         Route::post('/calculate-discount', [App\Http\Controllers\ProposalController::class, 'calculateDiscount'])->name('calculateDiscount');
     });
-    
+
     // Freight Table Categories routes (per tenant)
     Route::prefix('freight-table-categories')->name('freight-table-categories.')->group(function () {
         Route::get('/', [App\Http\Controllers\FreightTableCategoryController::class, 'index'])->name('index');
@@ -128,23 +128,23 @@ Route::middleware('auth')->group(function () {
         Route::put('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'update'])->name('update');
         Route::delete('/{freightTable}', [App\Http\Controllers\FreightTableController::class, 'destroy'])->name('destroy');
     });
-    
+
     // Salesperson Dashboard routes
     Route::prefix('salesperson')->name('salesperson.')->group(function () {
         Route::get('/dashboard', [App\Http\Controllers\SalespersonDashboardController::class, 'index'])->name('dashboard');
         Route::post('/calculate-freight', [App\Http\Controllers\SalespersonDashboardController::class, 'calculateFreight'])->name('calculateFreight');
     });
-    
+
     // Invoicing routes
     Route::prefix('invoicing')->name('invoicing.')->group(function () {
         Route::get('/', [App\Http\Controllers\InvoicingController::class, 'index'])->name('index');
     });
-    
+
     // Invoice routes
     Route::prefix('invoices')->name('invoices.')->group(function () {
         Route::get('/{invoice}', [App\Http\Controllers\InvoicingController::class, 'show'])->name('show');
     });
-    
+
     // Shipments routes
     Route::prefix('shipments')->name('shipments.')->group(function () {
         Route::get('/', [App\Http\Controllers\ShipmentController::class, 'index'])->name('index');
@@ -156,7 +156,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'update'])->name('update');
         Route::delete('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'destroy'])->name('destroy');
     });
-    
+
     // Accounts Receivable routes
     Route::prefix('accounts/receivable')->name('accounts.receivable.')->group(function () {
         Route::get('/', [App\Http\Controllers\AccountsReceivableController::class, 'index'])->name('index');
@@ -164,7 +164,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{invoice}', [App\Http\Controllers\AccountsReceivableController::class, 'show'])->name('show');
         Route::post('/{invoice}/payment', [App\Http\Controllers\AccountsReceivableController::class, 'recordPayment'])->name('payment');
     });
-    
+
     // Accounts Payable routes
     Route::prefix('accounts/payable')->name('accounts.payable.')->group(function () {
         Route::get('/', [App\Http\Controllers\ExpenseController::class, 'index'])->name('index');
@@ -176,12 +176,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{expense}', [App\Http\Controllers\ExpenseController::class, 'destroy'])->name('destroy');
         Route::post('/{expense}/payment', [App\Http\Controllers\ExpenseController::class, 'recordPayment'])->name('payment');
     });
-    
+
     // Cash Flow routes
     Route::prefix('cash-flow')->name('cash-flow.')->group(function () {
         Route::get('/', [App\Http\Controllers\CashFlowController::class, 'index'])->name('index');
     });
-    
+
     // Driver Expenses routes (Admin/Manager)
     Route::prefix('driver-expenses')->name('driver-expenses.')->group(function () {
         Route::get('/', [App\Http\Controllers\DriverExpenseController::class, 'index'])->name('index');
@@ -193,7 +193,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{expense}/reject', [App\Http\Controllers\DriverExpenseController::class, 'reject'])->name('reject');
         Route::get('/statistics/data', [App\Http\Controllers\DriverExpenseController::class, 'statistics'])->name('statistics');
     });
-    
+
     // Clients routes
     Route::prefix('clients')->name('clients.')->group(function () {
         Route::get('/', [App\Http\Controllers\ClientController::class, 'index'])->name('index');
@@ -205,7 +205,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{client}', [App\Http\Controllers\ClientController::class, 'destroy'])->name('destroy');
         Route::post('/{client}/restore-listing', [App\Http\Controllers\ClientController::class, 'restoreListing'])->name('restore-listing');
     });
-    
+
     // Drivers routes
     Route::prefix('drivers')->name('drivers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DriverController::class, 'index'])->name('index');
@@ -217,7 +217,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{driver}', [App\Http\Controllers\DriverController::class, 'destroy'])->name('destroy');
         Route::delete('/photos/{photo}', [App\Http\Controllers\DriverController::class, 'deletePhoto'])->name('photos.delete');
     });
-    
+
     // Vehicles routes
     Route::prefix('vehicles')->name('vehicles.')->group(function () {
         Route::get('/', [App\Http\Controllers\VehicleController::class, 'index'])->name('index');
@@ -230,7 +230,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{vehicle}/assign-drivers', [App\Http\Controllers\VehicleController::class, 'assignDrivers'])->name('assign-drivers');
         Route::post('/{vehicle}/unassign-driver/{driver}', [App\Http\Controllers\VehicleController::class, 'unassignDriver'])->name('unassign-driver');
     });
-    
+
     // Routes routes
     Route::prefix('routes')->name('routes.')->group(function () {
         Route::get('/', [App\Http\Controllers\RouteController::class, 'index'])->name('index');
@@ -241,13 +241,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/{route}/edit', [App\Http\Controllers\RouteController::class, 'edit'])->name('edit');
         Route::put('/{route}', [App\Http\Controllers\RouteController::class, 'update'])->name('update');
         Route::delete('/{route}', [App\Http\Controllers\RouteController::class, 'destroy'])->name('destroy');
-        
+
         // Custom route actions
         Route::get('/{route}/select-route', [App\Http\Controllers\RouteController::class, 'selectRoute'])->name('select-route');
         Route::post('/{route}/select-route', [App\Http\Controllers\RouteController::class, 'storeSelectedRoute'])->name('store-selected-route');
         Route::get('/{route}/download-cte-xml/{fiscalDocument}', [App\Http\Controllers\RouteController::class, 'downloadCteXml'])->name('download-cte-xml');
     });
-    
+
     // Driver Dashboard routes
     Route::prefix('driver')->name('driver.')->group(function () {
         Route::post('/shipments/{shipmentId}/status', [App\Http\Controllers\DriverDashboardController::class, 'updateShipmentStatus'])->name('shipments.update-status');
@@ -261,18 +261,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/routes/{route}/finish', [App\Http\Controllers\DriverDashboardController::class, 'finishRoute'])->name('routes.finish');
         Route::delete('/photos/{photo}', [App\Http\Controllers\DriverDashboardController::class, 'deletePhoto'])->name('photos.delete');
         Route::post('/photos/{photo}/set-primary', [App\Http\Controllers\DriverDashboardController::class, 'setPrimaryPhoto'])->name('photos.set-primary');
-        
+
         // Wallet routes
         Route::get('/wallet', [App\Http\Controllers\DriverWalletController::class, 'index'])->name('wallet');
         Route::post('/wallet/expenses', [App\Http\Controllers\DriverWalletController::class, 'storeExpense'])->name('wallet.expenses.store');
         Route::delete('/wallet/expenses/{expense}', [App\Http\Controllers\DriverWalletController::class, 'deleteExpense'])->name('wallet.expenses.delete');
         Route::get('/wallet/export', [App\Http\Controllers\DriverWalletController::class, 'exportPdf'])->name('wallet.export');
-        
+
         // Route history routes
         Route::get('/route-history', [App\Http\Controllers\DriverDashboardController::class, 'getRouteHistory'])->name('route-history');
         Route::get('/statistics', [App\Http\Controllers\DriverDashboardController::class, 'getDriverStatistics'])->name('statistics');
     });
-    
+
     // Client Dashboard routes
     Route::prefix('client')->name('client.')->group(function () {
         Route::get('/dashboard', [App\Http\Controllers\ClientDashboardController::class, 'index'])->name('dashboard');
@@ -288,7 +288,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/invoices', [App\Http\Controllers\ClientDashboardController::class, 'invoices'])->name('invoices');
         Route::get('/invoices/{invoice}', [App\Http\Controllers\ClientDashboardController::class, 'showInvoice'])->name('invoices.show');
     });
-    
+
     // Monitoring routes (Admin/Manager)
     Route::prefix('monitoring')->name('monitoring.')->group(function () {
         Route::get('/', [App\Http\Controllers\MonitoringController::class, 'index'])->name('index');
@@ -296,19 +296,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/routes/{route}/map-data', [App\Http\Controllers\MonitoringController::class, 'getRouteMapData'])->name('route.map-data');
         Route::get('/routes/{route}/deviation-costs', [App\Http\Controllers\MonitoringController::class, 'getRouteDeviationCosts'])->name('route.deviation-costs');
     });
-    
+
     // Fiscal routes
     Route::prefix('fiscal')->name('fiscal.')->group(function () {
         // CT-e listing routes
         Route::get('/ctes', [App\Http\Controllers\FiscalDocumentController::class, 'indexCtes'])->name('ctes.index');
         Route::get('/ctes/{fiscalDocument}', [App\Http\Controllers\FiscalDocumentController::class, 'showCte'])->name('ctes.show');
         Route::post('/ctes/filter', [App\Http\Controllers\FiscalDocumentController::class, 'filterCtes'])->name('ctes.filter');
-        
+
         // MDF-e listing routes
         Route::get('/mdfes', [App\Http\Controllers\FiscalDocumentController::class, 'indexMdfes'])->name('mdfes.index');
         Route::get('/mdfes/{fiscalDocument}', [App\Http\Controllers\FiscalDocumentController::class, 'showMdfe'])->name('mdfes.show');
         Route::post('/mdfes/filter', [App\Http\Controllers\FiscalDocumentController::class, 'filterMdfes'])->name('mdfes.filter');
-        
+
         // Fiscal reports routes
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [App\Http\Controllers\FiscalReportController::class, 'index'])->name('index');
@@ -316,7 +316,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/mdfes', [App\Http\Controllers\FiscalReportController::class, 'mdfes'])->name('mdfes');
             Route::get('/consolidated', [App\Http\Controllers\FiscalReportController::class, 'consolidated'])->name('consolidated');
         });
-        
+
         // Document issuance routes
         Route::post('/shipments/{shipment}/issue-cte', [App\Http\Controllers\FiscalController::class, 'issueCte'])->name('issue-cte');
         Route::post('/shipments/{shipment}/sync-cte', [App\Http\Controllers\FiscalController::class, 'syncCte'])->name('sync-cte');
@@ -325,7 +325,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/documents/{fiscalDocument}/cancel-cte', [App\Http\Controllers\FiscalController::class, 'cancelCte'])->name('cancel-cte');
         Route::get('/documents/{fiscalDocument}/status', [App\Http\Controllers\FiscalController::class, 'getStatus'])->name('document-status');
     });
-    
+
     // CT-e XMLs routes
     Route::prefix('cte-xmls')->name('cte-xmls.')->group(function () {
         Route::get('/', [App\Http\Controllers\CteXmlController::class, 'index'])->name('index');
@@ -335,24 +335,25 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{cteXml}', [App\Http\Controllers\CteXmlController::class, 'destroy'])->name('destroy');
         Route::post('/destroy-multiple', [App\Http\Controllers\CteXmlController::class, 'destroyMultiple'])->name('destroy-multiple');
     });
-    
+
     // Notifications routes
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [App\Http\Controllers\NotificationController::class, 'index'])->name('index');
         Route::post('/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('mark-read');
         Route::post('/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
     });
-    
+
     // Reports routes
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [App\Http\Controllers\ReportController::class, 'index'])->name('index');
         Route::get('/shipments', [App\Http\Controllers\ReportController::class, 'shipments'])->name('shipments');
         Route::get('/financial', [App\Http\Controllers\ReportController::class, 'financial'])->name('financial');
     });
-    
+
     // Settings routes
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [App\Http\Controllers\SettingsController::class, 'index'])->name('index');
+        Route::get('/users', App\Http\Livewire\Tenant\TenantUserManagement::class)->name('users');
         Route::get('/appearance', [App\Http\Controllers\SettingsController::class, 'appearance'])->name('appearance');
         Route::put('/appearance', [App\Http\Controllers\SettingsController::class, 'updateAppearance'])->name('appearance.update');
 
@@ -363,7 +364,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/whatsapp/{whatsappIntegration}/qr', [WhatsAppIntegrationController::class, 'qr'])->name('whatsapp.qr');
             Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::delete('/whatsapp/{whatsappIntegration}', [WhatsAppIntegrationController::class, 'destroy'])->name('whatsapp.destroy');
-            
+
             Route::get('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'index'])->name('email.index');
             Route::put('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'update'])->name('email.update');
             Route::post('/email/test', [App\Http\Controllers\Settings\EmailConfigController::class, 'test'])->name('email.test');

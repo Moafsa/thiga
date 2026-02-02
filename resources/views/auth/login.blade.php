@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - TMS SaaS</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
-    
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         /* Variáveis de cores */
         :root {
@@ -28,7 +30,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, var(--cor-principal) 0%, var(--cor-secundaria) 100%);
@@ -44,7 +46,7 @@
             background-color: var(--cor-secundaria);
             padding: 40px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             width: 100%;
             max-width: 400px;
             text-align: center;
@@ -174,6 +176,7 @@
         }
     </style>
 </head>
+
 <body>
     <a href="/" class="back-link">
         <i class="fas fa-arrow-left"></i> Voltar ao Início
@@ -183,7 +186,7 @@
         <div class="logo">
             <i class="fas fa-truck"></i> TMS SaaS
         </div>
-        
+
         <h1>Entrar na Plataforma</h1>
 
         @if ($errors->any())
@@ -196,10 +199,11 @@
 
         <form method="POST" action="{{ route('login') }}">
             @csrf
-            
+
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" value="{{ old('email') }}" required autofocus placeholder="seu@email.com">
+                <label for="email">Email ou Telefone</label>
+                <input type="text" id="email" name="email" value="{{ old('email') }}" required autofocus
+                    placeholder="seu@email.com ou (11) 99999-9999">
             </div>
 
             <div class="form-group">
@@ -214,24 +218,28 @@
 
         <div class="links">
             <p>Não tem uma conta? <a href="{{ route('register') }}">Cadastre-se aqui</a></p>
-            
+
             <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="margin-bottom: 10px; color: rgba(245, 245, 245, 0.7); font-size: 14px;">Entrar por telefone:</p>
-                
+                <p style="margin-bottom: 10px; color: rgba(245, 245, 245, 0.7); font-size: 14px;">Entrar por telefone:
+                </p>
+
                 <p style="margin-top: 10px;">
-                    <a href="{{ route('client.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <a href="{{ route('client.login.phone') }}"
+                        style="display: inline-flex; align-items: center; gap: 8px;">
                         <i class="fas fa-user"></i> Sou cliente - Entrar por telefone
                     </a>
                 </p>
-                
+
                 <p style="margin-top: 10px;">
-                    <a href="{{ route('salesperson.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <a href="{{ route('salesperson.login.phone') }}"
+                        style="display: inline-flex; align-items: center; gap: 8px;">
                         <i class="fas fa-handshake"></i> Sou vendedor - Entrar por telefone
                     </a>
                 </p>
-                
+
                 <p style="margin-top: 10px;">
-                    <a href="{{ route('driver.login.phone') }}" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <a href="{{ route('driver.login.phone') }}"
+                        style="display: inline-flex; align-items: center; gap: 8px;">
                         <i class="fas fa-truck"></i> Sou motorista - Entrar por telefone
                     </a>
                 </p>
@@ -243,13 +251,13 @@
         // Basic service worker registration to enable PWA install prompt on login screen
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
                     // Unregister all service workers to force update
-                    for(let registration of registrations) {
+                    for (let registration of registrations) {
                         registration.unregister();
                     }
                     // Clear all caches
-                    caches.keys().then(function(names) {
+                    caches.keys().then(function (names) {
                         for (let name of names) {
                             caches.delete(name);
                         }
@@ -262,27 +270,5 @@
         }
     </script>
 </body>
+
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
