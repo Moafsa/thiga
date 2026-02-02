@@ -62,6 +62,7 @@ class Route extends Model
         'min_freight_rate_type',
         'min_freight_rate_value',
         'min_freight_rate_days',
+        'has_deviated',
     ];
 
     protected $casts = [
@@ -90,6 +91,7 @@ class Route extends Model
         'settings' => 'array',
         'route_options' => 'array',
         'is_route_locked' => 'boolean',
+        'has_deviated' => 'boolean',
         'planned_path' => 'array',
         'actual_path' => 'array',
         'path_updated_at' => 'datetime',
@@ -178,7 +180,7 @@ class Route extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'scheduled' => 'Agendada',
             'in_progress' => 'Em Andamento',
             'completed' => 'Concluída',
@@ -197,14 +199,14 @@ class Route extends Model
         if (!$this->estimated_duration) {
             return 'N/A';
         }
-        
+
         $hours = floor($this->estimated_duration / 60);
         $minutes = $this->estimated_duration % 60;
-        
+
         if ($hours > 0) {
             return "{$hours}h {$minutes}min";
         }
-        
+
         return "{$minutes}min";
     }
 
@@ -285,7 +287,7 @@ class Route extends Model
         }
 
         $origin = "{$this->start_latitude},{$this->start_longitude}";
-        
+
         // Get shipments with delivery coordinates
         $shipments = $this->shipments()
             ->whereNotNull('delivery_latitude')
@@ -300,9 +302,9 @@ class Route extends Model
         // Build waypoints from delivery addresses
         // Use optimized order if available, otherwise use shipment order
         $orderedShipments = $this->getOrderedShipmentsBySequentialOptimization();
-        
+
         // Filter to only shipments with coordinates
-        $orderedShipments = $orderedShipments->filter(function($shipment) {
+        $orderedShipments = $orderedShipments->filter(function ($shipment) {
             return $shipment->delivery_latitude && $shipment->delivery_longitude;
         });
 
@@ -312,7 +314,7 @@ class Route extends Model
         }
 
         // Build waypoints string
-        $waypoints = $orderedShipments->map(function($shipment) {
+        $waypoints = $orderedShipments->map(function ($shipment) {
             return "{$shipment->delivery_latitude},{$shipment->delivery_longitude}";
         })->implode('|');
 
@@ -324,11 +326,11 @@ class Route extends Model
         $url = "https://www.google.com/maps/dir/?api=1";
         $url .= "&origin=" . urlencode($origin);
         $url .= "&destination=" . urlencode($destination);
-        
+
         if ($waypoints) {
             $url .= "&waypoints=" . urlencode($waypoints);
         }
-        
+
         $url .= "&travelmode=driving";
 
         return $url;

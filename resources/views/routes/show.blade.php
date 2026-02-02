@@ -1603,20 +1603,78 @@
             @endif
         @endforeach
 
-        // Fit map to show all markers with padding (Uber-like spacing)
-        if (waypoints.length > 0) {
-            routeMap.fitBounds(bounds, {
-                top: 50,
-                right: 50,
-                bottom: 50,
-                left: 50
+        // Check for saved planned path first (saves API calls)
+        const savedPlannedPath = @json($route->planned_path);
+        
+        if (savedPlannedPath && savedPlannedPath.length > 0) {
+            // Draw planned path from DB
+            const path = savedPlannedPath.map(p => ({
+                lat: parseFloat(p.lat), 
+                lng: parseFloat(p.lng)
+            }));
+            
+            const style = routeStyles[currentMapStyle];
+            routePolyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: style.strokeColor,
+                strokeOpacity: style.strokeOpacity,
+                strokeWeight: style.strokeWeight,
+                icons: [], 
+                zIndex: 100
+            });
+            routePolyline.setMap(routeMap);
+            
+            // Adjust bounds to include path
+            const pathBounds = new google.maps.LatLngBounds();
+            path.forEach(p => pathBounds.extend(p));
+            // Also include waypoints (markers)
+            waypoints.forEach(wp => pathBounds.extend(wp));
+            
+            routeMap.fitBounds(pathBounds, {
+                top: 50, right: 50, bottom: 50, left: 50
             });
             
-            // Calculate route using Directions API to follow roads
-            // waypoints[0] is the origin (depot/branch), rest are destinations
+            // Show route info if available
+             updateRouteInfo(
+                {{ $route->estimated_distance ? $route->estimated_distance * 1000 : 0 }}, 
+                {{ $route->estimated_duration ? $route->estimated_duration * 60 : 0 }}, 
+                'Rota Planejada'
+            );
+            
+            // Start tracking if in progress
+            @if($route->status === 'in_progress' && $route->driver)
+                startDriverLocationTracking();
+            @endif
+            
+        } else if (waypoints.length > 0) {
+            // Fallback: Fit map to markers and calculate route
+            routeMap.fitBounds(bounds, {
+                top: 50, right: 50, bottom: 50, left: 50
+            });
+            
             if (waypoints.length > 1) {
                 calculateRouteWithDirections(waypoints);
             }
+        }
+        
+        // Draw saved ACTUAL path if available
+        const savedActualPath = @json($route->actual_path);
+        if (savedActualPath && savedActualPath.length > 0) {
+             const actualPathPoints = savedActualPath.map(p => ({
+                lat: parseFloat(p.lat), 
+                lng: parseFloat(p.lng)
+            }));
+            
+            driverHistoryPolyline = new google.maps.Polyline({
+                path: actualPathPoints,
+                geodesic: true,
+                strokeColor: '#2196F3',
+                strokeOpacity: 0.8, // Slightly more opaque
+                strokeWeight: 4,
+                map: routeMap,
+                zIndex: 150
+            });
         }
     }
 
@@ -1939,15 +1997,26 @@
 
     // Load and draw driver's path history
     function loadDriverPathHistory(routeId, driver) {
-        if (!driver || !driver.location_history || driver.location_history.length < 2) {
-            return;
+        if (!driver) return;
+        
+        let path = [];
+        
+        // Prioritize actual_path from route (road-snapped)
+        if (driver.active_route && driver.active_route.actual_path && driver.active_route.actual_path.length > 0) {
+             path = driver.active_route.actual_path.map(p => ({
+                lat: parseFloat(p.lat),
+                lng: parseFloat(p.lng)
+            }));
+        } 
+        // Fallback to location history (GPS points)
+        else if (driver.location_history && driver.location_history.length > 1) {
+             path = driver.location_history.map(loc => ({
+                lat: parseFloat(loc.lat),
+                lng: parseFloat(loc.lng)
+            }));
+        } else {
+            return; // No path to draw
         }
-
-        // Build path from location history
-        const path = driver.location_history.map(loc => ({
-            lat: parseFloat(loc.lat),
-            lng: parseFloat(loc.lng)
-        }));
 
         // Add current position
         if (driver.latitude && driver.longitude) {

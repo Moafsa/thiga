@@ -27,7 +27,7 @@ class MonitoringController extends Controller
     public function index()
     {
         $tenant = Auth::user()->tenant;
-        
+
         if (!$tenant) {
             return redirect()->route('login')->with('error', 'User does not have an associated tenant.');
         }
@@ -37,17 +37,24 @@ class MonitoringController extends Controller
             ->where('is_active', true)
             ->whereNotNull('current_latitude')
             ->whereNotNull('current_longitude')
-            ->with(['user', 'routes' => function($query) {
-                $query->whereIn('status', ['scheduled', 'in_progress']);
-            }])
+            ->with([
+                'user',
+                'routes' => function ($query) {
+                    $query->whereIn('status', ['scheduled', 'in_progress']);
+                }
+            ])
             ->get();
 
         // Get active routes
         $activeRoutes = Route::where('tenant_id', $tenant->id)
             ->whereIn('status', ['scheduled', 'in_progress'])
-            ->with(['driver', 'vehicle', 'shipments' => function($query) {
-                $query->with(['senderClient', 'receiverClient']);
-            }])
+            ->with([
+                'driver',
+                'vehicle',
+                'shipments' => function ($query) {
+                    $query->with(['senderClient', 'receiverClient']);
+                }
+            ])
             ->orderBy('scheduled_date', 'desc')
             ->get();
 
@@ -80,7 +87,7 @@ class MonitoringController extends Controller
     {
         try {
             $tenant = Auth::user()->tenant;
-            
+
             if (!$tenant) {
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
@@ -89,84 +96,87 @@ class MonitoringController extends Controller
             // This ensures drivers with active routes appear even if location update failed
             $drivers = Driver::where('tenant_id', $tenant->id)
                 ->where('is_active', true)
-                ->where(function($query) {
-                    $query->where(function($q) {
+                ->where(function ($query) {
+                    $query->where(function ($q) {
                         // Has current location
                         $q->whereNotNull('current_latitude')
-                          ->whereNotNull('current_longitude');
-                    })->orWhereHas('routes', function($q) {
+                            ->whereNotNull('current_longitude');
+                    })->orWhereHas('routes', function ($q) {
                         // OR has active route (even without location)
                         $q->whereIn('status', ['scheduled', 'in_progress']);
                     });
                 })
-                ->with(['user', 'routes' => function($query) {
-                    $query->whereIn('status', ['scheduled', 'in_progress'])
-                        ->with(['branch', 'shipments']);
-                }])
+                ->with([
+                    'user',
+                    'routes' => function ($query) {
+                        $query->whereIn('status', ['scheduled', 'in_progress'])
+                            ->with(['branch', 'shipments']);
+                    }
+                ])
                 ->get()
-                ->map(function($driver) {
+                ->map(function ($driver) {
                     $activeRoute = $driver->routes->first();
-                
-                // Get location history for active route (last 2 hours) with cache
-                $locationHistory = [];
-                if ($activeRoute) {
-                    $cacheKey = "driver_location_history_{$driver->id}_{$activeRoute->id}_" . now()->format('Y-m-d-H');
-                    
-                    $locationHistory = \Cache::remember($cacheKey, 60, function() use ($driver, $activeRoute) {
-                        // Get all points from the start of the route (or last 24 hours if route started recently)
-                        $startTime = $activeRoute->started_at 
-                            ? max($activeRoute->started_at, now()->subHours(24))
-                            : now()->subHours(24);
-                        
-                        $query = \App\Models\LocationTracking::where('driver_id', $driver->id)
-                            ->where('route_id', $activeRoute->id)
-                            ->where('tracked_at', '>=', $startTime)
-                            ->whereNotNull('latitude')
-                            ->whereNotNull('longitude');
-                        
-                        $totalPoints = $query->count();
-                        
-                        // If more than 500 points, sample every Nth point
-                        if ($totalPoints > 500) {
-                            // Sample every 3rd point for routes with many points
-                            $query->whereRaw('MOD(id, 3) = 0');
-                        }
-                        
-                        $history = $query->orderBy('tracked_at', 'asc')
-                            ->get()
-                            ->map(function($track) {
-                                return [
-                                    'lat' => floatval($track->latitude),
-                                    'lng' => floatval($track->longitude),
-                                    'timestamp' => $track->tracked_at->toIso8601String(),
-                                    'speed' => $track->speed,
-                                    'heading' => $track->heading,
-                                ];
-                            })
-                            ->toArray();
-                        
-                        \Log::info('Location history for driver', [
-                            'driver_id' => $driver->id,
-                            'route_id' => $activeRoute->id,
-                            'points_count' => count($history),
-                            'total_points' => $totalPoints,
-                        ]);
-                        
-                        return $history;
-                    });
-                }
-                
+
+                    // Get location history for active route (last 2 hours) with cache
+                    $locationHistory = [];
+                    if ($activeRoute) {
+                        $cacheKey = "driver_location_history_{$driver->id}_{$activeRoute->id}_" . now()->format('Y-m-d-H');
+
+                        $locationHistory = \Cache::remember($cacheKey, 60, function () use ($driver, $activeRoute) {
+                            // Get all points from the start of the route (or last 24 hours if route started recently)
+                            $startTime = $activeRoute->started_at
+                                ? max($activeRoute->started_at, now()->subHours(24))
+                                : now()->subHours(24);
+
+                            $query = \App\Models\LocationTracking::where('driver_id', $driver->id)
+                                ->where('route_id', $activeRoute->id)
+                                ->where('tracked_at', '>=', $startTime)
+                                ->whereNotNull('latitude')
+                                ->whereNotNull('longitude');
+
+                            $totalPoints = $query->count();
+
+                            // If more than 500 points, sample every Nth point
+                            if ($totalPoints > 500) {
+                                // Sample every 3rd point for routes with many points
+                                $query->whereRaw('MOD(id, 3) = 0');
+                            }
+
+                            $history = $query->orderBy('tracked_at', 'asc')
+                                ->get()
+                                ->map(function ($track) {
+                                    return [
+                                        'lat' => floatval($track->latitude),
+                                        'lng' => floatval($track->longitude),
+                                        'timestamp' => $track->tracked_at->toIso8601String(),
+                                        'speed' => $track->speed,
+                                        'heading' => $track->heading,
+                                    ];
+                                })
+                                ->toArray();
+
+                            \Log::info('Location history for driver', [
+                                'driver_id' => $driver->id,
+                                'route_id' => $activeRoute->id,
+                                'points_count' => count($history),
+                                'total_points' => $totalPoints,
+                            ]);
+
+                            return $history;
+                        });
+                    }
+
                     // Try to get latest location from LocationTracking if current_location is null
                     $latitude = $driver->current_latitude;
                     $longitude = $driver->current_longitude;
-                    
+
                     if (!$latitude || !$longitude) {
                         try {
                             $latestTracking = \App\Models\LocationTracking::where('driver_id', $driver->id)
                                 ->where('tracked_at', '>=', now()->subHours(2))
                                 ->orderBy('tracked_at', 'desc')
                                 ->first();
-                            
+
                             if ($latestTracking) {
                                 $latitude = $latestTracking->latitude;
                                 $longitude = $latestTracking->longitude;
@@ -178,7 +188,7 @@ class MonitoringController extends Controller
                             ]);
                         }
                     }
-                    
+
                     return [
                         'id' => $driver->id,
                         'name' => $driver->name ?? 'Unknown',
@@ -198,11 +208,12 @@ class MonitoringController extends Controller
                                 'latitude' => $activeRoute->branch->latitude,
                                 'longitude' => $activeRoute->branch->longitude,
                             ] : null,
+                            'actual_path' => $activeRoute->actual_path,
                         ] : null,
                         'location_history' => $locationHistory,
                     ];
                 })
-                ->filter(function($driver) {
+                ->filter(function ($driver) {
                     // Only return drivers with valid location or active route
                     return ($driver['latitude'] && $driver['longitude']) || $driver['active_route'];
                 })
@@ -215,7 +226,7 @@ class MonitoringController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'error' => 'Internal server error',
                 'message' => 'An error occurred while fetching driver locations',
@@ -229,7 +240,7 @@ class MonitoringController extends Controller
     public function getRouteMapData(Route $route)
     {
         $tenant = Auth::user()->tenant;
-        
+
         if ($route->tenant_id !== $tenant->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -247,6 +258,8 @@ class MonitoringController extends Controller
                 'id' => $route->id,
                 'name' => $route->name,
                 'status' => $route->status,
+                'planned_path' => $route->planned_path,
+                'actual_path' => $route->actual_path,
             ],
             'driver' => $route->driver ? [
                 'id' => $route->driver->id,
@@ -293,7 +306,7 @@ class MonitoringController extends Controller
     public function getRouteDeviationCosts(Request $request, Route $route)
     {
         $tenant = Auth::user()->tenant;
-        
+
         if ($route->tenant_id !== $tenant->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -301,7 +314,7 @@ class MonitoringController extends Controller
         try {
             $driver = $route->driver;
             $vehicle = $route->vehicle;
-            
+
             // Get location history for this route
             $locationHistory = LocationTracking::where('route_id', $route->id)
                 ->where('tracked_at', '>=', $route->started_at ?? now()->subHours(24))
@@ -321,21 +334,21 @@ class MonitoringController extends Controller
 
             // Get route path for comparison
             $routePath = $this->getRoutePath($route);
-            
+
             // Calculate distances using Google Maps Directions API
             $googleMapsService = app(GoogleMapsService::class);
             $totalDistance = 0;
             $offRouteDistance = 0;
             $offRoutePoints = [];
             $allPoints = [];
-            
-            $points = $locationHistory->map(function($track) {
+
+            $points = $locationHistory->map(function ($track) {
                 return [
                     'lat' => $track->latitude,
                     'lng' => $track->longitude,
                 ];
             })->toArray();
-            
+
             // Add current position if available
             if ($driver && $driver->current_latitude && $driver->current_longitude) {
                 $points[] = [
@@ -348,11 +361,11 @@ class MonitoringController extends Controller
             for ($i = 0; $i < count($points) - 1; $i++) {
                 $startPoint = $points[$i];
                 $endPoint = $points[$i + 1];
-                
+
                 // Check if points are off route
                 $startIsOffRoute = $this->isPointOffRoute($startPoint, $routePath);
                 $endIsOffRoute = $this->isPointOffRoute($endPoint, $routePath);
-                
+
                 // Get distance using MapsService (Mapbox first, Google as fallback)
                 $mapsService = app(MapsService::class);
                 $segmentDistance = $mapsService->calculateDistance(
@@ -361,10 +374,10 @@ class MonitoringController extends Controller
                     $endPoint['lat'],
                     $endPoint['lng']
                 );
-                
+
                 if ($segmentDistance) {
                     $totalDistance += $segmentDistance['distance'] / 1000; // Convert to km
-                    
+
                     if ($startIsOffRoute || $endIsOffRoute) {
                         $offRouteDistance += $segmentDistance['distance'] / 1000;
                         $offRoutePoints[] = $startPoint;
@@ -376,12 +389,12 @@ class MonitoringController extends Controller
             // Calculate fuel cost
             $fuelCostService = app(FuelCostService::class);
             $fuelCost = $fuelCostService->calculateFuelCost($totalDistance, $vehicle, $route->branch->state ?? null);
-            
+
             // Find tolls in the actual path
             $tollService = app(TollService::class);
             $tolls = [];
             $tollCost = 0;
-            
+
             // Check for tolls near off-route points
             foreach ($offRoutePoints as $point) {
                 $tollPlaza = \App\Models\TollPlaza::nearCoordinates($point['lat'], $point['lng'], 3.0)->first();
@@ -413,7 +426,7 @@ class MonitoringController extends Controller
                 'tolls' => $tolls,
                 'total_extra_cost' => round($totalExtraCost, 2),
                 'has_deviation' => $hasDeviation,
-                'route_estimated_distance_km' => $route->estimated_distance ? round($route->estimated_distance, 2) : null,
+                'route_estimated_distance_km' => $route->estimated_distance ? round((float) $route->estimated_distance, 2) : null,
             ]);
         } catch (\Exception $e) {
             \Log::error('Error calculating route deviation costs', [
@@ -421,7 +434,7 @@ class MonitoringController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'error' => 'Error calculating costs',
                 'message' => $e->getMessage(),
@@ -436,14 +449,14 @@ class MonitoringController extends Controller
     {
         // Get route waypoints from settings or calculate from shipments
         $waypoints = [];
-        
+
         if ($route->start_latitude && $route->start_longitude) {
             $waypoints[] = [
                 'lat' => $route->start_latitude,
                 'lng' => $route->start_longitude,
             ];
         }
-        
+
         foreach ($route->shipments as $shipment) {
             if ($shipment->delivery_latitude && $shipment->delivery_longitude) {
                 $waypoints[] = [
@@ -452,7 +465,7 @@ class MonitoringController extends Controller
                 ];
             }
         }
-        
+
         return $waypoints;
     }
 
@@ -464,9 +477,9 @@ class MonitoringController extends Controller
         if (empty($routePath)) {
             return false; // No route to compare
         }
-        
+
         $minDistance = PHP_FLOAT_MAX;
-        
+
         foreach ($routePath as $routePoint) {
             $distance = $this->calculateHaversineDistance(
                 $point['lat'],
@@ -474,12 +487,12 @@ class MonitoringController extends Controller
                 $routePoint['lat'],
                 $routePoint['lng']
             );
-            
+
             if ($distance < $minDistance) {
                 $minDistance = $distance;
             }
         }
-        
+
         return $minDistance > 0.1; // More than 100m (0.1km)
     }
 
@@ -489,20 +502,20 @@ class MonitoringController extends Controller
     protected function calculateHaversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
         $earthRadius = 6371; // Earth radius in kilometers
-        
+
         $latFrom = deg2rad($lat1);
         $lonFrom = deg2rad($lon1);
         $latTo = deg2rad($lat2);
         $lonTo = deg2rad($lon2);
-        
+
         $latDelta = $latTo - $latFrom;
         $lonDelta = $lonTo - $lonFrom;
-        
+
         $a = sin($latDelta / 2) * sin($latDelta / 2) +
-             cos($latFrom) * cos($latTo) *
-             sin($lonDelta / 2) * sin($lonDelta / 2);
+            cos($latFrom) * cos($latTo) *
+            sin($lonDelta / 2) * sin($lonDelta / 2);
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-        
+
         return $earthRadius * $c;
     }
 
@@ -534,9 +547,9 @@ class MonitoringController extends Controller
             $tenant = $route->tenant;
             if ($tenant) {
                 $admins = \App\Models\User::where('tenant_id', $tenant->id)
-                    ->where(function($query) {
+                    ->where(function ($query) {
                         $query->where('role', 'admin')
-                              ->orWhere('role', 'manager');
+                            ->orWhere('role', 'manager');
                     })
                     ->get();
 

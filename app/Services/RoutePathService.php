@@ -25,7 +25,7 @@ class RoutePathService
         try {
             // Get polyline from route option
             $polyline = $routeOption['polyline'] ?? null;
-            
+
             if (!$polyline) {
                 Log::warning('Route option has no polyline data', [
                     'route_id' => $route->id,
@@ -71,7 +71,7 @@ class RoutePathService
     {
         try {
             $actualPath = $route->actual_path ?? [];
-            
+
             // Get last location from LocationTracking for this route
             $lastTracking = LocationTracking::where('route_id', $route->id)
                 ->whereNotNull('latitude')
@@ -83,8 +83,8 @@ class RoutePathService
             if ($lastTracking) {
                 // Get street-by-street path between last location and new location
                 $pathSegment = $this->getPathBetweenPoints(
-                    $lastTracking->latitude,
-                    $lastTracking->longitude,
+                    (float) $lastTracking->latitude,
+                    (float) $lastTracking->longitude,
                     $newLat,
                     $newLng
                 );
@@ -151,7 +151,7 @@ class RoutePathService
             }
 
             $route = $data['routes'][0];
-            
+
             // Use overview_polyline for the complete path
             if (isset($route['overview_polyline']['points'])) {
                 return $this->decodePolyline($route['overview_polyline']['points']);
@@ -240,5 +240,83 @@ class RoutePathService
     {
         return $route->planned_path ?? [];
     }
-}
 
+    /**
+     * Check if driver has deviated from planned path
+     * @param float $thresholdMeters Deviation threshold in meters (default 500m)
+     */
+    public function checkDeviation(Route $route, float $lat, float $lng, float $thresholdMeters = 500): bool
+    {
+        $plannedPath = $route->planned_path;
+        if (empty($plannedPath)) {
+            return false;
+        }
+
+        $minDist = PHP_FLOAT_MAX;
+
+        // Simple optimization: checking every 5th point to save performance if path is huge
+        // Or check all if path is small.
+        $step = count($plannedPath) > 100 ? 5 : 1;
+
+        for ($i = 0; $i < count($plannedPath); $i += $step) {
+            $point = $plannedPath[$i];
+            $dist = $this->calculateDistance($lat, $lng, $point['lat'], $point['lng']); // Returns km
+            if ($dist < $minDist) {
+                $minDist = $dist;
+            }
+        }
+
+        $minDistMeters = $minDist * 1000;
+
+        if ($minDistMeters > $thresholdMeters) {
+            Log::info("Deviation detected for route {$route->id}", [
+                'distance' => $minDistMeters,
+                'threshold' => $thresholdMeters
+            ]);
+            $this->handleDeviation($route, $lat, $lng);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Handle detected deviation (Recalculate path)
+     */
+    protected function handleDeviation(Route $route, float $currentLat, float $currentLng): void
+    {
+        // 1. Log Deviation
+        // 2. Identify next waypoint (Shipment pickup/delivery)
+        // 3. Recalculate path from Current Location -> Next Waypoint -> Remaining Waypoints
+        // For 'Uber-like', we normally just update the polyline to the *next* stop.
+
+        // Find next active shipment/stop
+        // Assuming route shipments are ordered or we have an active shipment
+        // For now, let's just assume we want to call Google Maps to get a new path 
+        // from current location to the *end* of the route (or valid next stop).
+
+        // Mocking recalculation logic:
+        Log::info("Recalculating route {$route->id} from {$currentLat},{$currentLng}");
+
+        // In a real implementation:
+        // $newPath = $this->googleMapsService->getDirections($currentLat, $currentLng, $nextStop);
+        // $route->update(['planned_path' => $newPath, 'has_deviated' => true]);
+
+        $route->update(['has_deviated' => true]);
+    }
+
+    /**
+     * Haversine Distance (km)
+     */
+    protected function calculateDistance($lat1, $lng1, $lat2, $lng2): float
+    {
+        $earthRadius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLng / 2) * sin($dLng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
+    }
+}

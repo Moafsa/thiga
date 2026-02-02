@@ -53,9 +53,11 @@ class DriverDashboardController extends Controller
         // Get active route with delivery proofs
         $activeRoute = Route::where('driver_id', $driver->id)
             ->whereIn('status', ['scheduled', 'in_progress'])
-            ->with(['shipments' => function($query) {
-                $query->with(['senderClient', 'receiverClient', 'deliveryProofs']);
-            }])
+            ->with([
+                'shipments' => function ($query) {
+                    $query->with(['senderClient', 'receiverClient', 'deliveryProofs']);
+                }
+            ])
             ->orderBy('scheduled_date', 'desc')
             ->first();
 
@@ -86,9 +88,9 @@ class DriverDashboardController extends Controller
         $recentFinancialRoutes = $walletData['recentFinancialRoutes'];
 
         return view('driver.dashboard', compact(
-            'driver', 
-            'activeRoute', 
-            'shipments', 
+            'driver',
+            'activeRoute',
+            'shipments',
             'recentLocations',
             'totalReceived',
             'totalSpent',
@@ -105,7 +107,7 @@ class DriverDashboardController extends Controller
      */
     private function getStartDateForPeriod(?string $period): ?Carbon
     {
-        return match($period) {
+        return match ($period) {
             'week' => now()->startOfWeek(),
             'month' => now()->startOfMonth(),
             'year' => now()->startOfYear(),
@@ -126,11 +128,11 @@ class DriverDashboardController extends Controller
         if ($startDate) {
             $query->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('scheduled_date', [$startDate, $endDate])
-                  ->orWhereBetween('completed_at', [$startDate, $endDate])
-                  ->orWhere(function ($subQ) use ($startDate, $endDate) {
-                      $subQ->whereNull('completed_at')
-                           ->whereBetween('scheduled_date', [$startDate, $endDate]);
-                  });
+                    ->orWhereBetween('completed_at', [$startDate, $endDate])
+                    ->orWhere(function ($subQ) use ($startDate, $endDate) {
+                        $subQ->whereNull('completed_at')
+                            ->whereBetween('scheduled_date', [$startDate, $endDate]);
+                    });
             });
         }
 
@@ -143,9 +145,9 @@ class DriverDashboardController extends Controller
 
         // Calculate total deposits (money given to driver for expenses)
         $totalDeposits = $allRoutes->sum(function ($route) {
-            return ($route->deposit_toll ?? 0) + 
-                   ($route->deposit_expenses ?? 0) + 
-                   ($route->deposit_fuel ?? 0);
+            return ($route->deposit_toll ?? 0) +
+                ($route->deposit_expenses ?? 0) +
+                ($route->deposit_fuel ?? 0);
         });
 
         // Calculate total proven expenses (only approved expenses count)
@@ -176,26 +178,26 @@ class DriverDashboardController extends Controller
             ->where(function ($query) {
                 $query->where(function ($q) {
                     $q->whereNotNull('driver_diarias_count')
-                      ->where('driver_diarias_count', '>', 0);
+                        ->where('driver_diarias_count', '>', 0);
                 })
-                ->orWhere(function ($q) {
-                    $q->whereNotNull('deposit_toll')
-                      ->where('deposit_toll', '>', 0);
-                })
-                ->orWhere(function ($q) {
-                    $q->whereNotNull('deposit_expenses')
-                      ->where('deposit_expenses', '>', 0);
-                })
-                ->orWhere(function ($q) {
-                    $q->whereNotNull('deposit_fuel')
-                      ->where('deposit_fuel', '>', 0);
-                });
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('deposit_toll')
+                            ->where('deposit_toll', '>', 0);
+                    })
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('deposit_expenses')
+                            ->where('deposit_expenses', '>', 0);
+                    })
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('deposit_fuel')
+                            ->where('deposit_fuel', '>', 0);
+                    });
             });
 
         if ($startDate) {
             $routesQuery->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('scheduled_date', [$startDate, $endDate])
-                  ->orWhereBetween('completed_at', [$startDate, $endDate]);
+                    ->orWhereBetween('completed_at', [$startDate, $endDate]);
             });
         }
 
@@ -203,7 +205,7 @@ class DriverDashboardController extends Controller
 
         foreach ($routes as $route) {
             $routeDate = $route->completed_at ?? $route->scheduled_date;
-            
+
             // Diárias (positive)
             $diariasAmount = ($route->driver_diarias_count ?? 0) * ($route->driver_diaria_value ?? 0);
             if ($diariasAmount > 0) {
@@ -386,6 +388,13 @@ class DriverDashboardController extends Controller
                         $request->latitude,
                         $request->longitude
                     );
+
+                    // Check for deviation
+                    $routePathService->checkDeviation(
+                        $route,
+                        $request->latitude,
+                        $request->longitude
+                    );
                 } catch (\Exception $e) {
                     Log::error('Error updating actual path', [
                         'route_id' => $request->route_id,
@@ -451,10 +460,10 @@ class DriverDashboardController extends Controller
 
             // If driver location is old but we have recent tracking, use that
             // Use attributes array to access raw value and avoid accessor recursion
-            $lastUpdateRaw = isset($driver->attributes['last_location_update']) && $driver->attributes['last_location_update'] 
-                ? $driver->attributes['last_location_update'] 
+            $lastUpdateRaw = isset($driver->attributes['last_location_update']) && $driver->attributes['last_location_update']
+                ? $driver->attributes['last_location_update']
                 : null;
-            
+
             if ($recentTracking && $recentTracking->latitude && $recentTracking->longitude) {
                 $shouldUpdate = false;
                 if (!$lastUpdateRaw) {
@@ -474,7 +483,7 @@ class DriverDashboardController extends Controller
                         $shouldUpdate = true; // Update if we can't parse the date
                     }
                 }
-                
+
                 if ($shouldUpdate) {
                     try {
                         $driver->update([
@@ -530,7 +539,7 @@ class DriverDashboardController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'error' => 'Internal server error',
                 'message' => 'An error occurred while fetching driver location',
@@ -591,6 +600,8 @@ class DriverDashboardController extends Controller
                     'status' => $shipment->status,
                 ];
             }),
+            'planned_path' => $route->planned_path,
+            'actual_path' => $route->actual_path,
             'location_history' => $locationHistory->map(function ($location) {
                 return [
                     'lat' => $location->latitude,
@@ -654,11 +665,11 @@ class DriverDashboardController extends Controller
 
             // Find shipment - check both direct driver_id and route's driver_id
             $shipment = \App\Models\Shipment::where('id', $shipmentId)
-                ->where(function($query) use ($driver) {
+                ->where(function ($query) use ($driver) {
                     $query->where('driver_id', $driver->id)
-                          ->orWhereHas('route', function($q) use ($driver) {
-                              $q->where('driver_id', $driver->id);
-                          });
+                        ->orWhereHas('route', function ($q) use ($driver) {
+                            $q->where('driver_id', $driver->id);
+                        });
                 })
                 ->first();
 
@@ -681,12 +692,12 @@ class DriverDashboardController extends Controller
             if ($request->hasFile('photo')) {
                 try {
                     $photo = $request->file('photo');
-                    
+
                     // Optimize image before upload (reduce file size significantly)
                     $optimizedData = $this->optimizeImage($photo, 1920, 1920, 85);
                     $originalSize = $photo->getSize();
                     $optimizedSize = strlen($optimizedData);
-                    
+
                     Log::info('Photo file received and optimized', [
                         'shipment_id' => $shipmentId,
                         'original_name' => $photo->getClientOriginalName(),
@@ -695,29 +706,29 @@ class DriverDashboardController extends Controller
                         'reduction' => round((1 - $optimizedSize / $originalSize) * 100, 1) . '%',
                         'mime_type' => $photo->getMimeType(),
                     ]);
-                    
+
                     $filename = 'proof_' . time() . '_' . uniqid() . '.jpg'; // Always use jpg after optimization
                     $path = "delivery_proofs/{$shipment->tenant_id}/{$shipment->id}/{$filename}";
-                    
+
                     // Check MinIO configuration once
                     $minioConfig = config('filesystems.disks.minio');
                     if (empty($minioConfig) || !isset($minioConfig['bucket']) || (!isset($minioConfig['endpoint']) && !isset($minioConfig['url']))) {
                         Log::error('MinIO configuration is missing or incomplete');
                         throw new \Exception('MinIO não está configurado corretamente. Verifique as configurações do sistema.');
                     }
-                    
+
                     // Upload optimized image to MinIO directly
                     Storage::disk('minio')->put($path, $optimizedData, 'public');
-                    
+
                     // Don't verify with exists() - trust that put() worked and avoid extra request
                     // If there's an error, it will throw an exception
-                    
+
                     Log::info('Photo uploaded to MinIO successfully', [
                         'path' => $path,
                         'original_size' => $originalSize,
                         'optimized_size' => $optimizedSize,
                     ]);
-                    
+
                     $photoPath = $path;
                 } catch (\Aws\S3\Exception\S3Exception $e) {
                     Log::error('S3/MinIO exception during upload', [
@@ -797,7 +808,7 @@ class DriverDashboardController extends Controller
                     // Latitude and longitude are required in database, so use shipment coordinates or 0,0 as fallback
                     $latitude = null;
                     $longitude = null;
-                    
+
                     if ($request->has('latitude') && $request->has('longitude') && $request->latitude && $request->longitude) {
                         $latitude = (float) $request->latitude;
                         $longitude = (float) $request->longitude;
@@ -811,9 +822,9 @@ class DriverDashboardController extends Controller
 
                     // Set location (required by database, use 0,0 if not available)
                     // Ensure values are valid decimals for database
-                    $proofData['latitude'] = ($latitude !== null && $latitude != 0) ? number_format((float)$latitude, 8, '.', '') : '0.00000000';
-                    $proofData['longitude'] = ($longitude !== null && $longitude != 0) ? number_format((float)$longitude, 8, '.', '') : '0.00000000';
-                    
+                    $proofData['latitude'] = ($latitude !== null && $latitude != 0) ? number_format((float) $latitude, 8, '.', '') : '0.00000000';
+                    $proofData['longitude'] = ($longitude !== null && $longitude != 0) ? number_format((float) $longitude, 8, '.', '') : '0.00000000';
+
                     // Try to get address from shipment
                     if ($shipment->delivery_address || $shipment->pickup_address) {
                         $proofData['address'] = $shipment->delivery_address ?? $shipment->pickup_address;
@@ -841,10 +852,10 @@ class DriverDashboardController extends Controller
                     ]);
 
                     $deliveryProof = \App\Models\DeliveryProof::create($proofData);
-                    
+
                     // Reload to get fresh data with accessors
                     $deliveryProof->refresh();
-                    
+
                     // Test photo_urls accessor (wrap in try-catch to avoid errors if MinIO is not accessible)
                     $photoUrls = [];
                     try {
@@ -856,7 +867,7 @@ class DriverDashboardController extends Controller
                         ]);
                         $photoUrls = [];
                     }
-                    
+
                     Log::info('Delivery proof created successfully', [
                         'proof_id' => $deliveryProof->id,
                         'shipment_id' => $shipment->id,
@@ -908,10 +919,12 @@ class DriverDashboardController extends Controller
 
             // Reload shipment with fresh delivery proofs for response
             $shipment->refresh();
-            $shipment->load(['deliveryProofs' => function($query) {
-                $query->orderBy('delivery_time', 'desc');
-            }]);
-            
+            $shipment->load([
+                'deliveryProofs' => function ($query) {
+                    $query->orderBy('delivery_time', 'desc');
+                }
+            ]);
+
             // Get proof photos for response (wrap in try-catch to avoid errors if MinIO is not accessible)
             $proofPhotos = [];
             foreach ($shipment->deliveryProofs as $proof) {
@@ -931,7 +944,7 @@ class DriverDashboardController extends Controller
                     continue;
                 }
             }
-            
+
             Log::info('Shipment status updated successfully', [
                 'shipment_id' => $shipment->id,
                 'status' => $shipment->status,
@@ -958,7 +971,7 @@ class DriverDashboardController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Return more specific error message
             $errorMessage = 'Ocorreu um erro ao processar a solicitação.';
             if (str_contains($e->getMessage(), 'SQLSTATE') || str_contains($e->getMessage(), 'Integrity constraint')) {
@@ -970,7 +983,7 @@ class DriverDashboardController extends Controller
             } else {
                 $errorMessage = $e->getMessage();
             }
-            
+
             return response()->json([
                 'error' => 'Erro ao atualizar status',
                 'message' => $errorMessage,
@@ -992,7 +1005,7 @@ class DriverDashboardController extends Controller
         try {
             $mimeType = $image->getMimeType();
             $tempPath = $image->getRealPath();
-            
+
             // Create image resource from file
             switch ($mimeType) {
                 case 'image/jpeg':
@@ -1015,15 +1028,15 @@ class DriverDashboardController extends Controller
                 default:
                     throw new \InvalidArgumentException('Tipo de imagem não suportado: ' . $mimeType);
             }
-            
+
             if (!$source) {
                 throw new \RuntimeException('Falha ao criar recurso de imagem');
             }
-            
+
             // Get original dimensions
             $originalWidth = imagesx($source);
             $originalHeight = imagesy($source);
-            
+
             // Only resize if image is larger than max dimensions
             if ($originalWidth <= $maxWidth && $originalHeight <= $maxHeight) {
                 // Image is already within limits, just compress
@@ -1033,39 +1046,39 @@ class DriverDashboardController extends Controller
                 imagedestroy($source);
                 return $optimizedData;
             }
-            
+
             // Calculate new dimensions maintaining aspect ratio
             $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
-            $newWidth = (int)($originalWidth * $ratio);
-            $newHeight = (int)($originalHeight * $ratio);
-            
+            $newWidth = (int) ($originalWidth * $ratio);
+            $newHeight = (int) ($originalHeight * $ratio);
+
             // Create resized image
             $resized = imagecreatetruecolor($newWidth, $newHeight);
-            
+
             // Preserve transparency for PNG and GIF
             imagealphablending($resized, false);
             imagesavealpha($resized, true);
             $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
             imagefill($resized, 0, 0, $transparent);
-            
+
             // Resize
             imagecopyresampled($resized, $source, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
-            
+
             // Output to string as JPEG
             ob_start();
             imagejpeg($resized, null, $quality);
             $optimizedData = ob_get_clean();
-            
+
             // Clean up
             imagedestroy($source);
             imagedestroy($resized);
-            
+
             return $optimizedData;
         } catch (\Exception $e) {
             Log::warning('Image optimization failed, using original', [
                 'error' => $e->getMessage(),
             ]);
-            
+
             // Fallback: return original file contents
             return file_get_contents($image->getRealPath());
         }
@@ -1104,26 +1117,26 @@ class DriverDashboardController extends Controller
             ->where(function ($query) {
                 $query->where(function ($q) {
                     $q->whereNotNull('driver_diarias_count')
-                      ->where('driver_diarias_count', '>', 0);
+                        ->where('driver_diarias_count', '>', 0);
                 })
-                ->orWhere(function ($q) {
-                    $q->whereNotNull('deposit_toll')
-                      ->where('deposit_toll', '>', 0);
-                })
-                ->orWhere(function ($q) {
-                    $q->whereNotNull('deposit_expenses')
-                      ->where('deposit_expenses', '>', 0);
-                })
-                ->orWhere(function ($q) {
-                    $q->whereNotNull('deposit_fuel')
-                      ->where('deposit_fuel', '>', 0);
-                });
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('deposit_toll')
+                            ->where('deposit_toll', '>', 0);
+                    })
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('deposit_expenses')
+                            ->where('deposit_expenses', '>', 0);
+                    })
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('deposit_fuel')
+                            ->where('deposit_fuel', '>', 0);
+                    });
             });
 
         if ($startDate) {
             $query->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('scheduled_date', [$startDate, $endDate])
-                  ->orWhereBetween('completed_at', [$startDate, $endDate]);
+                    ->orWhereBetween('completed_at', [$startDate, $endDate]);
             });
         }
 
@@ -1131,10 +1144,10 @@ class DriverDashboardController extends Controller
 
         $transactions = $routes->map(function ($route) {
             $diariasAmount = ($route->driver_diarias_count ?? 0) * ($route->driver_diaria_value ?? 0);
-            $depositsAmount = ($route->deposit_toll ?? 0) + 
-                            ($route->deposit_expenses ?? 0) + 
-                            ($route->deposit_fuel ?? 0);
-            
+            $depositsAmount = ($route->deposit_toll ?? 0) +
+                ($route->deposit_expenses ?? 0) +
+                ($route->deposit_fuel ?? 0);
+
             return [
                 'date' => $route->completed_at ?? $route->scheduled_date,
                 'route_name' => $route->name,
@@ -1191,10 +1204,10 @@ class DriverDashboardController extends Controller
             ->where('user_id', $user->id)
             ->with([
                 'primaryPhoto',
-                'photos' => function($query) {
+                'photos' => function ($query) {
                     $query->orderBy('is_primary', 'desc')->orderBy('sort_order')->orderBy('created_at', 'desc');
                 },
-                'vehicles' => function($query) {
+                'vehicles' => function ($query) {
                     $query->orderByDesc('driver_vehicle.assigned_at');
                 }
             ])
@@ -1268,7 +1281,7 @@ class DriverDashboardController extends Controller
             // Update phone_e164 if phone was changed
             if (isset($validated['phone']) && $validated['phone']) {
                 $phoneDigits = preg_replace('/\D/', '', $validated['phone']);
-                
+
                 if (strlen($phoneDigits) >= 10) {
                     if (!str_starts_with($phoneDigits, '55')) {
                         $validated['phone_e164'] = '55' . $phoneDigits;
@@ -1283,29 +1296,29 @@ class DriverDashboardController extends Controller
 
             // Handle multiple photos upload
             $disk = Driver::getPhotoStorageDisk();
-            
+
             // Handle photo removal
             if ($request->has('remove_photo_id')) {
                 $photoId = $request->input('remove_photo_id');
                 $photo = DriverPhoto::where('id', $photoId)
                     ->where('driver_id', $driver->id)
                     ->first();
-                
+
                 if ($photo) {
                     DriverPhotoService::deletePhoto($photo);
                 }
             }
-            
+
             // Handle new photo upload (multiple photos support)
             if ($request->hasFile('photos')) {
                 foreach ($request->file('photos') as $photo) {
                     if ($photo->getSize() > 2 * 1024 * 1024) {
                         continue; // Skip oversized files
                     }
-                    
+
                     $photoType = $request->input('photo_type', 'profile');
                     $isPrimary = $request->has('set_as_primary');
-                    
+
                     try {
                         DriverPhotoService::storePhoto($driver, $photo, $photoType, $isPrimary);
                     } catch (\Exception $e) {
@@ -1316,11 +1329,11 @@ class DriverDashboardController extends Controller
                     }
                 }
             }
-            
+
             // Handle single photo upload (backward compatibility)
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
-                
+
                 if ($file->getSize() <= 2 * 1024 * 1024) {
                     try {
                         $photo = DriverPhotoService::storePhoto($driver, $file, 'profile', true);
@@ -1338,11 +1351,11 @@ class DriverDashboardController extends Controller
                     }
                 }
             }
-            
+
             // Handle base64 photo from camera
             if ($request->filled('photo_data')) {
                 $photoData = $request->input('photo_data');
-                
+
                 if (preg_match('/^data:image\/(\w+);base64,/', $photoData)) {
                     try {
                         $photo = DriverPhotoService::storePhoto($driver, $photoData, 'profile', true);
@@ -1360,14 +1373,14 @@ class DriverDashboardController extends Controller
                     }
                 }
             }
-            
+
             // Handle set primary photo
             if ($request->has('set_primary_photo_id')) {
                 $photoId = $request->input('set_primary_photo_id');
                 $photo = DriverPhoto::where('id', $photoId)
                     ->where('driver_id', $driver->id)
                     ->first();
-                
+
                 if ($photo) {
                     DriverPhotoService::setPrimaryPhoto($driver, $photo);
                     $validated['photo_url'] = $photo->photo_url; // Update for backward compatibility
@@ -1375,15 +1388,22 @@ class DriverDashboardController extends Controller
             }
 
             // Remove photo-related fields from validated (not database fields)
-            unset($validated['photo'], $validated['photo_data'], $validated['remove_photo'], 
-                  $validated['photos'], $validated['photo_type'], $validated['set_as_primary'],
-                  $validated['remove_photo_id'], $validated['set_primary_photo_id']);
+            unset(
+                $validated['photo'],
+                $validated['photo_data'],
+                $validated['remove_photo'],
+                $validated['photos'],
+                $validated['photo_type'],
+                $validated['set_as_primary'],
+                $validated['remove_photo_id'],
+                $validated['set_primary_photo_id']
+            );
 
             $driver->update($validated);
 
             return redirect()->route('driver.profile')
                 ->with('success', 'Perfil atualizado com sucesso!');
-                
+
         } catch (\Exception $e) {
             \Log::error('Error updating driver profile', [
                 'driver_id' => $driver->id,
@@ -1477,16 +1497,18 @@ class DriverDashboardController extends Controller
                 'started_at' => now(),
                 'actual_departure_datetime' => now(),
             ];
-            
+
             // Se a rota não tem coordenadas de início definidas OU foi criada com current_location,
             // usa a localização atual do motorista
-            if ((!$route->start_latitude || !$route->start_longitude) || 
-                ($route->start_address_type === 'current_location' && $driver->current_latitude && $driver->current_longitude)) {
-                
+            if (
+                (!$route->start_latitude || !$route->start_longitude) ||
+                ($route->start_address_type === 'current_location' && $driver->current_latitude && $driver->current_longitude)
+            ) {
+
                 if ($driver->current_latitude && $driver->current_longitude) {
                     $updateData['start_latitude'] = $driver->current_latitude;
                     $updateData['start_longitude'] = $driver->current_longitude;
-                    
+
                     Log::info('Route start coordinates captured from driver current location', [
                         'route_id' => $route->id,
                         'driver_id' => $driver->id,
@@ -1502,7 +1524,7 @@ class DriverDashboardController extends Controller
                     ]);
                 }
             }
-            
+
             $route->update($updateData);
 
             // Update vehicle status if vehicle is assigned
@@ -1522,7 +1544,7 @@ class DriverDashboardController extends Controller
                     'lng' => $route->start_longitude,
                 ] : null,
             ]);
-            
+
             // Se as coordenadas foram atualizadas, recalcula a rota
             $route->refresh();
             if ($route->start_latitude && $route->start_longitude && $route->shipments()->count() > 0) {
@@ -1534,7 +1556,7 @@ class DriverDashboardController extends Controller
                     $method = $reflection->getMethod('calculateMultipleRouteOptions');
                     $method->setAccessible(true);
                     $method->invoke($routeController, $route);
-                    
+
                     // Atualiza coordenadas de fim para retornar ao ponto de partida
                     $route->refresh();
                     if ($route->start_latitude && $route->start_longitude) {
@@ -1543,7 +1565,7 @@ class DriverDashboardController extends Controller
                             'end_longitude' => $route->start_longitude,
                         ]);
                     }
-                    
+
                     Log::info('Route recalculated after driver started with current location', [
                         'route_id' => $route->id,
                         'driver_id' => $driver->id,
@@ -1624,7 +1646,7 @@ class DriverDashboardController extends Controller
                         ->where('id', '!=', $route->id)
                         ->whereIn('status', ['scheduled', 'in_progress'])
                         ->exists();
-                    
+
                     if (!$hasOtherActiveRoutes && $vehicle->status === 'in_use') {
                         $vehicle->update(['status' => 'available']);
                     }

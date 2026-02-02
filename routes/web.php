@@ -231,6 +231,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/{vehicle}/unassign-driver/{driver}', [App\Http\Controllers\VehicleController::class, 'unassignDriver'])->name('unassign-driver');
     });
 
+    // Fast Route
+    Route::post('/fast-routes', [App\Http\Controllers\FastRouteController::class, 'store'])->name('fast-routes.store');
+
     // Routes routes
     Route::prefix('routes')->name('routes.')->group(function () {
         Route::get('/', [App\Http\Controllers\RouteController::class, 'index'])->name('index');
