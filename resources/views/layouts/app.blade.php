@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,37 +11,44 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TMS SaaS">
     <title>@yield('title', 'TMS SaaS')</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192x192.png') }}">
-    
+
     <!-- Service Worker Registration - Early registration -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(function(err) {
+            navigator.serviceWorker.register('/sw.js').catch(function (err) {
                 console.log('SW registration failed:', err);
             });
         }
     </script>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Mapbox GL JS -->
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
-    
+
     @livewireStyles
-    
+
     <style>
         /* Variables */
         :root {
-            --cor-principal: {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->primary_color ?? '#245a49') : '#245a49' }};
-            --cor-secundaria: {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->secondary_color ?? '#1a3d33') : '#1a3d33' }};
-            --cor-acento: {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->accent_color ?? '#FF6B35') : '#FF6B35' }};
+            --cor-principal:
+                {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->primary_color ?? '#245a49') : '#245a49' }}
+            ;
+            --cor-secundaria:
+                {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->secondary_color ?? '#1a3d33') : '#1a3d33' }}
+            ;
+            --cor-acento:
+                {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->accent_color ?? '#FF6B35') : '#FF6B35' }}
+            ;
             --cor-texto-claro: #F5F5F5;
             --cor-texto-escuro: #333;
             --sidebar-width: 70px;
@@ -51,7 +59,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Poppins', sans-serif;
             background-color: var(--cor-principal);
@@ -65,7 +73,7 @@
         .sidebar {
             width: var(--sidebar-width);
             background-color: var(--cor-secundaria);
-            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
             position: fixed;
             left: 0;
             top: 0;
@@ -178,7 +186,7 @@
         .top-header {
             background-color: var(--cor-secundaria);
             padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -238,144 +246,180 @@
             }
         }
     </style>
-    
+
     @stack('styles')
 </head>
+
 <body>
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-logo">
             <i class="fas fa-truck"></i>
         </div>
-        
+
         <nav class="sidebar-nav">
             <div class="sidebar-item">
-                <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" title="Painel">
+                <a href="{{ route('dashboard') }}"
+                    class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" title="Painel">
                     <i class="fas fa-home"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('monitoring.index') }}" class="sidebar-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}" title="Monitoramento">
+                <a href="{{ route('monitoring.index') }}"
+                    class="sidebar-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}" title="Monitoramento">
                     <i class="fas fa-map-location-dot"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('shipments.index') }}" class="sidebar-link {{ request()->routeIs('shipments.*') ? 'active' : '' }}" title="Cargas">
+                <a href="{{ route('shipments.index') }}"
+                    class="sidebar-link {{ request()->routeIs('shipments.*') ? 'active' : '' }}" title="Cargas">
                     <i class="fas fa-truck-loading"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('routes.index') }}" class="sidebar-link {{ request()->routeIs('routes.*') ? 'active' : '' }}" title="Rotas">
+                <a href="{{ route('routes.index') }}"
+                    class="sidebar-link {{ request()->routeIs('routes.*') ? 'active' : '' }}" title="Rotas">
                     <i class="fas fa-route"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('cte-xmls.index') }}" class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" title="CT-e XMLs">
+                <a href="{{ route('cte-xmls.index') }}"
+                    class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" title="CT-e XMLs">
                     <i class="fas fa-file-code"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('fiscal.ctes.index') }}" class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" title="CT-es">
+                <a href="{{ route('fiscal.ctes.index') }}"
+                    class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" title="CT-es">
                     <i class="fas fa-file-invoice"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('drivers.index') }}" class="sidebar-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}" title="Motoristas">
+                <a href="{{ route('drivers.index') }}"
+                    class="sidebar-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}" title="Motoristas">
                     <i class="fas fa-user-tie"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('vehicles.index') }}" class="sidebar-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" title="Veículos">
+                <a href="{{ route('vehicles.index') }}"
+                    class="sidebar-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" title="Veículos">
                     <i class="fas fa-car"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('salespeople.index') }}" class="sidebar-link {{ request()->routeIs('salespeople.*') ? 'active' : '' }}" title="Vendedores">
+                <a href="{{ route('salespeople.index') }}"
+                    class="sidebar-link {{ request()->routeIs('salespeople.*') ? 'active' : '' }}" title="Vendedores">
                     <i class="fas fa-users"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('clients.index') }}" class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" title="Clientes">
+                <a href="{{ route('clients.index') }}"
+                    class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" title="Clientes">
                     <i class="fas fa-user-friends"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('proposals.index') }}" class="sidebar-link {{ request()->routeIs('proposals.*') ? 'active' : '' }}" title="Propostas">
+                <a href="{{ route('proposals.index') }}"
+                    class="sidebar-link {{ request()->routeIs('proposals.index') ? 'active' : '' }}" title="Propostas">
                     <i class="fas fa-file-contract"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('freight-tables.index') }}" class="sidebar-link {{ request()->routeIs('freight-tables.*') ? 'active' : '' }}" title="Tabelas de Frete">
+                <a href="{{ route('proposals.quick') }}"
+                    class="sidebar-link {{ request()->routeIs('proposals.quick') ? 'active' : '' }}"
+                    title="Cotação Rápida">
+                    <i class="fas fa-bolt"></i>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('freight-tables.index') }}"
+                    class="sidebar-link {{ request()->routeIs('freight-tables.*') ? 'active' : '' }}"
+                    title="Tabelas de Frete">
                     <i class="fas fa-table"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" title="Relatórios e Gráficos">
+                <a href="{{ route('reports.index') }}"
+                    class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"
+                    title="Relatórios e Gráficos">
                     <i class="fas fa-chart-line"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('invoicing.index') }}" class="sidebar-link {{ request()->routeIs('invoicing.*') ? 'active' : '' }}" title="Faturamento">
+                <a href="{{ route('invoicing.index') }}"
+                    class="sidebar-link {{ request()->routeIs('invoicing.*') ? 'active' : '' }}" title="Faturamento">
                     <i class="fas fa-file-invoice-dollar"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('accounts.receivable.index') }}" class="sidebar-link {{ request()->routeIs('accounts.receivable.*') ? 'active' : '' }}" title="Contas a Receber">
+                <a href="{{ route('accounts.receivable.index') }}"
+                    class="sidebar-link {{ request()->routeIs('accounts.receivable.*') ? 'active' : '' }}"
+                    title="Contas a Receber">
                     <i class="fas fa-money-bill-wave"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('accounts.payable.index') }}" class="sidebar-link {{ request()->routeIs('accounts.payable.*') ? 'active' : '' }}" title="Contas a Pagar">
+                <a href="{{ route('accounts.payable.index') }}"
+                    class="sidebar-link {{ request()->routeIs('accounts.payable.*') ? 'active' : '' }}"
+                    title="Contas a Pagar">
                     <i class="fas fa-credit-card"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('driver-expenses.index') }}" class="sidebar-link {{ request()->routeIs('driver-expenses.*') ? 'active' : '' }}" title="Gastos dos Motoristas">
+                <a href="{{ route('driver-expenses.index') }}"
+                    class="sidebar-link {{ request()->routeIs('driver-expenses.*') ? 'active' : '' }}"
+                    title="Gastos dos Motoristas">
                     <i class="fas fa-receipt"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('cash-flow.index') }}" class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" title="Fluxo de Caixa">
+                <a href="{{ route('cash-flow.index') }}"
+                    class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" title="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('companies.index') }}" class="sidebar-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" title="Empresas">
+                <a href="{{ route('companies.index') }}"
+                    class="sidebar-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" title="Empresas">
                     <i class="fas fa-building"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('subscriptions.index') }}" class="sidebar-link {{ request()->routeIs('subscriptions.*') ? 'active' : '' }}" title="Assinaturas">
+                <a href="{{ route('subscriptions.index') }}"
+                    class="sidebar-link {{ request()->routeIs('subscriptions.*') ? 'active' : '' }}"
+                    title="Assinaturas">
                     <i class="fas fa-receipt"></i>
                 </a>
             </div>
-            
+
             <div class="sidebar-item">
-                <a href="{{ route('settings.index') }}" class="sidebar-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" title="Configurações">
+                <a href="{{ route('settings.index') }}"
+                    class="sidebar-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" title="Configurações">
                     <i class="fas fa-cog"></i>
                 </a>
             </div>
         </nav>
-        
+
         <div class="sidebar-footer">
             <form method="POST" action="{{ route('logout') }}" style="display: flex; justify-content: center;">
                 @csrf
@@ -398,33 +442,33 @@
                 </div>
             </div>
         </header>
-        
+
         <main class="main-content">
             @yield('content')
         </main>
     </div>
-    
+
     <!-- Mapbox Access Token - MUST be before scripts -->
     <meta name="mapbox-access-token" content="{{ config('services.mapbox.access_token') }}">
     <script>
         window.mapboxAccessToken = '{{ config('services.mapbox.access_token') }}';
         console.log('Mapbox token set:', window.mapboxAccessToken ? window.mapboxAccessToken.substring(0, 20) + '...' : 'NOT SET');
     </script>
-    
+
     <!-- Mapbox Helper -->
     <script src="{{ asset('js/mapbox-helper.js') }}"></script>
     <script src="{{ asset('js/route-map-mapbox.js') }}"></script>
     <script src="{{ asset('js/monitoring-mapbox.js') }}"></script>
     <script src="{{ asset('js/realtime-tracking.js') }}"></script>
-    
+
     @livewireScripts
     @stack('scripts')
-    
+
     <script>
         // PWA Installation
         let deferredPrompt;
         const installButton = document.getElementById('install-pwa-btn');
-        
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -432,7 +476,7 @@
                 installButton.style.display = 'block';
             }
         });
-        
+
         if (installButton) {
             installButton.addEventListener('click', async () => {
                 if (deferredPrompt) {
@@ -444,8 +488,8 @@
                 }
             });
         }
-        
-        
+
+
         // Check if app is installed
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
@@ -455,6 +499,5 @@
         });
     </script>
 </body>
+
 </html>
-
-

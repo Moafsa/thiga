@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\DriverLoginController;
 use App\Http\Controllers\Settings\WhatsAppIntegrationController;
+use App\Http\Controllers\Webhook\WhatsAppWebhookController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -12,6 +13,10 @@ Route::get('/', function () {
 
 // Public tracking route
 Route::get('/tracking/{trackingNumber}', [App\Http\Controllers\TrackingController::class, 'show'])->name('tracking.show');
+
+// Public Calculator Routes
+Route::get('/calculator/{domain}', [\App\Http\Controllers\Public\PublicCalculatorController::class, 'show'])->name('public.calculator.show');
+Route::post('/calculator/{domain}/calculate', [\App\Http\Controllers\Public\PublicCalculatorController::class, 'calculate'])->name('public.calculator.calculate');
 
 // Rotas de autenticação
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -87,6 +92,7 @@ Route::middleware('auth')->group(function () {
 
     // Proposal routes
     Route::prefix('proposals')->name('proposals.')->group(function () {
+        Route::get('/quick', \App\Http\Livewire\Proposals\QuickProposal::class)->name('quick');
         Route::get('/', [App\Http\Controllers\ProposalController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\ProposalController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\ProposalController::class, 'store'])->name('store');
