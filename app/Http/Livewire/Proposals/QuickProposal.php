@@ -18,7 +18,14 @@ class QuickProposal extends Component
     public $weight;
     public $invoice_value;
     public $client_id;
+    /** @var string Busca por nome, CNPJ ou telefone e texto exibido quando cliente selecionado */
+    public $clientSearch = '';
     public $salesperson_id;
+
+    // New Dimension Fields
+    public $height;
+    public $width;
+    public $length;
 
     public $calculationResult = null;
     public $mapData = null;
@@ -30,12 +37,43 @@ class QuickProposal extends Component
         'weight' => 'required|numeric|min:0.1',
         'invoice_value' => 'required|numeric|min:0',
         'client_id' => 'required|exists:clients,id',
+        'height' => 'nullable|numeric|min:0',
+        'width' => 'nullable|numeric|min:0',
+        'length' => 'nullable|numeric|min:0',
     ];
+
+
 
     public function mount()
     {
         $user = Auth::user();
-        $this->salesperson_id = $user->id; // Assuming user is salesperson or linked to one
+
+        // Try to find the salesperson record for the logged-in user
+        $salesperson = \App\Models\Salesperson::where('user_id', $user->id)
+            ->where('tenant_id', $user->tenant_id)
+            ->first();
+
+        if (!$salesperson) {
+            // Fallback: Find the first salesperson for this tenant
+            $salesperson = \App\Models\Salesperson::where('tenant_id', $user->tenant_id)->first();
+        }
+
+        if (!$salesperson) {
+            // CRITICAL FALLBACK: Create a salesperson profile for the current user if NONE exists
+            // This prevents "No query results for model Salesperson"
+            $salesperson = \App\Models\Salesperson::create([
+                'tenant_id' => $user->tenant_id,
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'commission_rate' => 0,
+                'max_discount_percentage' => 0,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->salesperson_id = $salesperson->id;
 
         // Default origin to tenant address if available
         if ($user->tenant) {
@@ -50,6 +88,62 @@ class QuickProposal extends Component
         }
     }
 
+    /**
+     * Ao digitar na busca, se já tinha um cliente selecionado e o texto mudou, limpa a seleção.
+     */
+    public function updatedClientSearch($value)
+    {
+        if ($this->client_id && trim($value) !== '') {
+            $client = Client::find($this->client_id);
+            if ($client && $client->name !== trim($value)) {
+                $this->client_id = null;
+            }
+        }
+    }
+
+    /**
+     * Seleciona o cliente e preenche a origem com o endereço dele, se existir.
+     */
+    public function selectClient(int $id)
+    {
+        $client = Client::where('tenant_id', Auth::user()->tenant_id)
+            ->with(['addresses' => fn($q) => $q->orderByDesc('is_default')->orderBy('id')])
+            ->find($id);
+
+        if (!$client) {
+            return;
+        }
+
+        $this->client_id = $id;
+        $this->clientSearch = $client->name;
+
+        $originAddress = $this->getOriginFromClient($client);
+        if ($originAddress !== null && $originAddress !== '') {
+            $this->origin = $originAddress;
+        }
+    }
+
+    /**
+     * Retorna o endereço formatado do cliente (endereço principal ou primeiro de addresses).
+     */
+    private function getOriginFromClient(Client $client): ?string
+    {
+        $addr = $client->addresses()->where('is_default', true)->first()
+            ?? $client->addresses()->first();
+
+        if ($addr) {
+            return $addr->formatted_address;
+        }
+
+        $parts = array_filter([
+            $client->address,
+            $client->city,
+            $client->state
+        ]);
+
+        return empty($parts) ? null : implode(', ', $parts);
+    }
+
     public function calculate()
     {
         $this->validate();
@@ -60,13 +154,22 @@ class QuickProposal extends Component
         try {
             $tenant = Auth::user()->tenant;
 
+            // Calculate Cubage provided dimensions
+            $cubage = 0;
+            if ($this->height && $this->width && $this->length) {
+                // Dimensions in cm -> convert to m³
+                // (H * W * L) / 1,000,000 if cm, assuming inputs are usually cm or m? 
+                // Let's assume inputs are in cm (common in Brazil logistic).
+                $cubage = ($this->height * $this->width * $this->length) / 1000000;
+            }
+
             // 1. Calculate Freight
             $freightService = app(FreightCalculationService::class);
             $result = $freightService->calculate(
                 $tenant,
                 $this->destination,
                 $this->weight,
-                0, // Cubage optional for quick quote
+                $cubage,
                 $this->invoice_value,
                 ['client_id' => $this->client_id]
             );
@@ -86,7 +189,9 @@ class QuickProposal extends Component
                     $originCoords['latitude'],
                     $originCoords['longitude'],
                     $destCoords['latitude'],
-                    $destCoords['longitude']
+                    $destCoords['longitude'],
+                    [], // waypoints
+                    ['alternatives' => true] // options
                 );
 
                 if ($route) {
@@ -95,6 +200,9 @@ class QuickProposal extends Component
                         'destination' => $destCoords,
                         'route' => $route
                     ];
+
+                    // Emit event for frontend to draw the map
+                    $this->emit('mapDataUpdated', $this->mapData);
                 }
             }
 
@@ -115,7 +223,7 @@ class QuickProposal extends Component
             // Prepare data for service
             $data = [
                 'client_id' => $this->client_id,
-                'salesperson_id' => Auth::id(), // Or $this->salesperson_id
+                'salesperson_id' => $this->salesperson_id,
                 'title' => 'Cotação Rápida - ' . $this->destination,
                 'description' => "Cotação gerada via Cotação Rápida.\nOrigem: {$this->origin}\nDestino: {$this->destination}",
                 'weight' => $this->weight,
@@ -140,11 +248,37 @@ class QuickProposal extends Component
         }
     }
 
+    // ... (existing properties)
+
     public function render()
     {
-        $clients = Client::where('tenant_id', Auth::user()->tenant_id)->orderBy('name')->get();
+        $clients = $this->searchClientsForDropdown();
         return view('livewire.proposals.quick-proposal', [
             'clients' => $clients
-        ]);
+        ])->extends('layouts.app')->section('content');
+    }
+
+    private function searchClientsForDropdown()
+    {
+        $tenantId = Auth::user()->tenant_id;
+        $query = Client::where('tenant_id', $tenantId)
+            // ->listed() // Assuming listed() exists, usually for active clients
+            ->orderBy('name');
+
+        $q = trim($this->clientSearch ?? '');
+
+        if (strlen($q) >= 2) {
+            $query->where(function ($builder) use ($q) {
+                $builder->where('name', 'like', '%' . $q . '%');
+                $clean = preg_replace('/\D/', '', $q);
+                if (strlen($clean) >= 8) {
+                    $builder->orWhere('phone_e164', 'like', '%' . $clean . '%');
+                }
+                $builder->orWhere('phone', 'like', '%' . $q . '%');
+                $builder->orWhere('cnpj', 'like', '%' . $q . '%');
+            });
+        }
+
+        return $query->limit(50)->get(['id', 'name', 'phone', 'cnpj', 'address', 'city', 'state']);
     }
 }

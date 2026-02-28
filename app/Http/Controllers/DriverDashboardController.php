@@ -648,6 +648,9 @@ class DriverDashboardController extends Controller
                 'photo' => 'nullable|image|max:5120', // Max 5MB
                 'latitude' => 'nullable|numeric|between:-90,90',
                 'longitude' => 'nullable|numeric|between:-180,180',
+                'recipient_name' => 'nullable|string|max:255',
+                'recipient_document' => 'nullable|string|max:255',
+                'recipient_signature' => 'nullable|string',
             ]);
 
             if ($validator->fails()) {
@@ -752,6 +755,32 @@ class DriverDashboardController extends Controller
                 ]);
             }
 
+            // Handle signature upload if provided
+            $signaturePath = null;
+            if ($request->has('recipient_signature') && !empty($request->recipient_signature)) {
+                try {
+                    $signatureData = $request->recipient_signature;
+                    $base64Image = explode(',', $signatureData);
+                    if (count($base64Image) > 1) {
+                        $decodedImage = base64_decode($base64Image[1]);
+
+                        $filename = 'signature_' . time() . '_' . uniqid() . '.png';
+                        $path = "delivery_proofs/{$shipment->tenant_id}/{$shipment->id}/{$filename}";
+
+                        Storage::disk('minio')->put($path, $decodedImage, 'public');
+                        $signaturePath = $path;
+
+                        Log::info('Signature uploaded to MinIO successfully', [
+                            'path' => $path,
+                        ]);
+                    }
+                } catch (\Aws\S3\Exception\S3Exception $e) {
+                    Log::error('S3/MinIO exception during signature upload', ['error' => $e->getMessage()]);
+                } catch (\Exception $e) {
+                    Log::error('Error uploading signature', ['error' => $e->getMessage()]);
+                }
+            }
+
             // Update shipment status
             $updateData = [
                 'status' => $request->status,
@@ -791,8 +820,8 @@ class DriverDashboardController extends Controller
                 throw $e; // Re-throw as this is critical
             }
 
-            // Create delivery proof if photo or notes is provided
-            if ($photoPath || $request->notes) {
+            // Create delivery proof if photo, signature or notes is provided
+            if ($photoPath || $signaturePath || $request->notes || $request->recipient_name) {
                 try {
                     $proofData = [
                         'tenant_id' => $shipment->tenant_id,
@@ -802,6 +831,9 @@ class DriverDashboardController extends Controller
                         'description' => $request->notes ?? null,
                         'status' => 'pending',
                         'delivery_time' => now(),
+                        'recipient_name' => $request->recipient_name ?? null,
+                        'recipient_document' => $request->recipient_document ?? null,
+                        'recipient_signature' => $signaturePath ?? null,
                     ];
 
                     // Always try to get location from request first, then from shipment

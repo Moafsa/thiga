@@ -17,6 +17,8 @@ Route::get('/tracking/{trackingNumber}', [App\Http\Controllers\TrackingControlle
 // Public Calculator Routes
 Route::get('/calculator/{domain}', [\App\Http\Controllers\Public\PublicCalculatorController::class, 'show'])->name('public.calculator.show');
 Route::post('/calculator/{domain}/calculate', [\App\Http\Controllers\Public\PublicCalculatorController::class, 'calculate'])->name('public.calculator.calculate');
+Route::post('/calculator/{domain}/send-otp', [\App\Http\Controllers\Public\PublicCalculatorController::class, 'sendOtp'])->name('public.calculator.send-otp');
+Route::post('/calculator/{domain}/verify-otp', [\App\Http\Controllers\Public\PublicCalculatorController::class, 'verifyOtp'])->name('public.calculator.verify-otp');
 
 // Rotas de autenticação
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -55,6 +57,9 @@ Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefi
 
 // Rotas protegidas
 Route::middleware('auth')->group(function () {
+    Route::get('/smart-dispatch-test', function () {
+        return view('smart-dispatch-test');
+    })->name('smart-dispatch-test');
     Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
     // Subscription routes
@@ -188,6 +193,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [App\Http\Controllers\CashFlowController::class, 'index'])->name('index');
     });
 
+    // NEW Financial Dashboards (Phase 2)
+    Route::prefix('financial')->name('financial.')->group(function () {
+        Route::get('/accounts-payable', [App\Http\Controllers\FinancialDashboardController::class, 'accountsPayable'])->name('accounts-payable');
+        Route::get('/accounts-receivable', [App\Http\Controllers\FinancialDashboardController::class, 'accountsReceivable'])->name('accounts-receivable');
+
+        // Reconciliation
+        Route::get('/reconciliation', [App\Http\Controllers\FinancialReconciliationController::class, 'index'])->name('reconciliation');
+        Route::post('/reconciliation/update', [App\Http\Controllers\FinancialReconciliationController::class, 'reconcile'])->name('reconciliation.update');
+
+        // DRE Report
+        Route::get('/reports/dre', [App\Http\Controllers\FinancialReportController::class, 'dre'])->name('reports.dre');
+    });
+
     // Driver Expenses routes (Admin/Manager)
     Route::prefix('driver-expenses')->name('driver-expenses.')->group(function () {
         Route::get('/', [App\Http\Controllers\DriverExpenseController::class, 'index'])->name('index');
@@ -243,6 +261,7 @@ Route::middleware('auth')->group(function () {
     // Routes routes
     Route::prefix('routes')->name('routes.')->group(function () {
         Route::get('/', [App\Http\Controllers\RouteController::class, 'index'])->name('index');
+        Route::get('/smart', [App\Http\Controllers\RouteController::class, 'createSmart'])->name('create-smart');
         Route::get('/create', [App\Http\Controllers\RouteController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\RouteController::class, 'store'])->name('store');
         Route::post('/create-branch', [App\Http\Controllers\RouteController::class, 'createBranch'])->name('create-branch');
@@ -280,6 +299,12 @@ Route::middleware('auth')->group(function () {
         // Route history routes
         Route::get('/route-history', [App\Http\Controllers\DriverDashboardController::class, 'getRouteHistory'])->name('route-history');
         Route::get('/statistics', [App\Http\Controllers\DriverDashboardController::class, 'getDriverStatistics'])->name('statistics');
+
+        // Push Notifications
+        Route::post('/push/subscribe', [App\Http\Controllers\PushSubscriptionController::class, 'subscribe'])->name('push.subscribe');
+        Route::post('/push/unsubscribe', [App\Http\Controllers\PushSubscriptionController::class, 'unsubscribe'])->name('push.unsubscribe');
+        Route::get('/push/vapid-key', [App\Http\Controllers\PushSubscriptionController::class, 'vapidPublicKey'])->name('push.vapid-key');
+        Route::get('/push/status', [App\Http\Controllers\PushSubscriptionController::class, 'status'])->name('push.status');
     });
 
     // Client Dashboard routes
@@ -297,6 +322,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/invoices', [App\Http\Controllers\ClientDashboardController::class, 'invoices'])->name('invoices');
         Route::get('/invoices/{invoice}', [App\Http\Controllers\ClientDashboardController::class, 'showInvoice'])->name('invoices.show');
     });
+
+
+
+    // Test DND
+    Route::view('/test-dnd', 'test-dnd');
 
     // Monitoring routes (Admin/Manager)
     Route::prefix('monitoring')->name('monitoring.')->group(function () {
@@ -334,6 +364,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/documents/{fiscalDocument}/cancel-cte', [App\Http\Controllers\FiscalController::class, 'cancelCte'])->name('cancel-cte');
         Route::get('/documents/{fiscalDocument}/status', [App\Http\Controllers\FiscalController::class, 'getStatus'])->name('document-status');
     });
+
+    // Performance Reports
+    Route::get('/reports/performance', [App\Http\Controllers\PerformanceReportController::class, 'index'])->name('reports.performance');
 
     // CT-e XMLs routes
     Route::prefix('cte-xmls')->name('cte-xmls.')->group(function () {

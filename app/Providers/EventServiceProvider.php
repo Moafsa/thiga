@@ -26,12 +26,12 @@ class EventServiceProvider extends ServiceProvider
         Registered::class => [
             SendEmailVerificationNotification::class,
         ],
-        
-        // Fiscal events
+
+            // Fiscal events
         CteIssuanceRequested::class => [
             ProcessCteIssuance::class,
         ],
-        
+
         MdfeIssuanceRequested::class => [
             ProcessMdfeIssuance::class,
         ],
@@ -48,6 +48,10 @@ class EventServiceProvider extends ServiceProvider
     {
         // Register Shipment Observer
         Shipment::observe(ShipmentObserver::class);
+
+        // Register Financial Observers
+        \App\Models\DriverExpense::observe(\App\Observers\DriverExpenseObserver::class);
+        \App\Models\Route::observe(\App\Observers\RouteObserver::class);
     }
 
     /**

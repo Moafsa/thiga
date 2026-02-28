@@ -1442,13 +1442,28 @@
                 <img id="photoPreview" class="photo-preview" style="display: none;">
             </div>
             
+            <!-- Signature block -->
+            <div id="signature-section" style="display: none; margin-bottom: 15px;">
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Dados do Recebedor</label>
+                <input type="text" name="recipient_name" id="recipient_name" placeholder="Nome de quem recebeu" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); margin-bottom: 10px;">
+                <input type="text" name="recipient_document" id="recipient_document" placeholder="Documento (RG/CPF) - Opcional" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); margin-bottom: 10px;">
+                
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Assinatura do Recebedor</label>
+                <div style="background: white; border-radius: 8px; overflow: hidden; position: relative; touch-action: none;">
+                    <canvas id="signature-pad" style="width: 100%; height: 200px; display: block;"></canvas>
+                    <button type="button" onclick="if(window.signaturePad) window.signaturePad.clear()" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; color: white; border-radius: 4px; padding: 6px 12px; font-size: 0.85em; cursor: pointer; z-index: 10;">Limpar</button>
+                </div>
+                <!-- Hidden input that will hold base64 string -->
+                <input type="hidden" name="recipient_signature" id="recipient_signature">
+            </div>
+
             <div style="margin-bottom: 15px;">
                 <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Observações (opcional)</label>
                 <textarea name="notes" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); resize: none;"></textarea>
             </div>
             
             <div style="display: flex; gap: 10px;">
-                <button type="submit" class="btn-primary" style="flex: 1;">
+                <button type="submit" id="submitStatusBtn" class="btn-primary" style="flex: 1;">
                     <i class="fas fa-check"></i> Confirmar
                 </button>
                 <button type="button" class="btn-secondary" onclick="closeModal('statusModal')" style="flex: 1;">
@@ -1461,6 +1476,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
     let currentShipmentId = null;
     let currentStatus = null;
@@ -1549,6 +1565,15 @@
         currentStatus = status;
         document.getElementById('modalShipmentId').value = shipmentId;
         document.getElementById('modalStatus').value = status;
+        
+        const sigSection = document.getElementById('signature-section');
+        if (sigSection) {
+            sigSection.style.display = status === 'delivered' ? 'block' : 'none';
+            if (status === 'delivered') {
+                setTimeout(resizeCanvas, 50);
+            }
+        }
+        
         document.getElementById('statusModal').classList.add('active');
     }
 
@@ -1564,6 +1589,7 @@
         document.getElementById(modalId).classList.remove('active');
         document.getElementById('photoPreview').style.display = 'none';
         document.getElementById('proofPhoto').value = '';
+        if (window.signaturePad) window.signaturePad.clear();
         document.getElementById('statusForm').reset();
     }
 
@@ -1603,9 +1629,19 @@
     function submitStatusUpdate(event) {
         event.preventDefault();
         
+        const submitBtn = document.getElementById('submitStatusBtn');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+            submitBtn.disabled = true;
+        }
+        
         const formData = new FormData(event.target);
         const shipmentId = formData.get('shipment_id');
         const status = formData.get('status');
+        
+        if (status === 'delivered' && window.signaturePad && !window.signaturePad.isEmpty()) {
+            formData.set('recipient_signature', window.signaturePad.toDataURL('image/png'));
+        }
         
         // Get current location if available
         if (navigator.geolocation) {
@@ -1671,6 +1707,11 @@
         .catch(error => {
             console.error('Error:', error);
             alert(error.message || 'Erro ao atualizar status. Tente novamente.');
+            const submitBtn = document.getElementById('submitStatusBtn');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Confirmar';
+                submitBtn.disabled = false;
+            }
         });
     }
 
@@ -1800,13 +1841,18 @@
             }
         }, function(error) {
             console.error('Geolocation error:', error);
+            let message = 'Erro ao obter localização. Verifique o GPS.';
             if (error.code === 1) {
                 console.warn('Geolocation permission denied');
+                message = 'Permissão de GPS negada. Por favor, libere nas configurações do Navegador/App para continuarmos rasteando.';
             } else if (error.code === 2) {
                 console.warn('Geolocation position unavailable');
+                message = 'GPS Indisponível (Sem Sinal). Verifique se a localização está ativada no seu aparelho.';
             } else if (error.code === 3) {
                 console.warn('Geolocation timeout');
+                message = 'Tempo esgotado ao tentar ler GPS. Tentando novamente em background...';
             }
+            showGpsErrorAlert(message);
         }, {
             enableHighAccuracy: true,
             timeout: 10000, // Increased timeout
@@ -1955,6 +2001,50 @@
             clearInterval(locationUpdateInterval);
             locationUpdateInterval = null;
         }
+    }
+
+    // Show GPS Error Alert
+    let lastGpsAlertTime = 0;
+    function showGpsErrorAlert(message) {
+        const now = Date.now();
+        // Only show once every 3 minutes to avoid spamming
+        if (now - lastGpsAlertTime < 180000) return;
+        lastGpsAlertTime = now;
+
+        const existing = document.querySelector('.gps-error-alert');
+        if (existing) existing.remove();
+
+        const alert = document.createElement('div');
+        alert.className = 'gps-error-alert';
+        alert.style.cssText = `
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f44336;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+            z-index: 10000;
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.9em;
+            animation: slideDown 0.3s ease-out;
+        `;
+        alert.innerHTML = `
+            <div style="flex-grow: 1;">
+                <i class="fas fa-satellite-dish" style="margin-right: 8px;"></i>
+                <strong>ATENÇÃO:</strong> ${message}
+            </div>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; padding: 5px; margin-left: 10px; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        document.body.appendChild(alert);
     }
 
     // Check for route deviation and show alert
@@ -2224,8 +2314,30 @@
 
     // loadRoute function removed - map no longer displayed on driver dashboard
 
+    let signaturePad;
+
+    function resizeCanvas() {
+        const canvas = document.getElementById('signature-pad');
+        if (!canvas) return;
+        const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+        if (window.signaturePad) window.signaturePad.clear();
+    }
+
     // Initialize navigation app preference on page load
     document.addEventListener('DOMContentLoaded', function() {
+        const canvas = document.getElementById('signature-pad');
+        if (canvas) {
+            window.signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)'
+            });
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+        }
+
         // Auto-detect and set best navigation app based on device
         const device = detectDevice();
         if (device === 'ios' && !localStorage.getItem('preferredNavApp')) {
@@ -2683,5 +2795,126 @@
         }
     });
     @endif
+    // ========================================================
+    // Push Notification Registration
+    // ========================================================
+    async function initPushNotifications() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.log('Push notifications not supported');
+            return;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.register('/sw-push.js');
+            console.log('Push SW registered:', registration.scope);
+
+            // Check existing subscription
+            const subscription = await registration.pushManager.getSubscription();
+            updatePushButton(!!subscription);
+
+            // Add button click handler
+            const pushBtn = document.getElementById('push-notification-btn');
+            if (pushBtn) {
+                pushBtn.addEventListener('click', async () => {
+                    const sub = await registration.pushManager.getSubscription();
+                    if (sub) {
+                        // Unsubscribe
+                        await sub.unsubscribe();
+                        await fetch('{{ route("driver.push.unsubscribe") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                            body: JSON.stringify({ endpoint: sub.endpoint }),
+                        });
+                        updatePushButton(false);
+                    } else {
+                        // Subscribe
+                        const res = await fetch('{{ route("driver.push.vapid-key") }}');
+                        const { publicKey } = await res.json();
+                        if (!publicKey) {
+                            alert('Notificações push não configuradas pelo administrador.');
+                            return;
+                        }
+
+                        const newSub = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(publicKey),
+                        });
+
+                        await fetch('{{ route("driver.push.subscribe") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                            body: JSON.stringify(newSub.toJSON()),
+                        });
+                        updatePushButton(true);
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('Push init error:', err);
+        }
+    }
+
+    function updatePushButton(isSubscribed) {
+        const btn = document.getElementById('push-notification-btn');
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        const text = btn.querySelector('span');
+        if (isSubscribed) {
+            btn.style.background = 'rgba(76, 175, 80, 0.9)';
+            icon.className = 'fas fa-bell';
+            text.textContent = 'Notificações Ativas';
+        } else {
+            btn.style.background = 'rgba(255, 107, 53, 0.9)';
+            icon.className = 'fas fa-bell-slash';
+            text.textContent = 'Ativar Notificações';
+        }
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+    }
+
+    document.addEventListener('DOMContentLoaded', initPushNotifications);
 </script>
+
+<!-- Push Notification Button (Floating) -->
+<style>
+    #push-notification-btn {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        z-index: 1000;
+        background: rgba(255, 107, 53, 0.9);
+        color: #fff;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 20px;
+        font-size: 0.85em;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+    #push-notification-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+</style>
+<button id="push-notification-btn">
+    <i class="fas fa-bell-slash"></i>
+    <span>Ativar Notificações</span>
+</button>
 @endpush

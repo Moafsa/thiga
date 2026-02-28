@@ -136,4 +136,20 @@ return [
         'daily_quota_limit' => env('MAPS_DAILY_QUOTA_LIMIT', 1000),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | WebPush (VAPID) Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for Web Push Notifications using VAPID keys.
+    | Generate keys: npx web-push generate-vapid-keys
+    |
+    */
+
+    'webpush' => [
+        'public_key' => env('VAPID_PUBLIC_KEY', ''),
+        'private_key' => env('VAPID_PRIVATE_KEY', ''),
+        'subject' => env('VAPID_SUBJECT', env('APP_URL', 'http://localhost')),
+    ],
+
 ];

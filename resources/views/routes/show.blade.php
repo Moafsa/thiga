@@ -11,11 +11,21 @@
 <div class="page-header">
     <div class="page-header-text">
         <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">{{ $route->name }}</h1>
+        <form action="{{ route('routes.destroy', $route) }}" method="POST" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta rota? Esta ação não pode ser desfeita.');">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn-secondary" style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.3);">
+                <i class="fas fa-trash"></i> Excluir
+            </button>
+        </form>
+        @endif
+        @if($route->shipments->count() > 1 && $route->status !== 'completed' && $route->status !== 'in_progress')
+            <button type="button" class="btn-primary" style="background-color: #9C27B0; border-color: #9C27B0;" @click="$dispatch('open-optimize-modal')">
+                <i class="fas fa-magic"></i> Sugerir Rota Otimizada
+            </button>
+        @endif
     </div>
-    <div style="display: flex; gap: 10px;">
-        <a href="{{ route('routes.edit', $route) }}" class="btn-primary">Editar</a>
-        <a href="{{ route('routes.index') }}" class="btn-secondary">Voltar</a>
-        @if($route->status !== 'in_progress')
+</div>
         <form action="{{ route('routes.destroy', $route) }}" method="POST" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta rota? Esta ação não pode ser desfeita.');">
             @csrf
             @method('DELETE')
@@ -443,10 +453,39 @@
                                     @endif
                                 @endforeach
                             @endforeach
+                            @endforeach
                         </div>
+                        
+                        @php $hasSignature = false; @endphp
+                        @foreach($shipment->deliveryProofs as $proof)
+                            @if($proof->signature_url)
+                                @if(!$hasSignature)
+                                <h5 style="color: var(--cor-acento); font-size: 0.85em; margin-top: 15px; margin-bottom: 8px;">
+                                    <i class="fas fa-signature"></i> Assinatura do Recebedor
+                                </h5>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                @php $hasSignature = true; @endphp
+                                @endif
+                                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; border-left: 3px solid #2196F3;">
+                                    <div style="background: white; border-radius: 6px; padding: 5px; margin-bottom: 10px;">
+                                        <img src="{{ $proof->signature_url }}" alt="Assinatura" style="max-width: 100%; height: auto; max-height: 100px; display: block; margin: 0 auto; cursor: pointer;" onclick="openPhotoModal('{{ $proof->signature_url }}', 'Assinatura', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : 'N/A' }}', '{{ addslashes($proof->recipient_name) }}')">
+                                    </div>
+                                    @if($proof->recipient_name)
+                                        <p style="margin: 0; color: var(--cor-texto-claro); font-size: 0.9em;"><strong>Nome:</strong> {{ $proof->recipient_name }}</p>
+                                    @endif
+                                    @if($proof->recipient_document)
+                                        <p style="margin: 3px 0 0 0; color: rgba(245, 245, 245, 0.7); font-size: 0.85em;"><strong>Doc:</strong> {{ $proof->recipient_document }}</p>
+                                    @endif
+                                </div>
+                            @endif
+                        @endforeach
+                        @if($hasSignature)
+                        </div>
+                        @endif
+
                         @foreach($shipment->deliveryProofs as $proof)
                             @if($proof->delivery_time)
-                                <p style="color: rgba(245, 245, 245, 0.6); font-size: 0.75em; margin-top: 5px;">
+                                <p style="color: rgba(245, 245, 245, 0.6); font-size: 0.75em; margin-top: 8px;">
                                     <i class="fas fa-{{ $proof->proof_type === 'pickup' ? 'hand-holding' : 'check-circle' }}"></i> 
                                     {{ $proof->proof_type === 'pickup' ? 'Coletado' : 'Entregue' }} em {{ $proof->delivery_time->format('d/m/Y H:i') }}
                                 </p>
@@ -1032,20 +1071,276 @@
 @endif
 
 @if(session('success'))
-    <div class="alert alert-success">
+    <div class="alert alert-success" style="margin-bottom: 20px;">
         <i class="fas fa-check mr-2"></i>
         {{ session('success') }}
     </div>
 @endif
 
 @if($errors->any())
-    <div class="alert alert-error">
+    <div class="alert alert-error" style="margin-bottom: 20px;">
         <i class="fas fa-exclamation-triangle mr-2"></i>
         {{ $errors->first() }}
     </div>
 @endif
 
+<!-- ROUTE OPTIMIZATION MODAL (Alpine.js) -->
+<div x-data="routeOptimizer({{ $route->id }})" 
+     x-show="isOpen" 
+     style="display: none;"
+     x-on:open-optimize-modal.window="openModal()"
+     class="fixed inset-0 z-50 overflow-y-auto" 
+     aria-labelledby="modal-title" 
+     role="dialog" 
+     aria-modal="true">
+    
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div x-show="isOpen" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0" 
+             x-transition:enter-end="opacity-100" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100" 
+             x-transition:leave-end="opacity-0" 
+             class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" 
+             style="background-color: rgba(0,0,0,0.8);"
+             @click="closeModal()" 
+             aria-hidden="true"></div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div x-show="isOpen" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+             class="inline-block align-bottom bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+             style="background-color: var(--cor-secundaria); border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 1000px; padding: 25px; margin: 40px auto; display: inline-block; vertical-align: middle;">
+             
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px;">
+                <h3 style="color: var(--cor-acento); margin: 0; font-size: 1.5em;"><i class="fas fa-magic"></i> Otimização Inteligente de Rotas</h3>
+                <button @click="closeModal()" type="button" style="background: none; border: none; color: #fff; font-size: 1.5em; cursor: pointer; opacity: 0.7;">&times;</button>
+            </div>
+
+            <!-- Loader -->
+            <div x-show="isLoading" style="text-align: center; padding: 50px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 3em; color: var(--cor-acento); margin-bottom: 15px;"></i>
+                <p style="color: rgba(245,245,245,0.8); font-size: 1.1em;">Calculando a rota mais eficiente pelo Mapbox...</p>
+                <p style="color: rgba(245,245,245,0.5); font-size: 0.9em;">Avaliando Distância e Capacidade do Veículo</p>
+            </div>
+
+            <!-- Content -->
+            <div x-show="!isLoading && previewData !== null">
+                <!-- Alert Block -->
+                <template x-if="previewData.overweight_alert">
+                    <div style="background-color: rgba(244, 67, 54, 0.2); border-left: 4px solid #f44336; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                        <p style="color: #f44336; margin: 0; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 1.2em;"></i>
+                            <span x-text="previewData.overweight_alert"></span>
+                        </p>
+                    </div>
+                </template>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+                    <!-- Map Column -->
+                    <div>
+                        <div id="optimized-route-map" style="width: 100%; height: 400px; border-radius: 10px; background-color: var(--cor-principal);"></div>
+                        
+                        <div style="display: flex; gap: 20px; margin-top: 15px; background: var(--cor-principal); padding: 15px; border-radius: 8px;">
+                            <div>
+                                <span style="color: rgba(245,245,245,0.7); font-size: 0.9em;">Distância Ótima:</span>
+                                <strong style="color: var(--cor-texto-claro); font-size: 1.2em; margin-left: 5px;" x-text="previewData.distance_text"></strong>
+                            </div>
+                            <div>
+                                <span style="color: rgba(245,245,245,0.7); font-size: 0.9em;">Tempo Médio:</span>
+                                <strong style="color: var(--cor-texto-claro); font-size: 1.2em; margin-left: 5px;" x-text="previewData.duration_text"></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sequence List Column -->
+                    <div style="background-color: var(--cor-principal); border-radius: 10px; padding: 15px; max-height: 480px; overflow-y: auto;">
+                        <h4 style="color: var(--cor-texto-claro); margin-top: 0; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">Nova Ordem Sugerida</h4>
+                        
+                        <ul style="list-style: none; padding: 0; margin: 0; position: relative;">
+                            <template x-for="(ship, idx) in previewData.shipments_sequence" :key="ship.id">
+                                <li style="position: relative; padding: 10px 10px 10px 40px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">
+                                    <div style="position: absolute; left: 0; top: 12px; background-color: var(--cor-acento); color: white; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold;" x-text="idx + 1"></div>
+                                    <strong style="color: var(--cor-texto-claro); font-size: 0.95em; display: block;" x-text="ship.tracking_code || 'Carga ' + ship.id"></strong>
+                                    <small style="color: rgba(245,245,245,0.6); display: block;" x-text="ship.recipient_address"></small>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Footer / Actions -->
+                <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 15px;">
+                    <button @click="closeModal()" type="button" class="btn-secondary">Cancelar</button>
+                    <button @click="commitOptimization()" type="button" class="btn-primary" style="background-color: #9C27B0; border-color: #9C27B0;" :disabled="isCommitting">
+                        <i class="fas fa-check" x-show="!isCommitting"></i>
+                        <i class="fas fa-spinner fa-spin" x-show="isCommitting"></i>
+                        <span x-text="isCommitting ? 'Salvando...' : 'Confirmar e Salvar Rota'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div x-show="!isLoading && errorMsg !== null" style="background-color: rgba(244, 67, 54, 0.2); padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-top: 20px;">
+                <p style="color: #f44336; margin: 0; font-weight: bold;"><i class="fas fa-exclamation-triangle"></i> Erro ao Otimizar</p>
+                <p style="color: rgba(245,245,245,0.8); margin-top: 5px;" x-text="errorMsg"></p>
+                <div style="margin-top: 15px;">
+                    <button @click="closeModal()" type="button" class="btn-secondary">Fechar</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 @push('scripts')
+<!-- Include AlpineJS for the Modal Component -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('routeOptimizer', (routeId) => ({
+        isOpen: false,
+        isLoading: false,
+        isCommitting: false,
+        previewData: null,
+        errorMsg: null,
+        mapInstance: null,
+
+        openModal() {
+            this.isOpen = true;
+            this.fetchOptimization();
+        },
+
+        closeModal() {
+            this.isOpen = false;
+            this.previewData = null;
+            this.errorMsg = null;
+            if (this.mapInstance) {
+                // cleanup se necessário
+            }
+        },
+
+        async fetchOptimization() {
+            this.isLoading = true;
+            this.errorMsg = null;
+            
+            try {
+                const response = await fetch(`/routes/${routeId}/optimize-preview`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro desconhecido da API');
+                }
+
+                this.previewData = data;
+                
+                // Aguarda um ciclo pro x-show exibir a div e instanciamos o mapa pequeno
+                this.$nextTick(() => {
+                    this.renderPreviewMap(data.geometry);
+                });
+                
+            } catch (err) {
+                this.errorMsg = err.message;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        renderPreviewMap(geojson) {
+            // Assume que window.mapboxAccessToken existe
+            const mapContainerId = 'optimized-route-map';
+            document.getElementById(mapContainerId).innerHTML = ''; // Limpa pra não duplicar
+            
+            // Instancia Mapbox diretamente ou re-usa MapboxHelper
+            if (typeof mapboxgl !== 'undefined') {
+                mapboxgl.accessToken = window.mapboxAccessToken;
+                const map = new mapboxgl.Map({
+                    container: mapContainerId,
+                    style: 'mapbox://styles/mapbox/dark-v11',
+                    center: [this.previewData.shipments_sequence[0]?.lng || -46.6333, this.previewData.shipments_sequence[0]?.lat || -23.5505],
+                    zoom: 10
+                });
+
+                map.on('load', () => {
+                    map.addSource('route', {
+                        'type': 'geojson',
+                        'data': geojson
+                    });
+
+                    map.addLayer({
+                        'id': 'route-line',
+                        'type': 'line',
+                        'source': 'route',
+                        'layout': {
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        'paint': {
+                            'line-color': '#9C27B0', // Roxo Magic
+                            'line-width': 6,
+                            'line-opacity': 0.8
+                        }
+                    });
+
+                    // Ideal: Extrair boundbox da geometry e dar fitBounds
+                });
+                
+                this.mapInstance = map;
+            }
+        },
+
+        async commitOptimization() {
+            if (!this.previewData || !this.previewData.raw_sequence_ids) return;
+            
+            this.isCommitting = true;
+            
+            try {
+                const response = await fetch(`/routes/${routeId}/optimize-commit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sequence_ids: this.previewData.raw_sequence_ids
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao salvar rota.');
+                }
+                
+                // Recarrega a página para refletir a nova ordem
+                window.location.reload();
+                
+            } catch (err) {
+                alert("Erro ao confirmar rota: " + err.message);
+                this.isCommitting = false;
+            }
+        }
+    }));
+});
+</script>
 <script>
     // Auto-refresh fiscal document status if processing
     @if($mdfe && $mdfe->isProcessing())
@@ -1963,27 +2258,40 @@
                         lng: parseFloat(driver.longitude)
                     };
 
-                    // Update or create driver marker
-                    if (driverMarker) {
-                        driverMarker.setPosition(position);
-                    } else {
-                        // Create driver marker with photo
-                        const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=64');
-                        const markerSize = 40;
-                        
-                        driverMarker = new google.maps.Marker({
-                            position: position,
-                            map: routeMap,
-                            icon: {
-                                url: driverPhotoUrl,
-                                scaledSize: new google.maps.Size(markerSize, markerSize),
-                                anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
-                                origin: new google.maps.Point(0, 0)
-                            },
-                            title: driver.name + ' - Localização Atual',
-                            zIndex: 2000,
-                            animation: google.maps.Animation.DROP
-                        });
+                    // Setup marker config
+                    const driverPhotoUrl = driver.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(driver.name) + '&background=FF6B35&color=fff&size=64');
+                    
+                    if (window.mapboxRouteMapInitialized && routeMap.updateMarker) {
+                        // MAPBOX MODE
+                        if (driverMarker) {
+                            routeMap.updateMarker(driverMarker, position);
+                        } else {
+                            driverMarker = routeMap.addMarker(position, {
+                                title: driver.name + ' - Localização Atual',
+                                iconUrl: driverPhotoUrl,
+                                size: 40
+                            });
+                        }
+                    } else if (typeof google !== 'undefined') {
+                        // GOOGLE MAPS MODE
+                        if (driverMarker) {
+                            driverMarker.setPosition(position);
+                        } else {
+                            const markerSize = 40;
+                            driverMarker = new google.maps.Marker({
+                                position: position,
+                                map: routeMap,
+                                icon: {
+                                    url: driverPhotoUrl,
+                                    scaledSize: new google.maps.Size(markerSize, markerSize),
+                                    anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
+                                    origin: new google.maps.Point(0, 0)
+                                },
+                                title: driver.name + ' - Localização Atual',
+                                zIndex: 2000,
+                                animation: google.maps.Animation.DROP
+                            });
+                        }
                     }
 
                     // Load and draw driver path history
@@ -2033,15 +2341,27 @@
 
         // Draw new polyline
         if (path.length > 1) {
-            driverHistoryPolyline = new google.maps.Polyline({
-                path: path,
-                geodesic: true,
-                strokeColor: '#2196F3',
-                strokeOpacity: 0.6,
-                strokeWeight: 4,
-                map: routeMap,
-                zIndex: 150
-            });
+            if (window.mapboxRouteMapInitialized && routeMap.drawPolyline) {
+                // MAPBOX MODE
+                routeMap.drawPolyline(path, {
+                    sourceId: 'driver-history',
+                    layerId: 'driver-history-layer',
+                    color: '#2196F3',
+                    opacity: 0.6,
+                    width: 4
+                });
+            } else if (typeof google !== 'undefined') {
+                // GOOGLE MAPS MODE
+                driverHistoryPolyline = new google.maps.Polyline({
+                    path: path,
+                    geodesic: true,
+                    strokeColor: '#2196F3',
+                    strokeOpacity: 0.6,
+                    strokeWeight: 4,
+                    map: routeMap,
+                    zIndex: 150
+                });
+            }
         }
     }
 

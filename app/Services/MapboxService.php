@@ -14,7 +14,7 @@ class MapboxService
     public function __construct()
     {
         $this->accessToken = config('services.mapbox.access_token');
-        
+
         if (!$this->accessToken) {
             Log::warning('Mapbox access token not configured');
         }
@@ -48,7 +48,7 @@ class MapboxService
                 if (!empty($data['features'])) {
                     $feature = $data['features'][0];
                     $coordinates = $feature['geometry']['coordinates'];
-                    
+
                     $result = [
                         'longitude' => $coordinates[0],
                         'latitude' => $coordinates[1],
@@ -58,7 +58,7 @@ class MapboxService
 
                     // Cache permanently (geocoding doesn't change)
                     Cache::forever($cacheKey, $result);
-                    
+
                     return $result;
                 }
             }
@@ -101,7 +101,7 @@ class MapboxService
                 $data = $response->json();
                 if (!empty($data['features'])) {
                     $feature = $data['features'][0];
-                    
+
                     $result = [
                         'formatted_address' => $feature['place_name'] ?? null,
                         'latitude' => $latitude,
@@ -111,7 +111,7 @@ class MapboxService
 
                     // Cache for 7 days (addresses can change but rarely)
                     Cache::put($cacheKey, $result, now()->addDays(7));
-                    
+
                     return $result;
                 }
             }
@@ -150,31 +150,31 @@ class MapboxService
             // Build waypoints string
             $coordinates = [];
             $coordinates[] = [$originLng, $originLat]; // Mapbox uses [lng, lat]
-            
+
             foreach ($waypoints as $wp) {
                 $coordinates[] = [$wp['lng'], $wp['lat']];
             }
-            
+
             $coordinates[] = [$destinationLng, $destinationLat];
-            
+
             // Create cache key
             $coordinatesStr = json_encode($coordinates);
             $optionsStr = json_encode($options);
             $cacheKey = 'mapbox:route:' . md5($coordinatesStr . $optionsStr);
-            
+
             // Check cache (24 hours)
             $cached = Cache::get($cacheKey);
             if ($cached) {
                 return $cached;
             }
 
-            $coordinatesStr = implode(';', array_map(function($coord) {
+            $coordinatesStr = implode(';', array_map(function ($coord) {
                 return $coord[0] . ',' . $coord[1];
             }, $coordinates));
 
             $params = [
                 'access_token' => $this->accessToken,
-                'geometries' => 'polyline',
+                'geometries' => 'geojson',
                 'steps' => 'true',
                 'overview' => 'full',
                 'language' => 'pt',
@@ -190,30 +190,47 @@ class MapboxService
             if ($response->successful()) {
                 $data = $response->json();
                 if ($data['code'] === 'Ok' && !empty($data['routes'])) {
-                    $route = $data['routes'][0];
-                    
-                    $legs = $route['legs'] ?? [];
-                    $totalDistance = 0;
-                    $totalDuration = 0;
-                    
-                    foreach ($legs as $leg) {
-                        $totalDistance += $leg['distance'];
-                        $totalDuration += $leg['duration'];
+                    $routesData = [];
+
+                    foreach ($data['routes'] as $routeIndex => $routeData) {
+                        $legs = $routeData['legs'] ?? [];
+                        $totalDistance = 0;
+                        $totalDuration = 0;
+
+                        foreach ($legs as $leg) {
+                            $totalDistance += $leg['distance'];
+                            $totalDuration += $leg['duration'];
+                        }
+
+                        $routesData[] = [
+                            'distance' => round($totalDistance),
+                            'distance_text' => $this->formatDistance($totalDistance),
+                            'duration' => round($totalDuration),
+                            'duration_text' => $this->formatDuration($totalDuration),
+                            'geometry' => $routeData['geometry'] ?? null,
+                            'legs' => $legs,
+                            'weight_name' => $routeData['weight_name'] ?? null,
+                            'duration_typical' => isset($routeData['duration_typical']) ? round($routeData['duration_typical']) : null,
+                        ];
                     }
 
+                    // Primary route (first one)
+                    $primaryRoute = $routesData[0];
+
                     $result = [
-                        'distance' => round($totalDistance), // meters
-                        'distance_text' => $this->formatDistance($totalDistance),
-                        'duration' => round($totalDuration), // seconds
-                        'duration_text' => $this->formatDuration($totalDuration),
-                        'polyline' => $route['geometry'] ?? null,
-                        'legs' => $legs,
+                        'distance' => $primaryRoute['distance'],
+                        'distance_text' => $primaryRoute['distance_text'],
+                        'duration' => $primaryRoute['duration'],
+                        'duration_text' => $primaryRoute['duration_text'],
+                        'geometry' => $primaryRoute['geometry'],
+                        'legs' => $primaryRoute['legs'],
                         'waypoints' => $data['waypoints'] ?? [],
+                        'routes' => $routesData, // Include all routes
                     ];
 
-                    // Cache for 24 hours (routes can change due to traffic, but cached is acceptable)
+                    // Cache for 24 hours
                     Cache::put($cacheKey, $result, now()->addHours(24));
-                    
+
                     return $result;
                 }
             }
@@ -223,6 +240,80 @@ class MapboxService
             Log::error('Mapbox route calculation failed', [
                 'error' => $e->getMessage(),
                 'options' => $options,
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Obter a Rota Otimizada resolvendo o problema do Caixeiro Viajante (Optimization API v1)
+     * 
+     * @param array $coordinates Array ordenado iniciando na origem: [['lng' => float, 'lat' => float], ...]
+     * @param array $options Opções como roundtrip, distributions...
+     * @return array|null Dados contendo a polyline e a sequência ideal ($result['waypoints'])
+     */
+    public function optimizeRoute(array $coordinates, array $options = []): ?array
+    {
+        try {
+            if (count($coordinates) < 2 || count($coordinates) > 12) {
+                // A API suporta até 12 coordenadas por padrão
+                Log::warning('Mapbox Optimization API requer de 2 a 12 coordenadas.', ['count' => count($coordinates)]);
+                return null;
+            }
+
+            // Converter nosso array associativo [['lng'=>..., 'lat'=>...]] para string 'lng,lat;lng,lat'
+            $coordsArray = array_map(function ($c) {
+                return $c['lng'] . ',' . $c['lat'];
+            }, $coordinates);
+
+            $coordinatesStr = implode(';', $coordsArray);
+
+            $params = [
+                'access_token' => $this->accessToken,
+                'geometries' => 'geojson',
+                'source' => 'first',           // Sempre começar do primeiro ponto (Garagem/Filial)
+                'roundtrip' => 'false',        // Não obriga a voltar à garagem no final
+                'overview' => 'full',
+            ];
+
+            // Merge de opções extras (como distributions para Pickup/Dropoff, se passadas pelo Controller)
+            if (isset($options['distributions'])) {
+                $params['distributions'] = $options['distributions'];
+            }
+
+            $response = Http::get($this->baseUrl . "/optimized-trips/v1/mapbox/driving/{$coordinatesStr}", $params);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if ($data['code'] === 'Ok' && !empty($data['trips'])) {
+                    $primaryTrip = $data['trips'][0];
+
+                    // Ordenar os waypoints gerados 
+                    // O Mapbox retorna 'waypoint_index' => Nova Posicao e 'trips_index' => Original
+                    $waypoints = $data['waypoints'] ?? [];
+
+                    return [
+                        'distance' => round($primaryTrip['distance']),
+                        'distance_text' => $this->formatDistance($primaryTrip['distance']),
+                        'duration' => round($primaryTrip['duration']),
+                        'duration_text' => $this->formatDuration($primaryTrip['duration']),
+                        'geometry' => $primaryTrip['geometry'] ?? null,
+                        'waypoints' => $waypoints, // Importante: contém o 'waypoint_index'
+                    ];
+                }
+            } else {
+                Log::error('Mapbox optimization route returned error', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Mapbox route optimization failed', [
+                'error' => $e->getMessage(),
+                'coordinates' => $coordinates
             ]);
             return null;
         }
@@ -253,7 +344,7 @@ class MapboxService
                 $coordinates[] = [$dest['lng'], $dest['lat']];
             }
 
-            $coordinatesStr = implode(';', array_map(function($coord) {
+            $coordinatesStr = implode(';', array_map(function ($coord) {
                 return $coord[0] . ',' . $coord[1];
             }, $coordinates));
 
@@ -303,11 +394,11 @@ class MapboxService
     {
         $hours = floor($seconds / 3600);
         $minutes = floor(($seconds % 3600) / 60);
-        
+
         if ($hours > 0) {
             return "{$hours}h {$minutes}min";
         }
-        
+
         return "{$minutes}min";
     }
 

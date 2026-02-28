@@ -8,6 +8,8 @@ use App\Models\Invoice;
 use App\Models\Client;
 use App\Models\Expense;
 use App\Models\Route;
+use App\Models\Driver;
+use App\Models\Vehicle;
 use App\Models\FiscalDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +28,7 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $tenant = Auth::user()->tenant;
-        
+
         if (!$tenant) {
             return redirect()->route('login')->with('error', 'User does not have an associated tenant.');
         }
@@ -43,27 +45,27 @@ class DashboardController extends Controller
         $shipmentsQuery = Shipment::where('tenant_id', $tenant->id);
         $invoicesQuery = Invoice::where('tenant_id', $tenant->id);
         $expensesQuery = Expense::where('tenant_id', $tenant->id);
-        
+
         if ($filters['date_from']) {
             $shipmentsQuery->where('created_at', '>=', $filters['date_from']);
             $invoicesQuery->where('created_at', '>=', $filters['date_from']);
             $expensesQuery->where('created_at', '>=', $filters['date_from']);
         }
-        
+
         if ($filters['date_to']) {
             $shipmentsQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
             $invoicesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
             $expensesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
         }
-        
+
         if ($filters['status']) {
             $shipmentsQuery->where('status', $filters['status']);
         }
-        
+
         if ($filters['client_id']) {
-            $shipmentsQuery->where(function($q) use ($filters) {
+            $shipmentsQuery->where(function ($q) use ($filters) {
                 $q->where('sender_client_id', $filters['client_id'])
-                  ->orWhere('receiver_client_id', $filters['client_id']);
+                    ->orWhere('receiver_client_id', $filters['client_id']);
             });
             $invoicesQuery->where('client_id', $filters['client_id']);
         }
@@ -120,13 +122,50 @@ class DashboardController extends Controller
             'completed' => Route::where('tenant_id', $tenant->id)->where('status', 'completed')->count(),
         ];
 
+        // Drivers & Vehicles statistics
+        $driversStats = [
+            'total' => Driver::where('tenant_id', $tenant->id)->count(),
+            'active' => Driver::where('tenant_id', $tenant->id)->where('is_active', true)->count(),
+            'on_route' => Driver::where('tenant_id', $tenant->id)
+                ->whereHas('routes', fn($q) => $q->where('status', 'in_progress'))
+                ->count(),
+        ];
+
+        $vehiclesStats = [
+            'total' => Vehicle::where('tenant_id', $tenant->id)->count(),
+            'active' => Vehicle::where('tenant_id', $tenant->id)->where('is_active', true)->count(),
+        ];
+
+        // Performance KPIs
+        $completedRoutes = Route::where('tenant_id', $tenant->id)
+            ->where('status', 'completed')
+            ->whereNotNull('estimated_duration')
+            ->whereNotNull('estimated_distance');
+
+        if ($filters['date_from']) {
+            $completedRoutes->where('completed_at', '>=', $filters['date_from']);
+        }
+        if ($filters['date_to']) {
+            $completedRoutes->where('completed_at', '<=', $filters['date_to'] . ' 23:59:59');
+        }
+
+        $completedRoutesData = $completedRoutes->get();
+
+        $performanceKpis = [
+            'avg_delivery_time' => $completedRoutesData->avg('estimated_duration') ?? 0,
+            'avg_distance' => $completedRoutesData->avg('estimated_distance') ?? 0,
+            'total_distance' => $completedRoutesData->sum('estimated_distance') ?? 0,
+            'completed_routes' => $completedRoutesData->count(),
+            'on_time_rate' => $this->calculateOnTimeRate($tenant->id, $filters),
+        ];
+
         // Fiscal documents statistics
         $fiscalQuery = FiscalDocument::where('tenant_id', $tenant->id);
-        
+
         if ($filters['date_from']) {
             $fiscalQuery->where('created_at', '>=', $filters['date_from']);
         }
-        
+
         if ($filters['date_to']) {
             $fiscalQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
         }
@@ -164,10 +203,10 @@ class DashboardController extends Controller
         $dateFrom = \Carbon\Carbon::parse($filters['date_from']);
         $dateTo = \Carbon\Carbon::parse($filters['date_to']);
         $monthsDiff = $dateFrom->diffInMonths($dateTo);
-        
+
         // If range is less than 6 months, show monthly; otherwise show by period
         $periods = min(6, max(1, $monthsDiff + 1));
-        
+
         for ($i = $periods - 1; $i >= 0; $i--) {
             if ($periods <= 6) {
                 $periodStart = $dateFrom->copy()->addMonths($i)->startOfMonth();
@@ -179,18 +218,18 @@ class DashboardController extends Controller
                 $periodEnd = $dateFrom->copy()->addMonths(($i + 1) * $periodSize)->subDay();
                 $label = $periodStart->format('M/Y') . ' - ' . $periodEnd->format('M/Y');
             }
-            
+
             $revenue = Invoice::where('tenant_id', $tenant->id)
                 ->where('status', 'paid')
                 ->whereBetween('created_at', [$periodStart, $periodEnd])
                 ->sum('total_amount');
-            
+
             $monthlyRevenue[] = [
                 'month' => $label,
                 'revenue' => $revenue,
             ];
         }
-        
+
         // Get clients for filter dropdown
         $clients = Client::where('tenant_id', $tenant->id)
             ->listed()
@@ -225,6 +264,9 @@ class DashboardController extends Controller
             'proposalsStats',
             'clientsStats',
             'routesStats',
+            'driversStats',
+            'vehiclesStats',
+            'performanceKpis',
             'fiscalStats',
             'recentShipments',
             'recentInvoices',
@@ -235,6 +277,39 @@ class DashboardController extends Controller
             'filters',
             'clients'
         ));
+    }
+
+    /**
+     * Calculate on-time delivery rate
+     */
+    private function calculateOnTimeRate(int $tenantId, array $filters): float
+    {
+        $query = Shipment::where('tenant_id', $tenantId)
+            ->where('status', 'delivered');
+
+        if ($filters['date_from']) {
+            $query->where('delivered_at', '>=', $filters['date_from']);
+        }
+        if ($filters['date_to']) {
+            $query->where('delivered_at', '<=', $filters['date_to'] . ' 23:59:59');
+        }
+
+        $totalDelivered = (clone $query)->count();
+        if ($totalDelivered === 0)
+            return 100.0;
+
+        // Count shipments delivered on time (delivered_at <= estimated_delivery_date)
+        $onTime = (clone $query)
+            ->whereNotNull('estimated_delivery_date')
+            ->whereColumn('delivered_at', '<=', 'estimated_delivery_date')
+            ->count();
+
+        // If no estimated dates, assume all on time
+        $withEstimate = (clone $query)->whereNotNull('estimated_delivery_date')->count();
+        if ($withEstimate === 0)
+            return 100.0;
+
+        return round(($onTime / $withEstimate) * 100, 1);
     }
 }
 

@@ -8,6 +8,13 @@ use Illuminate\Support\Facades\Log;
 
 class FreightCalculationService
 {
+    private MapsService $mapsService;
+
+    public function __construct(MapsService $mapsService)
+    {
+        $this->mapsService = $mapsService;
+    }
+
     /**
      * Calculate freight based on freight table
      *
@@ -79,7 +86,7 @@ class FreightCalculationService
         }
 
         if (!empty($options['pallets']) && $freightTable->palletization) {
-            $pallets = (int)($options['pallets'] ?? 0);
+            $pallets = (int) ($options['pallets'] ?? 0);
             $palletsCost = $pallets * ($freightTable->palletization ?? 0);
             $additionalServices += $palletsCost;
             $additionalBreakdown[] = [
@@ -148,7 +155,7 @@ class FreightCalculationService
             $options['client_id'] ?? null
         );
         $appliedMinimum = false;
-        
+
         if ($subtotal < $minFreight['value'] && $minFreight['value'] > 0) {
             $subtotal = $minFreight['value'];
             $appliedMinimum = true;
@@ -187,7 +194,7 @@ class FreightCalculationService
      */
     protected function findFreightTable(Tenant $tenant, string $destination): ?FreightTable
     {
-        // Try to find by destination name
+        // 1. Try to find by destination name (Exact or Partial match)
         $table = FreightTable::where('tenant_id', $tenant->id)
             ->active()
             ->where('destination_name', 'like', "%{$destination}%")
@@ -197,19 +204,32 @@ class FreightCalculationService
             return $table;
         }
 
-        // Try to find by CEP if destination looks like a CEP
+        // 2. Try to find by CEP if destination looks like a CEP
         if (preg_match('/^\d{5}-?\d{3}$/', $destination)) {
-            $table = FreightTable::where('tenant_id', $tenant->id)
-                ->active()
-                ->where('destination_type', 'cep_range')
-                ->get()
-                ->first(function ($table) use ($destination) {
-                    return $table->isCepInRange($destination);
-                });
+            $cep = preg_replace('/\D/', '', $destination);
+            return $this->findTableByCep($tenant, $cep);
+        }
 
-            if ($table) {
-                return $table;
+        // 3. Smart Fallback: Geocode the city name to get a CEP
+        // If the destination is a string (not a CEP), try to convert it to a CEP/Address
+        try {
+            $geoResult = $this->mapsService->geocode($destination);
+
+            // Check if we got a valid result with a postal code or address that allows us to infer a CEP
+            // MapsService normalized format might vary, but let's assume it has address components or formatted_address
+            // For now, let's look for a CEP pattern in the formatted address as a simple heuristic
+            // OR ideally MapsService returns structured data. The cached unified service returns 'formatted_address'.
+
+            if ($geoResult && isset($geoResult['formatted_address'])) {
+                if (preg_match('/(\d{5}-\d{3})/', $geoResult['formatted_address'], $matches)) {
+                    $cep = preg_replace('/\D/', '', $matches[1]);
+                    $table = $this->findTableByCep($tenant, $cep);
+                    if ($table)
+                        return $table;
+                }
             }
+        } catch (\Exception $e) {
+            Log::warning("Smart freight lookup failed for: $destination. Error: " . $e->getMessage());
         }
 
         // Return default table if exists
@@ -217,6 +237,17 @@ class FreightCalculationService
             ->active()
             ->default()
             ->first();
+    }
+
+    private function findTableByCep(Tenant $tenant, string $cep): ?FreightTable
+    {
+        return FreightTable::where('tenant_id', $tenant->id)
+            ->active()
+            ->where('destination_type', 'cep_range')
+            ->get()
+            ->first(function ($table) use ($cep) {
+                return $table->isCepInRange($cep);
+            });
     }
 
     /**
@@ -297,14 +328,14 @@ class FreightCalculationService
             if ($route && $route->min_freight_rate_type && $route->min_freight_rate_value) {
                 // Verifica se deve aplicar taxa mínima da rota baseado nos dias da semana
                 $shouldApplyRouteMinimum = $this->shouldApplyRouteMinimum($route);
-                
+
                 if ($shouldApplyRouteMinimum) {
                     $minValue = $this->calculateMinimumByType(
                         $route->min_freight_rate_type,
                         $route->min_freight_rate_value,
                         $invoiceValue
                     );
-                    
+
                     if ($minValue > 0) {
                         return [
                             'value' => $minValue,
@@ -322,7 +353,7 @@ class FreightCalculationService
                 $freightTable->min_freight_rate_value,
                 $invoiceValue
             );
-            
+
             if ($minValue > 0) {
                 return [
                     'value' => $minValue,
@@ -333,7 +364,7 @@ class FreightCalculationService
 
         // Priority 3: Default minimum (percentage of invoice value)
         $minValue = $invoiceValue * ($freightTable->min_freight_rate_vs_nf ?? 0.01);
-        
+
         return [
             'value' => $minValue,
             'source' => 'default'

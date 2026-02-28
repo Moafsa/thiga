@@ -5,10 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\ImmutableFinancialRecord;
 
+/**
+ * @property int $id
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $due_date
+ * @property \Illuminate\Support\Carbon|null $paid_at
+ * @property float $amount
+ */
 class Payment extends Model
 {
-    use HasFactory;
+    use HasFactory, ImmutableFinancialRecord;
 
     protected $fillable = [
         'subscription_id',
@@ -59,8 +67,8 @@ class Payment extends Model
 
     public function isOverdue(): bool
     {
-        return $this->status === 'overdue' || 
-               ($this->status === 'pending' && $this->due_date->isPast());
+        return $this->status === 'overdue' ||
+            ($this->status === 'pending' && $this->due_date->isPast());
     }
 
     public function markAsPaid(string $paymentMethod = null): void

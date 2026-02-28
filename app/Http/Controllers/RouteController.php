@@ -39,7 +39,7 @@ class RouteController extends Controller
     public function index(Request $request)
     {
         $tenant = Auth::user()->tenant;
-        
+
         if (!$tenant) {
             return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
         }
@@ -51,9 +51,9 @@ class RouteController extends Controller
         // Filters
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -90,7 +90,7 @@ class RouteController extends Controller
     public function create()
     {
         $tenant = Auth::user()->tenant;
-        
+
         $drivers = Driver::where('tenant_id', $tenant->id)
             ->where('is_active', true)
             ->with('vehicles')
@@ -117,19 +117,19 @@ class RouteController extends Controller
         // Otimizado: usando subquery ao invés de whereHas para melhor performance
         $availableShipments = Shipment::where('tenant_id', $tenant->id)
             ->whereNull('route_id')
-            ->where(function($query) {
-                $query->whereExists(function($q) {
+            ->where(function ($query) {
+                $query->whereExists(function ($q) {
                     $q->select(\DB::raw(1))
-                      ->from('fiscal_documents')
-                      ->whereColumn('fiscal_documents.shipment_id', 'shipments.id')
-                      ->where('fiscal_documents.document_type', 'cte')
-                      ->where('fiscal_documents.status', 'authorized');
+                        ->from('fiscal_documents')
+                        ->whereColumn('fiscal_documents.shipment_id', 'shipments.id')
+                        ->where('fiscal_documents.document_type', 'cte')
+                        ->where('fiscal_documents.status', 'authorized');
                 })
-                ->orWhereNotExists(function($q) {
-                    $q->select(\DB::raw(1))
-                      ->from('fiscal_documents')
-                      ->whereColumn('fiscal_documents.shipment_id', 'shipments.id');
-                });
+                    ->orWhereNotExists(function ($q) {
+                        $q->select(\DB::raw(1))
+                            ->from('fiscal_documents')
+                            ->whereColumn('fiscal_documents.shipment_id', 'shipments.id');
+                    });
             })
             ->orderBy('created_at', 'desc')
             ->limit(100) // Limitar resultados para evitar carregar muitos dados
@@ -143,6 +143,20 @@ class RouteController extends Controller
             ->get();
 
         return view('routes.create', compact('drivers', 'vehicles', 'branches', 'availableShipments', 'availableCargo', 'company'));
+    }
+
+    /**
+     * Show the Smart Dispatch interface
+     */
+    public function createSmart()
+    {
+        $tenant = Auth::user()->tenant;
+
+        // Pass necessary data for the view if needed, 
+        // though the Livewire component handles most data fetching.
+        // We might want to pass initial configurational data.
+
+        return view('routes.smart');
     }
 
     /**
@@ -218,12 +232,12 @@ class RouteController extends Controller
         if ($request->filled('vehicle_id') && $request->filled('driver_id')) {
             $driver = Driver::findOrFail($validated['driver_id']);
             $vehicle = Vehicle::findOrFail($validated['vehicle_id']);
-            
+
             // Check if vehicle is assigned to driver
             if (!$driver->vehicles->contains($vehicle->id)) {
                 return back()->withErrors(['vehicle_id' => 'O veículo selecionado não está atribuído ao motorista selecionado.'])->withInput();
             }
-            
+
             // Check if vehicle is available
             if (!$vehicle->isAvailable()) {
                 return back()->withErrors(['vehicle_id' => 'O veículo selecionado não está disponível.'])->withInput();
@@ -232,12 +246,12 @@ class RouteController extends Controller
 
         $validated['tenant_id'] = $tenant->id;
         $validated['status'] = 'scheduled';
-        
+
         // Set default scheduled_date if not provided
         if (!isset($validated['scheduled_date']) || empty($validated['scheduled_date'])) {
             $validated['scheduled_date'] = now()->format('Y-m-d');
         }
-        
+
         // Set default start_time if not provided (optional field)
         if (!isset($validated['start_time']) || empty($validated['start_time'])) {
             $validated['start_time'] = null; // Now nullable, so null is acceptable
@@ -267,21 +281,21 @@ class RouteController extends Controller
             // Process CT-e XML numbers if provided
             if ($request->has('cte_xml_numbers') && !empty($request->cte_xml_numbers)) {
                 $xmlNumbers = array_filter($request->cte_xml_numbers);
-                
+
                 if (!empty($xmlNumbers)) {
                     \Log::info('Processing CT-e XML numbers', [
                         'xml_numbers_count' => count($xmlNumbers),
                         'route_id' => $route->id,
                     ]);
-                    
+
                     try {
                         $createdShipments = $this->processCteXmlNumbers($xmlNumbers, $tenant, $xmlParser, $route);
-                        
+
                         \Log::info('CT-e XML numbers processed', [
                             'total_numbers' => count($xmlNumbers),
                             'created_shipments_count' => count($createdShipments),
                         ]);
-                        
+
                         if (empty($createdShipments)) {
                             DB::rollBack();
                             \Log::warning('No shipments created from CT-e XML numbers', [
@@ -289,7 +303,7 @@ class RouteController extends Controller
                             ]);
                             return back()->withErrors(['cte_xml_numbers' => 'Falha ao processar todos os números de XML. Verifique se os XMLs existem e não foram usados.'])->withInput();
                         }
-                        
+
                         $hasShipments = true;
                         // Total revenue will be updated automatically by ShipmentObserver
                     } catch (\Exception $e) {
@@ -312,13 +326,13 @@ class RouteController extends Controller
                         'addresses_keys' => array_keys($request->addresses),
                         'addresses_data' => $request->addresses,
                     ]);
-                    
+
                     $createdShipments = $this->processAddresses($request->addresses, $tenant, $route);
-                    
+
                     \Log::info('Addresses processed', [
                         'created_shipments_count' => count($createdShipments),
                     ]);
-                    
+
                     if (!empty($createdShipments)) {
                         $hasShipments = true;
                         // Total revenue will be updated automatically by ShipmentObserver
@@ -338,7 +352,7 @@ class RouteController extends Controller
                 $updated = Shipment::whereIn('id', $request->shipment_ids)
                     ->where('tenant_id', $tenant->id)
                     ->update(['route_id' => $route->id]);
-                
+
                 if ($updated > 0) {
                     $hasShipments = true;
                     // Update total revenue manually because bulk update() doesn't fire model events
@@ -362,14 +376,14 @@ class RouteController extends Controller
 
                 foreach ($availableCargoList as $cargo) {
                     $proposal = $cargo->proposal;
-                    
+
                     if (!$proposal) {
                         continue;
                     }
 
                     // Criar shipment a partir da proposta
                     $trackingNumber = 'THG' . strtoupper(Str::random(8));
-                    
+
                     // Buscar ou criar cliente destinatário (pode ser o mesmo cliente ou criar novo)
                     // Se não houver endereço de destino, usar o cliente da proposta como destinatário
                     if (empty($proposal->destination_address) && empty($proposal->destination_city)) {
@@ -463,7 +477,7 @@ class RouteController extends Controller
                             $branch->city,
                             $branch->state,
                         ])));
-                        
+
                         $geocoded = $mapsService->geocode($fullAddress);
                         if ($geocoded) {
                             $branch->update([
@@ -491,7 +505,7 @@ class RouteController extends Controller
                     $validated['start_state'] ?? '',
                     $validated['start_zip_code'] ?? '',
                 ])));
-                
+
                 $geocoded = $mapsService->geocode($fullAddress);
                 if ($geocoded) {
                     $startLat = $geocoded['latitude'];
@@ -514,13 +528,13 @@ class RouteController extends Controller
                 ]);
                 return back()->withErrors(['error' => 'Não foi possível determinar o ponto de partida da rota. O ponto de partida DEVE ser o depósito/filial, nunca o remetente. Verifique o endereço do depósito/filial.'])->withInput();
             }
-            
+
             // Verify that start coordinates are from depot/branch, not from pickup address
             $branch = null;
             if ($startAddressType === 'branch' && $validated['branch_id']) {
                 $branch = Branch::find($validated['branch_id']);
             }
-            
+
             \Log::info('Setting route origin', [
                 'route_id' => $route->id,
                 'start_address_type' => $startAddressType,
@@ -529,7 +543,7 @@ class RouteController extends Controller
                 'branch_city' => $branch->city ?? null,
                 'origin_coordinates' => $startLat && $startLng ? ['lat' => $startLat, 'lng' => $startLng] : 'will_be_set_when_driver_starts',
             ]);
-            
+
             try {
                 // Só atualiza coordenadas se não for current_location (será definido quando motorista iniciar)
                 $updateData = [];
@@ -537,11 +551,11 @@ class RouteController extends Controller
                     $updateData['start_latitude'] = $startLat;
                     $updateData['start_longitude'] = $startLng;
                 }
-                
+
                 if (!empty($updateData)) {
                     $route->update($updateData);
                 }
-                
+
                 // Para current_location, logamos que será definido depois
                 if ($startAddressType === 'current_location') {
                     \Log::info('Route created with current_location - coordinates will be captured when driver starts route', [
@@ -561,17 +575,17 @@ class RouteController extends Controller
                 ]);
                 return back()->withErrors(['error' => 'Erro ao atualizar coordenadas da rota: ' . $e->getMessage()])->withInput();
             }
-            
+
             // Commit transaction before calculating routes (to avoid long-running transaction)
             DB::commit();
-            
+
             // Now calculate routes (outside transaction)
             // Só calcula se tiver coordenadas de início definidas
             // Se for current_location, será calculado quando motorista iniciar a rota
             if ($startAddressType !== 'current_location' && $startLat && $startLng) {
                 try {
                     $this->calculateMultipleRouteOptions($route);
-                    
+
                     // Verify end coordinates are set - MUST ALWAYS be depot/branch (return to origin)
                     $route->refresh();
                     if (!$route->end_latitude || !$route->end_longitude) {
@@ -607,7 +621,7 @@ class RouteController extends Controller
                     // Route is already created, so we continue
                 }
             }
-            
+
             // Update vehicle status if vehicle is assigned (outside transaction)
             if ($route->vehicle_id) {
                 try {
@@ -665,26 +679,26 @@ class RouteController extends Controller
                     'filename' => $file->getClientOriginalName(),
                     'size' => $file->getSize(),
                 ]);
-                
+
                 $xmlContent = file_get_contents($file->getRealPath());
-                
+
                 if (empty($xmlContent)) {
                     throw new \Exception('Arquivo XML vazio ou inválido');
                 }
-                
+
                 // Parse XML
                 $cteData = $xmlParser->parseXml($xmlContent);
-                
+
                 if (empty($cteData['origin']['address']) || empty($cteData['destination']['address'])) {
                     throw new \Exception('Não foi possível extrair endereços do XML. Verifique se o arquivo é um CT-e válido.');
                 }
-                
+
                 // Find or create sender client
                 $senderClient = $this->findOrCreateClient($tenant, $cteData['origin']);
-                
+
                 // Find or create receiver client
                 $receiverClient = $this->findOrCreateClient($tenant, $cteData['destination']);
-                
+
                 // Build full addresses for geocoding
                 $pickupFullAddress = trim(implode(', ', array_filter([
                     $cteData['origin']['address'] ?? '',
@@ -695,7 +709,7 @@ class RouteController extends Controller
                     $cteData['origin']['state'] ?? '',
                     $cteData['origin']['zip_code'] ?? '',
                 ])));
-                
+
                 $deliveryFullAddress = trim(implode(', ', array_filter([
                     $cteData['destination']['address'] ?? '',
                     $cteData['destination']['number'] ?? '',
@@ -705,11 +719,11 @@ class RouteController extends Controller
                     $cteData['destination']['state'] ?? '',
                     $cteData['destination']['zip_code'] ?? '',
                 ])));
-                
+
                 // Geocode addresses to get coordinates
                 $pickupCoords = null;
                 $deliveryCoords = null;
-                
+
                 if ($pickupFullAddress) {
                     $pickupCoords = $mapsService->geocode($pickupFullAddress);
                     if ($pickupCoords) {
@@ -723,7 +737,7 @@ class RouteController extends Controller
                         ]);
                     }
                 }
-                
+
                 if ($deliveryFullAddress) {
                     $deliveryCoords = $mapsService->geocode($deliveryFullAddress);
                     if ($deliveryCoords) {
@@ -737,20 +751,20 @@ class RouteController extends Controller
                         ]);
                     }
                 }
-                
+
                 // Build addresses for display (without coordinates)
                 $pickupAddress = trim(implode(', ', array_filter([
                     $cteData['origin']['address'] ?? '',
                     $cteData['origin']['number'] ?? '',
                     $cteData['origin']['complement'] ?? '',
                 ])));
-                
+
                 $deliveryAddress = trim(implode(', ', array_filter([
                     $cteData['destination']['address'] ?? '',
                     $cteData['destination']['number'] ?? '',
                     $cteData['destination']['complement'] ?? '',
                 ])));
-                
+
                 // Create shipment - using only fields that exist in the table
                 $trackingNumber = 'THG' . strtoupper(Str::random(8));
                 $shipment = Shipment::create([
@@ -791,7 +805,7 @@ class RouteController extends Controller
                     'status' => 'scheduled',
                     'delivery_notes' => 'Shipment created from CT-e XML',
                 ]);
-                
+
                 \Log::info('Shipment created from XML', [
                     'shipment_id' => $shipment->id,
                     'tracking_number' => $trackingNumber,
@@ -801,10 +815,10 @@ class RouteController extends Controller
                     'delivery_longitude' => $shipment->delivery_longitude,
                     'delivery_address' => $deliveryFullAddress,
                 ]);
-                
+
                 // Save XML to MinIO (with fallback to database)
                 $xmlPath = $this->saveXmlToStorage($xmlContent, $cteData['access_key'] ?? 'cte-' . $shipment->id, $tenant->id);
-                
+
                 // Create fiscal document
                 FiscalDocument::create([
                     'tenant_id' => $tenant->id,
@@ -817,19 +831,19 @@ class RouteController extends Controller
                     'xml' => $xmlPath ? null : $xmlContent, // Save in DB only if MinIO failed
                     'authorized_at' => now(),
                 ]);
-                
+
                 \Log::info('Fiscal document created', [
                     'access_key' => $cteData['access_key'] ?? 'N/A',
                     'xml_path' => $xmlPath ?? 'database',
                 ]);
-                
+
                 $createdShipments[] = $shipment;
             } catch (\Exception $e) {
                 $failedFiles[] = [
                     'filename' => $file->getClientOriginalName(),
                     'error' => $e->getMessage(),
                 ];
-                
+
                 \Log::error('Falha ao processar arquivo XML de CT-e', [
                     'file_index' => $index + 1,
                     'total_files' => count($files),
@@ -837,7 +851,7 @@ class RouteController extends Controller
                     'erro' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                
+
                 // Continue processing other files instead of throwing exception
                 // This allows partial success - process valid XMLs even if some fail
             }
@@ -853,7 +867,7 @@ class RouteController extends Controller
 
         // If all files failed, throw exception
         if (empty($createdShipments) && !empty($failedFiles)) {
-            $errorMessages = array_map(function($file) {
+            $errorMessages = array_map(function ($file) {
                 return $file['filename'] . ': ' . $file['error'];
             }, $failedFiles);
             throw new \Exception('Falha ao processar todos os arquivos XML: ' . implode('; ', $errorMessages));
@@ -1115,7 +1129,7 @@ class RouteController extends Controller
 
         // If all numbers failed, throw exception
         if (empty($createdShipments) && !empty($failedNumbers)) {
-            $errorMessages = array_map(function($item) {
+            $errorMessages = array_map(function ($item) {
                 return $item['xml_number'] . ': ' . $item['error'];
             }, $failedNumbers);
             throw new \Exception('Falha ao processar todos os números de XML: ' . implode('; ', $errorMessages));
@@ -1140,25 +1154,25 @@ class RouteController extends Controller
     {
         $createdShipments = [];
         $mapsService = app(MapsService::class);
-        
+
         \Log::info('processAddresses called', [
             'addresses_count' => count($addresses),
             'addresses_keys' => array_keys($addresses),
         ]);
-        
+
         // Normalize array to sequential indices to handle non-sequential keys
         $addresses = array_values($addresses);
-        
+
         \Log::info('After array_values', [
             'addresses_count' => count($addresses),
             'addresses_keys' => array_keys($addresses),
         ]);
-        
+
         // Create a default sender client if doesn't exist
         $defaultSender = Client::where('tenant_id', $tenant->id)
             ->where('name', 'like', '%Remetente%')
             ->first();
-        
+
         if (!$defaultSender) {
             $defaultSender = Client::create([
                 'tenant_id' => $tenant->id,
@@ -1166,12 +1180,12 @@ class RouteController extends Controller
                 'is_active' => true,
             ]);
         }
-        
+
         // Load branch relationship if not already loaded
         if (!$route->relationLoaded('branch') && $route->branch_id) {
             $route->load('branch');
         }
-        
+
         // Get branch information for pickup address
         $branch = $route->branch;
         $pickupAddress = [];
@@ -1187,7 +1201,7 @@ class RouteController extends Controller
                 'zip_code' => $branch->postal_code ?? '',
             ];
         }
-        
+
         // Process each address as a separate delivery destination
         // Pickup is always at the depot/branch (defaultSender), delivery is at each address
         foreach ($addresses as $index => $deliveryAddress) {
@@ -1195,7 +1209,7 @@ class RouteController extends Controller
                 'index' => $index,
                 'delivery_address' => $deliveryAddress,
             ]);
-            
+
             // Geocode addresses
             // If branch exists, use branch address for pickup, otherwise use delivery address
             if (!empty($pickupAddress['address'])) {
@@ -1207,7 +1221,7 @@ class RouteController extends Controller
                 ])));
                 // Use branch coordinates if available
                 $mapsServiceForAddresses = app(MapsService::class);
-                $pickupCoords = $branch->latitude && $branch->longitude 
+                $pickupCoords = $branch->latitude && $branch->longitude
                     ? ['latitude' => $branch->latitude, 'longitude' => $branch->longitude]
                     : $mapsServiceForAddresses->geocode($pickupFullAddress);
             } else {
@@ -1220,17 +1234,17 @@ class RouteController extends Controller
                 ])));
                 $pickupCoords = $mapsServiceForAddresses->geocode($pickupFullAddress);
             }
-            
+
             $deliveryFullAddress = trim(implode(', ', array_filter([
                 $deliveryAddress['address'] ?? '',
                 $deliveryAddress['city'] ?? '',
                 $deliveryAddress['state'] ?? '',
                 $deliveryAddress['zip_code'] ?? '',
             ])));
-            
+
             $mapsServiceForAddresses = app(MapsService::class);
             $deliveryCoords = $mapsServiceForAddresses->geocode($deliveryFullAddress);
-            
+
             // Create or find receiver client
             $receiverClient = $this->findOrCreateClient($tenant, [
                 'name' => $deliveryAddress['recipient_name'] ?? 'Destinatário',
@@ -1239,7 +1253,7 @@ class RouteController extends Controller
                 'state' => $deliveryAddress['state'] ?? '',
                 'zip_code' => $deliveryAddress['zip_code'] ?? '',
             ]);
-            
+
             $trackingNumber = 'THG' . strtoupper(Str::random(8));
             $shipment = Shipment::create([
                 'tenant_id' => $tenant->id,
@@ -1277,9 +1291,9 @@ class RouteController extends Controller
                 'value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : 0,
                 'goods_value' => isset($deliveryAddress['freight_value']) && $deliveryAddress['freight_value'] !== '' ? (float) $deliveryAddress['freight_value'] : 0,
             ]);
-            
+
             $createdShipments[] = $shipment;
-            
+
             \Log::info('Shipment created from address', [
                 'shipment_id' => $shipment->id,
                 'index' => $index,
@@ -1289,11 +1303,11 @@ class RouteController extends Controller
                 'goods_value' => $shipment->goods_value,
             ]);
         }
-        
+
         \Log::info('Finished processing addresses', [
             'total_shipments_created' => count($createdShipments),
         ]);
-        
+
         return $createdShipments;
     }
 
@@ -1458,7 +1472,7 @@ class RouteController extends Controller
             $this->authorizeAccess($route);
 
             $route->load(['branch', 'driver', 'vehicle', 'shipments.senderClient', 'shipments.receiverClient', 'shipments.fiscalDocuments', 'shipments.deliveryProofs', 'driverExpenses.driver']);
-            
+
             // Recalculate metrics if not set and route is not locked
             // If route is locked, use selected route option data
             if ($route->is_route_locked && $route->selected_route_option) {
@@ -1487,7 +1501,7 @@ class RouteController extends Controller
                     // Continue without route options - don't fail the page
                 }
             }
-            
+
             // Get MDF-e if exists
             $mdfe = FiscalDocument::where('route_id', $route->id)
                 ->where('document_type', 'mdfe')
@@ -1526,7 +1540,7 @@ class RouteController extends Controller
         }
 
         $tenant = Auth::user()->tenant;
-        
+
         $drivers = Driver::where('tenant_id', $tenant->id)
             ->where('is_active', true)
             ->with('vehicles')
@@ -1545,9 +1559,9 @@ class RouteController extends Controller
             ->get();
 
         $availableShipments = Shipment::where('tenant_id', $tenant->id)
-            ->where(function($q) use ($route) {
+            ->where(function ($q) use ($route) {
                 $q->whereNull('route_id')
-                  ->orWhere('route_id', $route->id);
+                    ->orWhere('route_id', $route->id);
             })
             ->orderBy('created_at', 'desc')
             ->get();
@@ -1571,52 +1585,52 @@ class RouteController extends Controller
 
         // Handle different update types
         $updateType = $request->input('update_type');
-        
+
         if ($updateType === 'planned_times') {
             $validated = $request->validate([
                 'planned_departure_datetime' => 'nullable|date',
                 'planned_arrival_datetime' => 'nullable|date|after_or_equal:planned_departure_datetime',
             ]);
-            
+
             $route->update($validated);
             return redirect()->route('routes.show', $route)
                 ->with('success', 'Horários planejados atualizados com sucesso!');
         }
-        
+
         if ($updateType === 'actual_times') {
             $validated = $request->validate([
                 'actual_departure_datetime' => 'nullable|date',
                 'actual_arrival_datetime' => 'nullable|date|after_or_equal:actual_departure_datetime',
             ]);
-            
+
             $route->update($validated);
             return redirect()->route('routes.show', $route)
                 ->with('success', 'Horários reais atualizados com sucesso!');
         }
-        
+
         if ($updateType === 'diarias') {
             $validated = $request->validate([
                 'driver_diarias_count' => 'nullable|integer|min:0',
                 'driver_diaria_value' => 'nullable|numeric|min:0',
             ]);
-            
+
             $route->update($validated);
             return redirect()->route('routes.show', $route)
                 ->with('success', 'Controle de diárias atualizado com sucesso!');
         }
-        
+
         if ($updateType === 'deposits') {
             $validated = $request->validate([
                 'deposit_toll' => 'nullable|numeric|min:0',
                 'deposit_expenses' => 'nullable|numeric|min:0',
                 'deposit_fuel' => 'nullable|numeric|min:0',
             ]);
-            
+
             $route->update($validated);
             return redirect()->route('routes.show', $route)
                 ->with('success', 'Controle de depósitos atualizado com sucesso!');
         }
-        
+
         // Standard route update
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -1640,12 +1654,12 @@ class RouteController extends Controller
         if ($request->filled('vehicle_id')) {
             $driver = Driver::findOrFail($validated['driver_id']);
             $vehicle = Vehicle::findOrFail($validated['vehicle_id']);
-            
+
             // Check if vehicle is assigned to driver
             if (!$driver->vehicles->contains($vehicle->id)) {
                 return back()->withErrors(['vehicle_id' => 'O veículo selecionado não está atribuído ao motorista selecionado.'])->withInput();
             }
-            
+
             // Check if vehicle is available (unless route is already in progress)
             if ($route->status !== 'in_progress' && !$vehicle->isAvailable()) {
                 return back()->withErrors(['vehicle_id' => 'O veículo selecionado não está disponível.'])->withInput();
@@ -1667,13 +1681,13 @@ class RouteController extends Controller
                 $validated['min_freight_rate_days'] = null;
             }
         }
-        
+
         $oldVehicleId = $route->vehicle_id;
         $oldStatus = $route->status;
-        
+
         // Calculate and update total revenue if shipments changed
         $route->update($validated);
-        
+
         // Recalculate total revenue if shipments were updated
         if ($request->has('shipment_ids')) {
             $totalRevenue = $route->shipments()->sum('value') ?? 0;
@@ -1708,7 +1722,7 @@ class RouteController extends Controller
                     ->where('id', '!=', $route->id)
                     ->whereIn('status', ['scheduled', 'in_progress'])
                     ->exists();
-                
+
                 if (!$hasOtherActiveRoutes) {
                     $oldVehicle->update(['status' => 'available']);
                 }
@@ -1717,7 +1731,7 @@ class RouteController extends Controller
 
         // Update shipments association
         $tenant = Auth::user()->tenant;
-        
+
         // Remove all shipments from this route
         Shipment::where('route_id', $route->id)
             ->where('tenant_id', $tenant->id)
@@ -1731,7 +1745,7 @@ class RouteController extends Controller
         }
 
         return redirect()->route('routes.show', $route)
-                ->with('success', 'Rota atualizada com sucesso!');
+            ->with('success', 'Rota atualizada com sucesso!');
     }
 
     /**
@@ -1750,7 +1764,7 @@ class RouteController extends Controller
                     ->where('id', '!=', $route->id)
                     ->whereIn('status', ['scheduled', 'in_progress'])
                     ->exists();
-                
+
                 if (!$hasOtherActiveRoutes) {
                     $vehicle->update(['status' => 'available']);
                 }
@@ -1772,21 +1786,23 @@ class RouteController extends Controller
     public function downloadCteXml(Route $route, FiscalDocument $fiscalDocument)
     {
         $tenant = Auth::user()->tenant;
-        
+
         // Verify route access
         $this->authorizeAccess($route);
-        
+
         // Verify fiscal document belongs to tenant
         if ($fiscalDocument->tenant_id !== $tenant->id) {
             abort(403, 'Acesso não autorizado a este documento fiscal.');
         }
-        
+
         // Verify fiscal document belongs to route
-        if ($fiscalDocument->route_id !== $route->id && 
-            ($fiscalDocument->shipment && $fiscalDocument->shipment->route_id !== $route->id)) {
+        if (
+            $fiscalDocument->route_id !== $route->id &&
+            ($fiscalDocument->shipment && $fiscalDocument->shipment->route_id !== $route->id)
+        ) {
             abort(403, 'O documento fiscal não pertence a esta rota.');
         }
-        
+
         // Try to get XML from storage (local or MinIO)
         $xmlContent = null;
         if ($fiscalDocument->xml_url) {
@@ -1822,18 +1838,18 @@ class RouteController extends Controller
                 ]);
             }
         }
-        
+
         // Fallback to database if storage fails (backward compatibility)
         if (!$xmlContent && $fiscalDocument->xml) {
             $xmlContent = $fiscalDocument->xml;
         }
-        
+
         if (!$xmlContent) {
             abort(404, 'Arquivo XML não encontrado.');
         }
-        
+
         $filename = 'cte-' . ($fiscalDocument->access_key ?? $fiscalDocument->id) . '.xml';
-        
+
         return response($xmlContent, 200)
             ->header('Content-Type', 'application/xml; charset=utf-8')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
@@ -1845,7 +1861,7 @@ class RouteController extends Controller
     protected function calculateRouteMetrics(Route $route): void
     {
         $shipments = $route->shipments()->with(['senderClient', 'receiverClient'])->get();
-        
+
         if ($shipments->isEmpty()) {
             return;
         }
@@ -1866,7 +1882,7 @@ class RouteController extends Controller
                     $shipment->pickup_state,
                     $shipment->pickup_zip_code,
                 ])));
-                
+
                 if ($pickupAddress) {
                     $mapsServiceForGeocode = app(MapsService::class);
                     $geocoded = $mapsServiceForGeocode->geocode($pickupAddress);
@@ -1887,7 +1903,7 @@ class RouteController extends Controller
                     $shipment->delivery_state,
                     $shipment->delivery_zip_code,
                 ])));
-                
+
                 if ($deliveryAddress) {
                     $mapsServiceForGeocode = app(MapsService::class);
                     $geocoded = $mapsServiceForGeocode->geocode($deliveryAddress);
@@ -1924,7 +1940,7 @@ class RouteController extends Controller
                     $waypoints[$i + 1]['lat'],
                     $waypoints[$i + 1]['lng']
                 );
-                
+
                 if ($distance) {
                     $totalDistance += $distance['distance'];
                     $totalDuration += $distance['duration'];
@@ -1950,7 +1966,7 @@ class RouteController extends Controller
                     $fuelConsumptionPerKm = $vehicle->getFuelConsumptionPerKm();
 
                     $estimatedFuelConsumption = round(($totalDistance / 1000) * $fuelConsumptionPerKm, 2);
-                    
+
                     // Store in route settings
                     $settings = $route->settings ?? [];
                     $settings['estimated_fuel_consumption'] = $estimatedFuelConsumption;
@@ -1971,15 +1987,15 @@ class RouteController extends Controller
         try {
             $filename = 'cte-' . ($accessKey ?: Str::random(16)) . '.xml';
             $path = "tenants/{$tenantId}/cte/{$filename}";
-            
+
             // Use local storage as fallback
             Storage::disk('local')->put($path, $xmlContent);
-            
+
             \Log::info('XML salvo no storage local (MinIO temporariamente desabilitado)', [
                 'path' => $path,
                 'tenant_id' => $tenantId,
             ]);
-            
+
             // Return path with 'local:' prefix to indicate it's in local storage
             return 'local:' . $path;
         } catch (\Exception $e) {
@@ -2096,251 +2112,251 @@ class RouteController extends Controller
 
             // CRITICAL: Origin MUST ALWAYS be depot/branch (filial/depósito), NEVER pickup addresses (remetentes)
             // The route starts from depot, goes to nearest destination, then that destination becomes origin for next
-            
+
             // Priority 1: Use route->start_latitude (should be depot/branch)
             $originLat = $route->start_latitude;
             $originLng = $route->start_longitude;
 
-        // Priority 2: If not set, get from branch (depot/filial) - THIS IS THE CORRECT ORIGIN
-        if ((!$originLat || !$originLng) && $route->branch) {
-            $originLat = $route->branch->latitude;
-            $originLng = $route->branch->longitude;
-            
-            // Update route with branch coordinates if not set
-            if (!$route->start_latitude || !$route->start_longitude) {
-                $route->update([
-                    'start_latitude' => $originLat,
-                    'start_longitude' => $originLng,
-                ]);
-            }
-            
-            \Log::info('Using branch (depot/filial) coordinates as origin', [
-                'route_id' => $route->id,
-                'branch_id' => $route->branch->id,
-                'branch_name' => $route->branch->name,
-                'branch_city' => $route->branch->city,
-                'coordinates' => ['lat' => $originLat, 'lng' => $originLng],
-            ]);
-        }
-        
-        // Priority 3: Try to get from driver current location (fallback only, not ideal)
-        if ((!$originLat || !$originLng) && $route->driver) {
-            $originLat = $route->driver->current_latitude;
-            $originLng = $route->driver->current_longitude;
-            if ($originLat && $originLng) {
-                \Log::warning('Using driver current location as origin (fallback - should use depot/branch!)', [
+            // Priority 2: If not set, get from branch (depot/filial) - THIS IS THE CORRECT ORIGIN
+            if ((!$originLat || !$originLng) && $route->branch) {
+                $originLat = $route->branch->latitude;
+                $originLng = $route->branch->longitude;
+
+                // Update route with branch coordinates if not set
+                if (!$route->start_latitude || !$route->start_longitude) {
+                    $route->update([
+                        'start_latitude' => $originLat,
+                        'start_longitude' => $originLng,
+                    ]);
+                }
+
+                \Log::info('Using branch (depot/filial) coordinates as origin', [
                     'route_id' => $route->id,
-                    'driver_id' => $route->driver->id,
+                    'branch_id' => $route->branch->id,
+                    'branch_name' => $route->branch->name,
+                    'branch_city' => $route->branch->city,
                     'coordinates' => ['lat' => $originLat, 'lng' => $originLng],
                 ]);
             }
-        }
 
-        // CRITICAL: Must have origin from depot/branch, not from pickup address
-        if (!$originLat || !$originLng) {
-            \Log::error('CRITICAL ERROR: Cannot calculate route - NO ORIGIN (depot/branch) coordinates set!', [
-                'route_id' => $route->id,
-                'has_branch' => $route->branch !== null,
-                'branch_id' => $route->branch_id,
-                'has_driver' => $route->driver !== null,
-                'route_start_lat' => $route->start_latitude,
-                'route_start_lng' => $route->start_longitude,
-            ]);
-            return;
-        }
-        
-        // Log confirmation that origin is depot/branch
-        \Log::info('Route origin confirmed as depot/branch (NOT pickup address)', [
-            'route_id' => $route->id,
-            'origin' => ['lat' => $originLat, 'lng' => $originLng],
-            'branch_id' => $route->branch_id,
-            'branch_name' => $route->branch->name ?? 'N/A',
-            'branch_city' => $route->branch->city ?? 'N/A',
-        ]);
-
-        // Get all shipments for the route
-        $allShipments = $route->shipments()->orderBy('id')->get();
-        
-        \Log::info('Checking shipments for route calculation', [
-            'route_id' => $route->id,
-            'total_shipments' => $allShipments->count(),
-        ]);
-
-        // Get shipments with delivery addresses (coordinates)
-        $shipments = $route->shipments()->whereNotNull('delivery_latitude')
-            ->whereNotNull('delivery_longitude')
-            ->orderBy('id')
-            ->get();
-
-        // Log shipments without coordinates for debugging
-        $shipmentsWithoutCoords = $allShipments->filter(function($shipment) {
-            return empty($shipment->delivery_latitude) || empty($shipment->delivery_longitude);
-        });
-
-        if ($shipmentsWithoutCoords->isNotEmpty()) {
-            \Log::warning('Some shipments are missing delivery coordinates', [
-                'route_id' => $route->id,
-                'count' => $shipmentsWithoutCoords->count(),
-                'shipment_ids' => $shipmentsWithoutCoords->pluck('id')->toArray(),
-            ]);
-        }
-
-        if ($shipments->isEmpty()) {
-            \Log::warning('Cannot calculate route options: no shipments with coordinates', [
-                'route_id' => $route->id,
-                'total_shipments' => $allShipments->count(),
-                'shipments_without_coords' => $shipmentsWithoutCoords->count(),
-            ]);
-            return;
-        }
-
-        \Log::info('Found shipments with coordinates', [
-            'route_id' => $route->id,
-            'shipments_count' => $shipments->count(),
-            'shipment_ids' => $shipments->pluck('id')->toArray(),
-        ]);
-
-        // Build destinations from DELIVERY addresses (destinatários)
-        // IMPORTANT: We use DELIVERY addresses, NOT pickup addresses (remetentes)
-        // The route goes: Depot → Nearest Destinatário → Next Nearest Destinatário → ...
-        $destinations = [];
-        foreach ($shipments as $shipment) {
-            $destinations[] = [
-                'lat' => $shipment->delivery_latitude,
-                'lng' => $shipment->delivery_longitude,
-                'shipment_id' => $shipment->id,
-                'tracking_number' => $shipment->tracking_number,
-            ];
-        }
-
-        // Optimize route sequentially: each destination becomes origin for next nearest
-        // This is different from Google Maps optimizeWaypoints which optimizes all at once
-        $routeOptimizationService = app(\App\Services\RouteOptimizationService::class);
-        $optimizedDestinations = $routeOptimizationService->optimizeSequentialRoute(
-            $originLat,
-            $originLng,
-            $destinations
-        );
-
-        // Convert optimized destinations to waypoints
-        $waypoints = $optimizedDestinations;
-        
-        \Log::info('Route optimized sequentially', [
-            'route_id' => $route->id,
-            'original_count' => count($destinations),
-            'optimized_count' => count($optimizedDestinations),
-            'optimized_order' => array_map(function($d) {
-                return $d['shipment_id'] ?? 'unknown';
-            }, $optimizedDestinations),
-        ]);
-
-        // CRITICAL: Destination MUST ALWAYS be depot/branch (return to origin)
-        // The route must return to depot after all deliveries
-        // Route flow: Depot → Nearest Destinatário → Next Nearest → ... → Depot (return)
-        $destinationLat = $originLat;
-        $destinationLng = $originLng;
-        
-        \Log::info('Route destination set to depot/branch (return to origin)', [
-            'route_id' => $route->id,
-            'destination' => ['lat' => $destinationLat, 'lng' => $destinationLng],
-            'origin' => ['lat' => $originLat, 'lng' => $originLng],
-        ]);
-        
-        // Update route with end coordinates (always depot/branch)
-        $route->update([
-            'end_latitude' => $destinationLat,
-            'end_longitude' => $destinationLng,
-        ]);
-
-        \Log::info('Calculating route options', [
-            'route_id' => $route->id,
-            'origin' => ['lat' => $originLat, 'lng' => $originLng],
-            'destination' => ['lat' => $destinationLat, 'lng' => $destinationLng],
-            'waypoints_count' => count($waypoints),
-        ]);
-
-        // Get vehicle for toll calculation
-        $vehicle = $route->vehicle;
-        
-        // Calculate multiple routes with optimization
-        $googleMapsService = app(GoogleMapsService::class);
-        $routeOptions = $googleMapsService->calculateMultipleRoutes(
-            $originLat,
-            $originLng,
-            $destinationLat,
-            $destinationLng,
-            $waypoints,
-            $vehicle
-        );
-
-        if (!empty($routeOptions)) {
-            // Compare routes and find the best one
-            $routeComparisonService = app(\App\Services\RouteComparisonService::class);
-            $comparison = $routeComparisonService->getRecommendation($routeOptions, 'balanced');
-            
-            // Add comparison data to route options
-            foreach ($routeOptions as &$option) {
-                $option['is_recommended'] = ($option['option'] === $comparison['best_option']);
-            }
-            
-            // Save optimized waypoint order if available
-            $optimizedWaypointOrder = null;
-            if ($comparison['best_route'] && isset($comparison['best_route']['waypoint_order'])) {
-                $optimizedWaypointOrder = $comparison['best_route']['waypoint_order'];
-            }
-            
-            // Save sequential optimization order (shipment_ids in optimized order)
-            $sequentialOptimizedOrder = array_map(function($d) {
-                return $d['shipment_id'] ?? null;
-            }, $optimizedDestinations);
-            
-            // Calculate total CT-e values (sum of all shipment values) - This is the total revenue
-            $totalCteValue = $route->shipments()->sum('value') ?? 0;
-            $totalGoodsValue = $route->shipments()->sum('goods_value') ?? 0;
-            
-            \Log::info('Route CT-e values calculated', [
-                'route_id' => $route->id,
-                'total_cte_value' => $totalCteValue,
-                'total_goods_value' => $totalGoodsValue,
-                'shipments_count' => $route->shipments()->count(),
-            ]);
-            
-            // Update route with options and comparison
-            $route->update([
-                'route_options' => $routeOptions,
-                'total_revenue' => $totalCteValue, // Total revenue from CT-e values
-                'settings' => array_merge($route->settings ?? [], [
-                    'route_comparison' => $comparison,
-                    'optimized_waypoint_order' => $optimizedWaypointOrder,
-                    'sequential_optimized_order' => $sequentialOptimizedOrder, // Order of shipment_ids from sequential optimization
-                    'best_route_option' => $comparison['best_option'],
-                    'total_cte_value' => $totalCteValue,
-                    'total_goods_value' => $totalGoodsValue,
-                ]),
-            ]);
-
-            // Save planned path from the selected/best route option
-            if (isset($comparison['best_route']) && !empty($comparison['best_route'])) {
-                $routePathService = app(\App\Services\RoutePathService::class);
-                $bestOption = $routeOptions[$comparison['best_option'] - 1] ?? null;
-                if ($bestOption) {
-                    $routePathService->savePlannedPath($route, $bestOption);
+            // Priority 3: Try to get from driver current location (fallback only, not ideal)
+            if ((!$originLat || !$originLng) && $route->driver) {
+                $originLat = $route->driver->current_latitude;
+                $originLng = $route->driver->current_longitude;
+                if ($originLat && $originLng) {
+                    \Log::warning('Using driver current location as origin (fallback - should use depot/branch!)', [
+                        'route_id' => $route->id,
+                        'driver_id' => $route->driver->id,
+                        'coordinates' => ['lat' => $originLat, 'lng' => $originLng],
+                    ]);
                 }
             }
-            
-            \Log::info('Route options calculated successfully with optimization', [
+
+            // CRITICAL: Must have origin from depot/branch, not from pickup address
+            if (!$originLat || !$originLng) {
+                \Log::error('CRITICAL ERROR: Cannot calculate route - NO ORIGIN (depot/branch) coordinates set!', [
+                    'route_id' => $route->id,
+                    'has_branch' => $route->branch !== null,
+                    'branch_id' => $route->branch_id,
+                    'has_driver' => $route->driver !== null,
+                    'route_start_lat' => $route->start_latitude,
+                    'route_start_lng' => $route->start_longitude,
+                ]);
+                return;
+            }
+
+            // Log confirmation that origin is depot/branch
+            \Log::info('Route origin confirmed as depot/branch (NOT pickup address)', [
                 'route_id' => $route->id,
-                'options_count' => count($routeOptions),
-                'best_option' => $comparison['best_option'],
-                'best_cost' => $comparison['best_route']['estimated_cost'] ?? null,
-                'optimized_order' => $optimizedWaypointOrder !== null,
+                'origin' => ['lat' => $originLat, 'lng' => $originLng],
+                'branch_id' => $route->branch_id,
+                'branch_name' => $route->branch->name ?? 'N/A',
+                'branch_city' => $route->branch->city ?? 'N/A',
             ]);
-        } else {
-            \Log::warning('No route options returned from Google Maps API', [
+
+            // Get all shipments for the route
+            $allShipments = $route->shipments()->orderBy('id')->get();
+
+            \Log::info('Checking shipments for route calculation', [
                 'route_id' => $route->id,
+                'total_shipments' => $allShipments->count(),
+            ]);
+
+            // Get shipments with delivery addresses (coordinates)
+            $shipments = $route->shipments()->whereNotNull('delivery_latitude')
+                ->whereNotNull('delivery_longitude')
+                ->orderBy('id')
+                ->get();
+
+            // Log shipments without coordinates for debugging
+            $shipmentsWithoutCoords = $allShipments->filter(function ($shipment) {
+                return empty($shipment->delivery_latitude) || empty($shipment->delivery_longitude);
+            });
+
+            if ($shipmentsWithoutCoords->isNotEmpty()) {
+                \Log::warning('Some shipments are missing delivery coordinates', [
+                    'route_id' => $route->id,
+                    'count' => $shipmentsWithoutCoords->count(),
+                    'shipment_ids' => $shipmentsWithoutCoords->pluck('id')->toArray(),
+                ]);
+            }
+
+            if ($shipments->isEmpty()) {
+                \Log::warning('Cannot calculate route options: no shipments with coordinates', [
+                    'route_id' => $route->id,
+                    'total_shipments' => $allShipments->count(),
+                    'shipments_without_coords' => $shipmentsWithoutCoords->count(),
+                ]);
+                return;
+            }
+
+            \Log::info('Found shipments with coordinates', [
+                'route_id' => $route->id,
+                'shipments_count' => $shipments->count(),
+                'shipment_ids' => $shipments->pluck('id')->toArray(),
+            ]);
+
+            // Build destinations from DELIVERY addresses (destinatários)
+            // IMPORTANT: We use DELIVERY addresses, NOT pickup addresses (remetentes)
+            // The route goes: Depot → Nearest Destinatário → Next Nearest Destinatário → ...
+            $destinations = [];
+            foreach ($shipments as $shipment) {
+                $destinations[] = [
+                    'lat' => $shipment->delivery_latitude,
+                    'lng' => $shipment->delivery_longitude,
+                    'shipment_id' => $shipment->id,
+                    'tracking_number' => $shipment->tracking_number,
+                ];
+            }
+
+            // Optimize route sequentially: each destination becomes origin for next nearest
+            // This is different from Google Maps optimizeWaypoints which optimizes all at once
+            $routeOptimizationService = app(\App\Services\RouteOptimizationService::class);
+            $optimizedDestinations = $routeOptimizationService->optimizeSequentialRoute(
+                $originLat,
+                $originLng,
+                $destinations
+            );
+
+            // Convert optimized destinations to waypoints
+            $waypoints = $optimizedDestinations;
+
+            \Log::info('Route optimized sequentially', [
+                'route_id' => $route->id,
+                'original_count' => count($destinations),
+                'optimized_count' => count($optimizedDestinations),
+                'optimized_order' => array_map(function ($d) {
+                    return $d['shipment_id'] ?? 'unknown';
+                }, $optimizedDestinations),
+            ]);
+
+            // CRITICAL: Destination MUST ALWAYS be depot/branch (return to origin)
+            // The route must return to depot after all deliveries
+            // Route flow: Depot → Nearest Destinatário → Next Nearest → ... → Depot (return)
+            $destinationLat = $originLat;
+            $destinationLng = $originLng;
+
+            \Log::info('Route destination set to depot/branch (return to origin)', [
+                'route_id' => $route->id,
+                'destination' => ['lat' => $destinationLat, 'lng' => $destinationLng],
+                'origin' => ['lat' => $originLat, 'lng' => $originLng],
+            ]);
+
+            // Update route with end coordinates (always depot/branch)
+            $route->update([
+                'end_latitude' => $destinationLat,
+                'end_longitude' => $destinationLng,
+            ]);
+
+            \Log::info('Calculating route options', [
+                'route_id' => $route->id,
+                'origin' => ['lat' => $originLat, 'lng' => $originLng],
+                'destination' => ['lat' => $destinationLat, 'lng' => $destinationLng],
                 'waypoints_count' => count($waypoints),
             ]);
-        }
+
+            // Get vehicle for toll calculation
+            $vehicle = $route->vehicle;
+
+            // Calculate multiple routes with optimization
+            $googleMapsService = app(GoogleMapsService::class);
+            $routeOptions = $googleMapsService->calculateMultipleRoutes(
+                $originLat,
+                $originLng,
+                $destinationLat,
+                $destinationLng,
+                $waypoints,
+                $vehicle
+            );
+
+            if (!empty($routeOptions)) {
+                // Compare routes and find the best one
+                $routeComparisonService = app(\App\Services\RouteComparisonService::class);
+                $comparison = $routeComparisonService->getRecommendation($routeOptions, 'balanced');
+
+                // Add comparison data to route options
+                foreach ($routeOptions as &$option) {
+                    $option['is_recommended'] = ($option['option'] === $comparison['best_option']);
+                }
+
+                // Save optimized waypoint order if available
+                $optimizedWaypointOrder = null;
+                if ($comparison['best_route'] && isset($comparison['best_route']['waypoint_order'])) {
+                    $optimizedWaypointOrder = $comparison['best_route']['waypoint_order'];
+                }
+
+                // Save sequential optimization order (shipment_ids in optimized order)
+                $sequentialOptimizedOrder = array_map(function ($d) {
+                    return $d['shipment_id'] ?? null;
+                }, $optimizedDestinations);
+
+                // Calculate total CT-e values (sum of all shipment values) - This is the total revenue
+                $totalCteValue = $route->shipments()->sum('value') ?? 0;
+                $totalGoodsValue = $route->shipments()->sum('goods_value') ?? 0;
+
+                \Log::info('Route CT-e values calculated', [
+                    'route_id' => $route->id,
+                    'total_cte_value' => $totalCteValue,
+                    'total_goods_value' => $totalGoodsValue,
+                    'shipments_count' => $route->shipments()->count(),
+                ]);
+
+                // Update route with options and comparison
+                $route->update([
+                    'route_options' => $routeOptions,
+                    'total_revenue' => $totalCteValue, // Total revenue from CT-e values
+                    'settings' => array_merge($route->settings ?? [], [
+                        'route_comparison' => $comparison,
+                        'optimized_waypoint_order' => $optimizedWaypointOrder,
+                        'sequential_optimized_order' => $sequentialOptimizedOrder, // Order of shipment_ids from sequential optimization
+                        'best_route_option' => $comparison['best_option'],
+                        'total_cte_value' => $totalCteValue,
+                        'total_goods_value' => $totalGoodsValue,
+                    ]),
+                ]);
+
+                // Save planned path from the selected/best route option
+                if (isset($comparison['best_route']) && !empty($comparison['best_route'])) {
+                    $routePathService = app(\App\Services\RoutePathService::class);
+                    $bestOption = $routeOptions[$comparison['best_option'] - 1] ?? null;
+                    if ($bestOption) {
+                        $routePathService->savePlannedPath($route, $bestOption);
+                    }
+                }
+
+                \Log::info('Route options calculated successfully with optimization', [
+                    'route_id' => $route->id,
+                    'options_count' => count($routeOptions),
+                    'best_option' => $comparison['best_option'],
+                    'best_cost' => $comparison['best_route']['estimated_cost'] ?? null,
+                    'optimized_order' => $optimizedWaypointOrder !== null,
+                ]);
+            } else {
+                \Log::warning('No route options returned from Google Maps API', [
+                    'route_id' => $route->id,
+                    'waypoints_count' => count($waypoints),
+                ]);
+            }
         } catch (\Exception $e) {
             \Log::error('Error calculating route options', [
                 'route_id' => $route->id,
@@ -2357,10 +2373,10 @@ class RouteController extends Controller
     public function createBranch(Request $request)
     {
         $tenant = Auth::user()->tenant;
-        
+
         // Get or create company for tenant
         $company = Company::where('tenant_id', $tenant->id)->first();
-        
+
         if (!$company) {
             return response()->json([
                 'success' => false,
@@ -2384,7 +2400,7 @@ class RouteController extends Controller
 
         try {
             $googleMapsService = app(GoogleMapsService::class);
-            
+
             // Geocode address
             $fullAddress = trim(implode(', ', array_filter([
                 $validated['address'],
@@ -2393,10 +2409,10 @@ class RouteController extends Controller
                 $validated['city'],
                 $validated['state'],
             ])));
-            
+
             $mapsServiceForBranch = app(MapsService::class);
             $geocoded = $mapsServiceForBranch->geocode($fullAddress);
-            
+
             $branch = Branch::create([
                 'tenant_id' => $tenant->id,
                 'company_id' => $company->id,
@@ -2433,7 +2449,7 @@ class RouteController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao criar Depósito/Filial: ' . $e->getMessage(),
@@ -2447,15 +2463,15 @@ class RouteController extends Controller
     protected function authorizeAccess(Route $route)
     {
         $tenant = Auth::user()->tenant;
-        
+
         if (!$tenant) {
             abort(403, 'Usuário não possui tenant associado.');
         }
-        
+
         if (!$route || !$route->exists) {
             abort(404, 'Rota não encontrada.');
         }
-        
+
         if ($route->tenant_id !== $tenant->id) {
             abort(403, 'Acesso não autorizado a esta rota.');
         }

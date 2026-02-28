@@ -19,7 +19,7 @@ class RouteObserver
     protected RouteHistoryService $routeHistoryService;
 
     public function __construct(
-        WuzApiService $wuzApiService, 
+        WuzApiService $wuzApiService,
         DriverAuthService $driverAuthService,
         RouteHistoryService $routeHistoryService
     ) {
@@ -81,10 +81,12 @@ class RouteObserver
 
         // Check if coordinates were just added and route already has a driver
         // This handles the case when route calculation happens after route creation
-        if ($route->driver_id && 
+        if (
+            $route->driver_id &&
             ($route->wasChanged('start_latitude') || $route->wasChanged('start_longitude')) &&
-            $route->start_latitude && 
-            $route->start_longitude) {
+            $route->start_latitude &&
+            $route->start_longitude
+        ) {
             // Only notify if this is the first time coordinates are set
             // (avoid duplicate notifications)
             $wasNotified = $route->settings['whatsapp_notified'] ?? false;
@@ -120,15 +122,15 @@ class RouteObserver
         foreach ($periods as $period) {
             $cacheKey = "driver_wallet_{$driverId}_{$period}_all";
             Cache::forget($cacheKey);
-            
+
             // Also clear with date variations
-            $startDate = match($period) {
+            $startDate = match ($period) {
                 'week' => now()->startOfWeek(),
                 'month' => now()->startOfMonth(),
                 'year' => now()->startOfYear(),
                 default => null,
             };
-            
+
             if ($startDate) {
                 $cacheKey = "driver_wallet_{$driverId}_{$period}_" . $startDate->format('Y-m-d');
                 Cache::forget($cacheKey);
@@ -152,7 +154,7 @@ class RouteObserver
             $oldDiariasCount = $route->getOriginal('driver_diarias_count') ?? 0;
             $oldDiariaValue = $route->getOriginal('driver_diaria_value') ?? 0;
             $oldAmount = $oldDiariasCount * $oldDiariaValue;
-            
+
             $newDiariasCount = $route->driver_diarias_count ?? 0;
             $newDiariaValue = $route->driver_diaria_value ?? 0;
             $newAmount = $newDiariasCount * $newDiariaValue;
@@ -178,10 +180,9 @@ class RouteObserver
                 $oldValue = $route->getOriginal($field) ?? 0;
                 $newValue = $route->$field ?? 0;
 
-                // Only notify if deposit increased
                 if ($newValue > $oldValue && $newValue > 0) {
                     try {
-                        $fieldName = match($field) {
+                        $fieldName = match ($field) {
                             'deposit_toll' => 'Pedágio',
                             'deposit_expenses' => 'Despesas',
                             'deposit_fuel' => 'Combustível',
@@ -189,8 +190,12 @@ class RouteObserver
                         };
 
                         $driver->user->notify(new DriverExpenseAdded($route, $fieldName, $newValue - $oldValue));
+
+                        // Sync to Financial (Company Ledger)
+                        $this->syncRouteDepositToFinancial($route, $field, $newValue - $oldValue);
+
                     } catch (\Exception $e) {
-                        Log::error('Failed to send expense notification', [
+                        Log::error('Failed to process expense/deposit update', [
                             'route_id' => $route->id,
                             'driver_id' => $driver->id,
                             'field' => $field,
@@ -199,6 +204,51 @@ class RouteObserver
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Create a Company Expense (Payment) for the deposit given to driver.
+     */
+    protected function syncRouteDepositToFinancial(Route $route, string $field, float $amount): void
+    {
+        try {
+            // Field mapping to ExpenseCategory
+            $categoryName = match ($field) {
+                'deposit_toll' => 'Adiantamento - Pedágio',
+                'deposit_fuel' => 'Adiantamento - Combustível',
+                'deposit_expenses' => 'Adiantamento - Outros',
+                default => 'Adiantamento Operacional',
+            };
+
+            $category = \App\Models\ExpenseCategory::firstOrCreate(
+                ['name' => $categoryName, 'tenant_id' => $route->tenant_id],
+                ['description' => 'Adiantamentos de rota', 'is_active' => true]
+            );
+
+            // Create Expense (Adiantamento is an expense for the company at the moment of transfer)
+            // Or should it be a Transfer? For simplicity, treat as Expense (Cash Out).
+            // If the driver returns money later, we create a Revenue/Return.
+
+            \App\Models\Expense::create([
+                'tenant_id' => $route->tenant_id,
+                'expense_category_id' => $category->id,
+                'vehicle_id' => $route->vehicle_id,
+                'route_id' => $route->id,
+                'description' => "[ROT] " . $categoryName . " - " . $route->name,
+                'amount' => $amount,
+                'due_date' => now(),
+                'paid_at' => now(), // Assume money left the bank immediately
+                'status' => 'paid',
+                'payment_method' => 'transfer', // Default
+                'notes' => "Adiantamento automático da Rota #{$route->id}",
+                'metadata' => ['route_deposit_type' => $field],
+            ]);
+
+            Log::info("Synced Route Deposit {$field} (R$ {$amount}) to Company Expense for Route #{$route->id}");
+
+        } catch (\Exception $e) {
+            Log::error("Failed to sync Route Deposit to Financial: " . $e->getMessage());
         }
     }
 
@@ -263,29 +313,29 @@ class RouteObserver
             // Build message
             $routeName = $route->name ?: "Rota #{$route->id}";
             $scheduledDate = $route->scheduled_date ? $route->scheduled_date->format('d/m/Y') : 'Hoje';
-            
+
             $message = "🚛 *Nova Rota Atribuída*\n\n";
             $message .= "Olá *{$driver->name}*!\n\n";
             $message .= "Você foi atribuído a uma nova rota:\n";
             $message .= "• *Rota:* {$routeName}\n";
             $message .= "• *Data:* {$scheduledDate}\n";
-            
+
             if ($route->start_time) {
                 $message .= "• *Horário:* " . \Carbon\Carbon::parse($route->start_time)->format('H:i') . "\n";
             }
-            
+
             $shipmentsCount = $route->shipments()->count();
             if ($shipmentsCount > 0) {
                 $message .= "• *Entregas:* {$shipmentsCount}\n";
             }
-            
+
             $message .= "\n📍 *Abra a rota no Google Maps:*\n";
             $message .= $googleMapsUrl;
             $message .= "\n\nBoa viagem! 🚀";
 
             // Format phone number using the same logic as driver login
             $normalizedPhone = $this->driverAuthService->normalizePhone($driver->phone);
-            
+
             if (!$normalizedPhone) {
                 Log::warning('Cannot notify driver: phone number could not be normalized', [
                     'route_id' => $route->id,

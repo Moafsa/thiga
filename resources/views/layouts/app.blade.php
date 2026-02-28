@@ -366,27 +366,30 @@
                 </a>
             </div>
 
+            <!-- Group: Financeiro -->
             <div class="sidebar-item">
-                <a href="{{ route('accounts.receivable.index') }}"
-                    class="sidebar-link {{ request()->routeIs('accounts.receivable.*') ? 'active' : '' }}"
-                    title="Contas a Receber">
-                    <i class="fas fa-money-bill-wave"></i>
+                <a href="#" class="sidebar-link" title="Financeiro"
+                    onclick="event.preventDefault(); document.getElementById('finance-submenu').classList.toggle('d-none');">
+                    <i class="fas fa-coins"></i>
+                </a>
+            </div>
+
+            <!-- Submenu (Hidden by default, user can toggle via JS or hover) -->
+            <!-- Ideally this sidebar needs a proper submenu structure. For now, flat list for better access -->
+
+            <div class="sidebar-item">
+                <a href="{{ route('financial.accounts-receivable') }}"
+                    class="sidebar-link {{ request()->routeIs('financial.accounts-receivable') ? 'active' : '' }}"
+                    title="Contas a Receber (Dashboard)">
+                    <i class="fas fa-hand-holding-usd"></i>
                 </a>
             </div>
 
             <div class="sidebar-item">
-                <a href="{{ route('accounts.payable.index') }}"
-                    class="sidebar-link {{ request()->routeIs('accounts.payable.*') ? 'active' : '' }}"
-                    title="Contas a Pagar">
-                    <i class="fas fa-credit-card"></i>
-                </a>
-            </div>
-
-            <div class="sidebar-item">
-                <a href="{{ route('driver-expenses.index') }}"
-                    class="sidebar-link {{ request()->routeIs('driver-expenses.*') ? 'active' : '' }}"
-                    title="Gastos dos Motoristas">
-                    <i class="fas fa-receipt"></i>
+                <a href="{{ route('financial.accounts-payable') }}"
+                    class="sidebar-link {{ request()->routeIs('financial.accounts-payable') ? 'active' : '' }}"
+                    title="Contas a Pagar (Dashboard)">
+                    <i class="fas fa-file-invoice-dollar text-danger"></i>
                 </a>
             </div>
 
@@ -394,6 +397,22 @@
                 <a href="{{ route('cash-flow.index') }}"
                     class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" title="Fluxo de Caixa">
                     <i class="fas fa-chart-area"></i>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('financial.reconciliation') }}"
+                    class="sidebar-link {{ request()->routeIs('financial.reconciliation') ? 'active' : '' }}"
+                    title="Conciliação Bancária">
+                    <i class="fas fa-check-double"></i>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('financial.reports.dre') }}"
+                    class="sidebar-link {{ request()->routeIs('financial.reports.dre') ? 'active' : '' }}"
+                    title="DRE (Relatório)">
+                    <i class="fas fa-balance-scale"></i>
                 </a>
             </div>
 

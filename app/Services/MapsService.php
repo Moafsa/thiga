@@ -42,11 +42,11 @@ class MapsService
         }
 
         $result = null;
-        
+
         // Try Mapbox first (unless forced to Google)
         if (!$forceGoogle && $this->preferMapbox && $this->mapboxService->isAvailable()) {
             $result = $this->mapboxService->geocode($address);
-            
+
             if ($result) {
                 // Normalize format (Mapbox uses lng,lat)
                 $normalized = [
@@ -54,10 +54,10 @@ class MapsService
                     'longitude' => $result['longitude'],
                     'formatted_address' => $result['formatted_address'] ?? $address,
                 ];
-                
+
                 // Cache in unified cache
                 Cache::forever($cacheKey, $normalized);
-                
+
                 $this->logUsage('mapbox', 'geocode', true);
                 return $normalized;
             }
@@ -66,22 +66,22 @@ class MapsService
         // Fallback to Google
         if ($this->googleMapsService && !empty(config('services.google_maps.api_key'))) {
             $result = $this->googleMapsService->geocode($address);
-            
+
             if ($result) {
                 // Cache in unified cache
                 Cache::forever($cacheKey, $result);
-                
+
                 $this->logUsage('google', 'geocode', true);
                 return $result;
             }
         }
 
         $this->logUsage($this->preferMapbox ? 'mapbox' : 'google', 'geocode', false);
-        
+
         Log::warning('Geocoding failed for both providers', [
             'address' => $address,
         ]);
-        
+
         return null;
     }
 
@@ -103,20 +103,20 @@ class MapsService
         }
 
         $result = null;
-        
+
         // Try Mapbox first
         if (!$forceGoogle && $this->preferMapbox && $this->mapboxService->isAvailable()) {
             $result = $this->mapboxService->reverseGeocode($latitude, $longitude);
-            
+
             if ($result) {
                 $normalized = [
                     'formatted_address' => $result['formatted_address'] ?? null,
                     'latitude' => $latitude,
                     'longitude' => $longitude,
                 ];
-                
+
                 Cache::put($cacheKey, $normalized, now()->addDays(7));
-                
+
                 $this->logUsage('mapbox', 'reverse_geocode', true);
                 return $normalized;
             }
@@ -125,17 +125,17 @@ class MapsService
         // Fallback to Google
         if ($this->googleMapsService && !empty(config('services.google_maps.api_key'))) {
             $result = $this->googleMapsService->reverseGeocode($latitude, $longitude);
-            
+
             if ($result) {
                 Cache::put($cacheKey, $result, now()->addDays(7));
-                
+
                 $this->logUsage('google', 'reverse_geocode', true);
                 return $result;
             }
         }
 
         $this->logUsage($this->preferMapbox ? 'mapbox' : 'google', 'reverse_geocode', false);
-        
+
         return null;
     }
 
@@ -168,14 +168,14 @@ class MapsService
             'options' => $options,
         ]);
         $cacheKey = 'maps:route:' . md5($coordinatesStr);
-        
+
         $cached = Cache::get($cacheKey);
         if ($cached) {
             return $cached;
         }
 
         $result = null;
-        
+
         // Try Mapbox first
         if (!$forceGoogle && $this->preferMapbox && $this->mapboxService->isAvailable()) {
             $result = $this->mapboxService->calculateRoute(
@@ -186,7 +186,7 @@ class MapsService
                 $waypoints,
                 $options
             );
-            
+
             if ($result) {
                 // Normalize format
                 $normalized = [
@@ -194,12 +194,14 @@ class MapsService
                     'distance_text' => $result['distance_text'],
                     'duration' => $result['duration'],
                     'duration_text' => $result['duration_text'],
-                    'polyline' => $result['polyline'],
+                    'polyline' => $result['polyline'] ?? null,
+                    'geometry' => $result['geometry'] ?? null,
                     'legs' => $result['legs'] ?? [],
+                    'alternatives' => $result['routes'] ?? [],
                 ];
-                
+
                 Cache::put($cacheKey, $normalized, now()->addHours(24));
-                
+
                 $this->logUsage('mapbox', 'route', true);
                 return $normalized;
             }
@@ -208,10 +210,10 @@ class MapsService
         // Fallback to Google
         if ($this->googleMapsService && !empty(config('services.google_maps.api_key'))) {
             // Convert waypoints format for Google
-            $googleWaypoints = array_map(function($wp) {
+            $googleWaypoints = array_map(function ($wp) {
                 return "{$wp['lat']},{$wp['lng']}";
             }, $waypoints);
-            
+
             $result = $this->googleMapsService->getRouteWithOptions(
                 $originLat,
                 $originLng,
@@ -220,7 +222,7 @@ class MapsService
                 implode('|', $googleWaypoints),
                 $options
             );
-            
+
             if ($result) {
                 $normalized = [
                     'distance' => $result['distance'],
@@ -232,16 +234,55 @@ class MapsService
                     'tolls' => $result['tolls'] ?? [],
                     'total_toll_cost' => $result['total_toll_cost'] ?? 0,
                 ];
-                
+
                 Cache::put($cacheKey, $normalized, now()->addHours(24));
-                
+
                 $this->logUsage('google', 'route', true);
                 return $normalized;
             }
         }
 
         $this->logUsage($this->preferMapbox ? 'mapbox' : 'google', 'route', false);
+
+        return null;
+    }
+
+    /**
+     * Optimize route considering all waypoints (TSP solver)
+     * Utiliza primariamente o Mapbox Optimization API (v1)
+     * 
+     * @param array $coordinates Array de pontos, incluindo a origem no inicio: [['lng'=>..., 'lat'=>...]]
+     * @param array $options Options (e.g. distributions, roundtrip)
+     * @param bool $forceGoogle Reserved for future Google implementation
+     * @return array|null Dados da polyline e a sequencia ideal (waypoints)
+     */
+    public function optimizeRoute(array $coordinates, array $options = [], bool $forceGoogle = false): ?array
+    {
+        // Check cache to avoid hitting APIs unnecessarily if nothing changed
+        $cacheKey = 'maps:optimize:' . md5(json_encode($coordinates) . json_encode($options));
+        $cached = Cache::get($cacheKey);
         
+        if ($cached) {
+            return $cached;
+        }
+
+        // Tenta usar o Mapbox
+        if (!$forceGoogle && $this->preferMapbox && $this->mapboxService->isAvailable()) {
+            
+            $result = $this->mapboxService->optimizeRoute($coordinates, $options);
+            
+            if ($result) {
+                Cache::put($cacheKey, $result, now()->addHours(24));
+                $this->logUsage('mapbox', 'optimize_route', true);
+                return $result;
+            }
+        }
+
+        // Nota: Google Maps API (Directions ou Route Optimization) não está implementado neste projeto
+        // para o cenário de roteirização pesada (VRP). Futuramente, pode ser acoplado aqui se 
+        // fallback for necessário.
+        
+        $this->logUsage($this->preferMapbox ? 'mapbox' : 'google', 'optimize_route', false);
         return null;
     }
 
@@ -286,7 +327,7 @@ class MapsService
         try {
             $userId = auth()->id();
             $tenantId = auth()->user()->tenant_id ?? null;
-            
+
             \App\Models\MapsApiUsage::incrementUsage(
                 $provider,
                 $operation,
@@ -294,7 +335,7 @@ class MapsService
                 $tenantId,
                 $userId
             );
-            
+
             Log::info('Maps API usage', [
                 'provider' => $provider,
                 'operation' => $operation,

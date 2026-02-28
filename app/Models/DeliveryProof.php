@@ -42,7 +42,7 @@ class DeliveryProof extends Model
         'delivery_time' => 'datetime',
         'metadata' => 'array',
     ];
-    
+
     /**
      * Ensure photos is always an array when accessed
      */
@@ -52,7 +52,7 @@ class DeliveryProof extends Model
             $decoded = json_decode($value, true);
             return json_last_error() === JSON_ERROR_NONE && is_array($decoded) ? $decoded : [];
         }
-        
+
         return is_array($value) ? $value : [];
     }
 
@@ -113,7 +113,7 @@ class DeliveryProof extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'pending' => 'Pendente',
             'approved' => 'Aprovado',
             'rejected' => 'Rejeitado',
@@ -148,7 +148,7 @@ class DeliveryProof extends Model
     {
         // Get raw photos from attributes to avoid infinite loop
         $rawPhotos = $this->attributes['photos'] ?? null;
-        
+
         // Try to decode JSON if it's a string
         if (is_string($rawPhotos)) {
             $decoded = json_decode($rawPhotos, true);
@@ -156,12 +156,12 @@ class DeliveryProof extends Model
                 $rawPhotos = $decoded;
             }
         }
-        
+
         // Use casted photos if available
         if (!$rawPhotos || !is_array($rawPhotos)) {
             $rawPhotos = $this->photos ?? [];
         }
-        
+
         if (empty($rawPhotos) || !is_array($rawPhotos)) {
             \Log::debug('Delivery proof has no photos', [
                 'proof_id' => $this->id ?? null,
@@ -193,11 +193,11 @@ class DeliveryProof extends Model
                     $endpoint = rtrim($minioConfig['endpoint'] ?? $minioConfig['url'] ?? '', '/');
                     $bucket = $minioConfig['bucket'] ?? '';
                     $path = ltrim($photoPath, '/');
-                    
+
                     // Build URL for path-style endpoint (use_path_style_endpoint = true)
                     // Format: https://endpoint/bucket/path
                     $minioUrl = "{$endpoint}/{$bucket}/{$path}";
-                    
+
                     \Log::debug('Building MinIO delivery proof URL', [
                         'proof_id' => $this->id ?? null,
                         'original_path' => $photoPath,
@@ -206,7 +206,7 @@ class DeliveryProof extends Model
                         'path' => $path,
                         'minioUrl' => $minioUrl,
                     ]);
-                    
+
                     // Validate URL format
                     if (filter_var($minioUrl, FILTER_VALIDATE_URL)) {
                         // Verify file exists in MinIO (optional check, log only)
@@ -224,7 +224,7 @@ class DeliveryProof extends Model
                                 'error' => $e->getMessage(),
                             ]);
                         }
-                        
+
                         // Add URL if it's valid (file might exist but check failed)
                         $urls[] = $minioUrl;
                         $urlGenerated = true;
@@ -274,7 +274,7 @@ class DeliveryProof extends Model
                         'error' => $e->getMessage(),
                     ]);
                 }
-                
+
                 // Last resort: return path as-is (shouldn't happen if MinIO is properly configured)
                 \Log::warning('Could not generate URL for delivery proof photo, returning path as-is', [
                     'proof_id' => $this->id ?? null,
@@ -283,7 +283,7 @@ class DeliveryProof extends Model
                 $urls[] = $photoPath;
             }
         }
-        
+
         \Log::debug('Delivery proof photo URLs generated', [
             'proof_id' => $this->id ?? null,
             'raw_photos' => $rawPhotos,
@@ -291,5 +291,44 @@ class DeliveryProof extends Model
         ]);
 
         return array_filter($urls); // Remove any null/empty values
+    }
+
+    /**
+     * Get signature URL (convert path to full URL using MinIO)
+     */
+    public function getSignatureUrlAttribute(): ?string
+    {
+        if (!$this->recipient_signature) {
+            return null;
+        }
+
+        $photoPath = $this->recipient_signature;
+
+        if (filter_var($photoPath, FILTER_VALIDATE_URL)) {
+            return $photoPath;
+        }
+
+        try {
+            $minioConfig = config('filesystems.disks.minio');
+            if ($minioConfig && isset($minioConfig['bucket']) && ($minioConfig['endpoint'] ?? $minioConfig['url'] ?? null)) {
+                $endpoint = rtrim($minioConfig['endpoint'] ?? $minioConfig['url'] ?? '', '/');
+                $bucket = $minioConfig['bucket'] ?? '';
+                $path = ltrim($photoPath, '/');
+                $minioUrl = "{$endpoint}/{$bucket}/{$path}";
+
+                if (filter_var($minioUrl, FILTER_VALIDATE_URL)) {
+                    return $minioUrl;
+                }
+            }
+
+            return \Storage::disk('minio')->url($photoPath);
+        } catch (\Exception $e) {
+            \Log::error('Failed to generate MinIO URL for delivery proof signature', [
+                'proof_id' => $this->id ?? null,
+                'signature_path' => $photoPath,
+                'error' => $e->getMessage(),
+            ]);
+            return $photoPath; // Fallback to raw string
+        }
     }
 }

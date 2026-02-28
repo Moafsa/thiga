@@ -6,10 +6,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Traits\ImmutableFinancialRecord;
 
+/**
+ * @property int $id
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $due_date
+ * @property \Illuminate\Support\Carbon|null $paid_at
+ * @property float $amount
+ */
 class Expense extends Model
 {
-    use HasFactory;
+    use HasFactory, ImmutableFinancialRecord;
 
     protected $fillable = [
         'tenant_id',
