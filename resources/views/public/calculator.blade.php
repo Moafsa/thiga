@@ -6,173 +6,238 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotação de Frete - {{ $tenant->name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background: transparent;
+            background: #f8fafc;
+            font-family: 'Poppins', sans-serif;
         }
 
         .calculator-card {
             background-color: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 1.5rem;
-            max-width: 400px;
-            margin: 0 auto;
-            font-family: 'Inter', sans-serif;
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 450px;
+            margin: 2rem auto;
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .btn-primary {
-            background-color: {{ $tenant->primary_color ?? '#3b82f6' }};
+            background-color:
+                {{ $tenant->primary_color ?? '#245a49' }}
+            ;
             color: white;
+            transition: all 0.3s ease;
         }
 
         .btn-primary:hover {
             opacity: 0.9;
+            transform: translateY(-1px);
         }
 
-        /* Fix for dropdown visibility */
-        select, option {
-            color: #1f2937 !important;
-            background-color: #ffffff !important;
+        .btn-accent {
+            background-color:
+                {{ $tenant->accent_color ?? '#FF6B35' }}
+            ;
+            color: white;
         }
 
-        .step-indicator {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 1.5rem;
+        /* Input overrides */
+        input,
+        select {
+            border: 1.5px solid #e2e8f0 !important;
+            transition: border-color 0.2s ease !important;
         }
+
+        input:focus,
+        select:focus {
+            border-color:
+                {{ $tenant->primary_color ?? '#245a49' }}
+                !important;
+            ring: 0 !important;
+        }
+
         .step-dot {
-            height: 0.5rem;
-            width: 0.5rem;
+            height: 0.6rem;
+            width: 0.6rem;
             border-radius: 50%;
-            background-color: #e5e7eb;
-            margin: 0 0.25rem;
+            background-color: #e2e8f0;
+            margin: 0 0.35rem;
+            transition: all 0.3s ease;
         }
+
         .step-dot.active {
-            background-color: {{ $tenant->primary_color ?? '#3b82f6' }};
+            background-color:
+                {{ $tenant->accent_color ?? '#FF6B35' }}
+            ;
+            width: 1.5rem;
+            border-radius: 1rem;
+        }
+
+        .result-box {
+            background: linear-gradient(135deg,
+                    {{ $tenant->primary_color ?? '#245a49' }}
+                    0%,
+                    {{ $tenant->secondary_color ?? '#1a3d33' }}
+                    100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
         }
     </style>
 </head>
 
 <body>
     <div class="calculator-card" id="app">
-        <h2 class="text-lg font-bold mb-4 text-gray-800">Cotar Frete</h2>
-        
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-800">Cote seu Frete</h2>
+            <div class="text-xs font-semibold px-2 py-1 rounded bg-orange-100 text-orange-600 uppercase tracking-wider">
+                Digital
+            </div>
+        </div>
+
         <!-- Steps Indicator -->
-        <div class="step-indicator" id="stepIndicator">
+        <div class="flex justify-center mb-8" id="stepIndicator">
             <div class="step-dot active" id="dot1"></div>
             <div class="step-dot" id="dot2"></div>
             <div class="step-dot" id="dot3"></div>
         </div>
 
-        <div id="error" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200"></div>
+        <div id="error" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100"></div>
 
         <!-- STEP 1: Contact Info -->
         <div id="step-contact">
-            <p class="text-sm text-gray-600 mb-4">Informe seus dados para iniciar a cotação.</p>
-            <form onsubmit="requestOtp(event)" class="space-y-3">
+            <p class="text-sm text-gray-500 mb-6 font-medium">Inicie informando os dados fundamentais para sua cotação.
+            </p>
+            <form onsubmit="requestOtp(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Nome do Cliente</label>
-                    <input type="text" id="client_name" required placeholder="Nome da empresa ou cliente"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Nome Completo /
+                        Empresa</label>
+                    <input type="text" id="client_name" required placeholder="Ex: João Silva ou Thiga Transp."
+                        class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">WhatsApp *</label>
-                        <input type="text" id="whatsapp" required placeholder="(99) 99999-9999"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
+                        <label
+                            class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">WhatsApp</label>
+                        <input type="text" id="whatsapp" required placeholder="(00) 00000-0000"
+                            class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Email (opcional)</label>
-                        <input type="email" id="email" placeholder="seu@email.com"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Email
+                            (Opcional)</label>
+                        <input type="email" id="email" placeholder="contato@empresa.com"
+                            class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
                     </div>
                 </div>
 
                 <button type="submit" id="btn-request-otp"
-                    class="w-full btn-primary py-2 px-4 rounded-md font-medium text-sm transition-colors cursor-pointer mt-2">
-                    Continuar
+                    class="w-full btn-primary py-3.5 px-4 rounded-xl font-bold text-sm shadow-lg shadow-green-900/10 mt-4">
+                    Continuar para Cotação
                 </button>
             </form>
         </div>
 
         <!-- STEP 2: OTP Verification -->
         <div id="step-otp" class="hidden">
-            <p class="text-sm text-gray-600 mb-4">Enviamos um código para seu WhatsApp.</p>
-            <form onsubmit="verifyOtp(event)" class="space-y-3">
+            <p class="text-sm text-gray-500 mb-6 font-medium text-center">Enviamos um código de segurança via WhatsApp.
+            </p>
+            <form onsubmit="verifyOtp(event)" class="space-y-5">
                 <div>
-                    <label class="block text-sm font-medium text-center text-gray-700">Código de Verificação</label>
-                    <input type="text" id="otp_code" required placeholder="000000" maxlength="6"
-                        class="mt-1 block w-2/3 mx-auto text-center text-xl tracking-widest rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                    <label
+                        class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1 text-center">Código
+                        de 6 dígitos</label>
+                    <input type="text" id="otp_code" required placeholder="000 000" maxlength="6"
+                        class="mt-2 block w-full text-center text-2xl font-bold tracking-[0.5em] rounded-lg p-3 outline-none border-dashed">
                 </div>
-                
+
                 <button type="submit" id="btn-verify-otp"
-                    class="w-full btn-primary py-2 px-4 rounded-md font-medium text-sm transition-colors cursor-pointer mt-2">
-                    Validar Código
+                    class="w-full btn-primary py-3.5 px-4 rounded-xl font-bold text-sm shadow-lg shadow-green-900/10 transition-all">
+                    Validar e Prosseguir
                 </button>
-                
-                <div class="text-center mt-2">
-                    <button type="button" onclick="showStep(1)" class="text-xs text-gray-500 hover:underline">Voltar / Corrigir telefone</button>
+
+                <div class="text-center pt-2">
+                    <button type="button" onclick="showStep(1)"
+                        class="text-xs font-semibold text-gray-400 hover:text-orange-500 transition-colors">
+                        <i class="fas fa-arrow-left mr-1"></i> Corrigir dados de contato
+                    </button>
                 </div>
             </form>
         </div>
 
         <!-- STEP 3: Calculator -->
         <div id="step-calc" class="hidden">
-            <form onsubmit="calculateFreight(event)" class="space-y-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Origem</label>
-                    <input type="text" id="origin" required placeholder="CEP ou Cidade"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Destino</label>
-                    <input type="text" id="destination" required placeholder="CEP ou Cidade"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
+            <form onsubmit="calculateFreight(event)" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Peso (kg)</label>
-                        <input type="number" id="weight" step="0.1" required
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
+                        <label
+                            class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Origem</label>
+                        <input type="text" id="origin" required placeholder="CEP ou Cidade"
+                            class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Valor (R$)</label>
-                        <input type="number" id="invoice_value" step="0.01" required
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">
+                        <label
+                            class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Destino</label>
+                        <input type="text" id="destination" required placeholder="CEP ou Cidade"
+                            class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Peso
+                            (kg)</label>
+                        <input type="number" id="weight" step="0.1" required placeholder="0.0"
+                            class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Valor NF
+                            (R$)</label>
+                        <input type="number" id="invoice_value" step="0.01" required placeholder="0,00"
+                            class="mt-1 block w-full rounded-lg sm:text-sm p-3 outline-none">
                     </div>
                 </div>
 
                 <button type="submit" id="btn-calculate"
-                    class="w-full btn-primary py-2 px-4 rounded-md font-medium text-sm transition-colors cursor-pointer">
-                    Calcular Frete
+                    class="w-full btn-primary py-3.5 px-4 rounded-xl font-bold text-sm shadow-lg shadow-green-900/10">
+                    <i class="fas fa-calculator mr-2"></i> Calcular Valor do Frete
                 </button>
             </form>
 
-            <div id="result" class="hidden mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
-                <p class="text-sm text-gray-500">Valor Estimado:</p>
-                <p class="text-2xl font-bold text-gray-800" id="priceDisplay">R$ 0,00</p>
-                <div class="mt-2 pt-2 border-t border-gray-200">
-                    <p class="text-xs text-green-600 flex items-center justify-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Resumo enviado para seu WhatsApp
+            <div id="result" class="hidden mt-6 result-box">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-bold uppercase tracking-widest opacity-70">Honorário Estimado</span>
+                    <i class="fas fa-check-circle text-orange-400"></i>
+                </div>
+                <p class="text-3xl font-bold" id="priceDisplay">R$ 0,00</p>
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <p class="text-[10px] opacity-70 leading-relaxed">
+                        *Valor estimado sujeito a variações fiscais. Detalhes enviados automaticamente para seu
+                        WhatsApp.
                     </p>
                 </div>
             </div>
-            
-            <div class="text-center mt-2">
-                 <button type="button" onclick="resetCalc()" class="text-xs text-gray-500 hover:underline">Nova Cotação</button>
+
+            <div class="text-center mt-6">
+                <button type="button" onclick="resetCalc()"
+                    class="text-xs font-bold text-gray-400 hover:text-orange-500 transition-colors">
+                    <i class="fas fa-redo mr-1"></i> Nova Cotação
+                </button>
             </div>
         </div>
 
-        <div class="mt-4 text-center">
-            <a href="#" class="text-xs text-gray-400 hover:text-gray-600">Powered by Thiga</a>
+        <div class="mt-8 text-center border-t border-gray-50 pt-4">
+            <a href="#"
+                class="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em] hover:text-orange-500 transition-all">Powered
+                by Thiga Systems</a>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script>
         // Global State
         let otpVerified = false;
@@ -187,10 +252,10 @@
             e.preventDefault();
             const btn = document.getElementById('btn-request-otp');
             const errorDiv = document.getElementById('error');
-            
+
             errorDiv.classList.add('hidden');
             btn.disabled = true;
-            btn.innerText = 'Enviando...';
+            btn.innerText = 'Processando...';
 
             const data = {
                 client_name: document.getElementById('client_name').value,
@@ -212,10 +277,10 @@
                     showError(json.message || 'Erro ao enviar código.');
                 }
             } catch (err) {
-                showError('Erro de conexão.');
+                showError('Erro de conexão ao servidor.');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Continuar';
+                btn.innerText = 'Continuar para Cotação';
             }
         }
 
@@ -223,7 +288,7 @@
             e.preventDefault();
             const btn = document.getElementById('btn-verify-otp');
             const errorDiv = document.getElementById('error');
-            
+
             errorDiv.classList.add('hidden');
             btn.disabled = true;
             btn.innerText = 'Validando...';
@@ -247,19 +312,19 @@
                     otpVerified = true;
                     showStep(3);
                 } else {
-                    showError(json.message || 'Código inválido.');
+                    showError(json.message || 'Código inválido ou expirado.');
                 }
             } catch (err) {
-                showError('Erro de conexão.');
+                showError('Erro de conexão ao validar.');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Validar Código';
+                btn.innerText = 'Validar e Prosseguir';
             }
         }
 
         async function calculateFreight(e) {
             e.preventDefault();
-            if(!otpVerified) {
+            if (!otpVerified) {
                 showError("Sessão expirada. Por favor autentique-se novamente.");
                 showStep(1);
                 return;
@@ -268,7 +333,7 @@
             const btn = document.getElementById('btn-calculate');
             const resultDiv = document.getElementById('result');
             const errorDiv = document.getElementById('error');
-            
+
             btn.disabled = true;
             btn.innerText = 'Calculando...';
             resultDiv.classList.add('hidden');
@@ -298,13 +363,13 @@
                     document.getElementById('priceDisplay').innerText = 'R$ ' + json.total;
                     resultDiv.classList.remove('hidden');
                 } else {
-                    showError(json.message || 'Erro ao calcular.');
+                    showError(json.message || 'Não temos rota para este destino no momento.');
                 }
             } catch (err) {
-                showError('Erro de conexão.');
+                showError('Erro técnico durante o cálculo.');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Calcular Frete';
+                btn.innerText = 'Calcular Valor do Frete';
             }
         }
 
@@ -312,25 +377,25 @@
             document.getElementById('step-contact').classList.add('hidden');
             document.getElementById('step-otp').classList.add('hidden');
             document.getElementById('step-calc').classList.add('hidden');
-            
+
             document.getElementById('dot1').classList.remove('active');
             document.getElementById('dot2').classList.remove('active');
             document.getElementById('dot3').classList.remove('active');
 
-            if(step === 1) {
+            if (step === 1) {
                 document.getElementById('step-contact').classList.remove('hidden');
                 document.getElementById('dot1').classList.add('active');
-            } else if(step === 2) {
+            } else if (step === 2) {
                 document.getElementById('step-otp').classList.remove('hidden');
                 document.getElementById('dot1').classList.add('active');
                 document.getElementById('dot2').classList.add('active');
-            } else if(step === 3) {
+            } else if (step === 3) {
                 document.getElementById('step-calc').classList.remove('hidden');
                 document.getElementById('dot1').classList.add('active');
                 document.getElementById('dot2').classList.add('active');
                 document.getElementById('dot3').classList.add('active');
             }
-            
+
             document.getElementById('error').classList.add('hidden');
         }
 
@@ -339,14 +404,15 @@
             errorDiv.innerText = msg;
             errorDiv.classList.remove('hidden');
         }
-        
+
         function resetCalc() {
-             document.getElementById('result').classList.add('hidden');
-             document.getElementById('origin').value = '';
-             document.getElementById('destination').value = '';
-             document.getElementById('weight').value = '';
-             document.getElementById('invoice_value').value = '';
+            document.getElementById('result').classList.add('hidden');
+            document.getElementById('origin').value = '';
+            document.getElementById('destination').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('invoice_value').value = '';
         }
     </script>
 </body>
+
 </html>
