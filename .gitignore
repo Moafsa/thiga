@@ -54,19 +54,26 @@ storage/logs/*.log
 bootstrap/cache/*
 !bootstrap/cache/.gitignore
 
+# Laravel framework
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/views/*.php
+!/storage/framework/views/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
 
+# Laravel Logs
+storage/logs/*.log
+/storage/logs/laravel.log
 
-
-
-
-
-
-
-
-
-
-
-
+# IDE and OS
+/.vscode
+/.idea
+/.fleet
+.DS_Store
+Thumbs.db
 
 
 

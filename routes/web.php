@@ -413,3 +413,49 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
+
+// ============================================================
+// SUPERADMIN ROUTES — guard separado, sem interferir no tenant
+// ============================================================
+Route::prefix('superadmin')->name('superadmin.')->middleware('web')->group(function () {
+    // Auth (sem middleware de proteção)
+    Route::get('/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])->name('login.post');
+    Route::post('/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])->name('logout');
+
+    // Protegidas pelo guard superadmin
+    Route::middleware('superadmin')->group(function () {
+
+        // Dashboard
+        Route::get('/', [App\Http\Controllers\SuperAdmin\DashboardController::class, 'index'])->name('dashboard');
+
+        // Tenants
+        Route::prefix('tenants')->name('tenants.')->group(function () {
+            Route::get('/', [App\Http\Controllers\SuperAdmin\TenantController::class, 'index'])->name('index');
+            Route::get('/{tenant}', [App\Http\Controllers\SuperAdmin\TenantController::class, 'show'])->name('show');
+            Route::patch('/{tenant}/activate-trial', [App\Http\Controllers\SuperAdmin\TenantController::class, 'activateTrial'])->name('activate-trial');
+            Route::patch('/{tenant}/activate-full', [App\Http\Controllers\SuperAdmin\TenantController::class, 'activateFull'])->name('activate-full');
+            Route::patch('/{tenant}/suspend', [App\Http\Controllers\SuperAdmin\TenantController::class, 'suspend'])->name('suspend');
+            Route::patch('/{tenant}/restore', [App\Http\Controllers\SuperAdmin\TenantController::class, 'restore'])->name('restore');
+            Route::patch('/{tenant}/extend-trial', [App\Http\Controllers\SuperAdmin\TenantController::class, 'extendTrial'])->name('extend-trial');
+        });
+
+        // Plans
+        Route::prefix('plans')->name('plans.')->group(function () {
+            Route::get('/', [App\Http\Controllers\SuperAdmin\PlanController::class, 'index'])->name('index');
+            Route::get('/create', [App\Http\Controllers\SuperAdmin\PlanController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\SuperAdmin\PlanController::class, 'store'])->name('store');
+            Route::get('/{plan}/edit', [App\Http\Controllers\SuperAdmin\PlanController::class, 'edit'])->name('edit');
+            Route::put('/{plan}', [App\Http\Controllers\SuperAdmin\PlanController::class, 'update'])->name('update');
+            Route::delete('/{plan}', [App\Http\Controllers\SuperAdmin\PlanController::class, 'destroy'])->name('destroy');
+            Route::patch('/{plan}/toggle-active', [App\Http\Controllers\SuperAdmin\PlanController::class, 'toggleActive'])->name('toggle-active');
+            Route::patch('/{plan}/toggle-popular', [App\Http\Controllers\SuperAdmin\PlanController::class, 'togglePopular'])->name('toggle-popular');
+        });
+
+        // Subscriptions
+        Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
+            Route::get('/', [App\Http\Controllers\SuperAdmin\SubscriptionController::class, 'index'])->name('index');
+        });
+    });
+});
+

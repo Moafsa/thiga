@@ -42,7 +42,7 @@ class MapboxHelper {
             console.warn(`Map already exists in container ${containerId}, skipping initialization`);
             return;
         }
-        
+
         // Initialize map
         this.map = new mapboxgl.Map({
             container: containerId,
@@ -259,11 +259,11 @@ class MapboxHelper {
     async drawRoute(origin, destination, waypoints = [], options = {}) {
         let coordinates;
         let routeData = null; // Declare in outer scope
-        
+
         try {
             // Calculate route via backend API
             routeData = await this.calculateRoute(origin, destination, waypoints);
-            
+
             if (routeData && routeData.polyline) {
                 // Decode polyline from API response
                 coordinates = this.decodePolyline(routeData.polyline);
@@ -271,7 +271,7 @@ class MapboxHelper {
         } catch (error) {
             console.warn('API route calculation failed, using straight line fallback:', error.message);
         }
-        
+
         // Fallback: draw straight line if API failed
         if (!coordinates || coordinates.length === 0) {
             console.log('Drawing straight line route (API unavailable)');
@@ -336,6 +336,54 @@ class MapboxHelper {
     }
 
     /**
+     * Draw arbitrary polyline (like a history path) directly without routing API
+     */
+    drawPolyline(path, options = {}) {
+        if (!path || path.length < 2) return null;
+
+        const coordinates = path.map(p => [(p.lng || p.longitude), (p.lat || p.latitude)]);
+        const sourceId = options.sourceId || 'custom-polyline';
+        const layerId = options.layerId || 'custom-polyline-layer';
+
+        // Remove existing route if any
+        if (this.map.getLayer(layerId)) {
+            this.map.removeLayer(layerId);
+        }
+        if (this.map.getSource(sourceId)) {
+            this.map.removeSource(sourceId);
+        }
+
+        this.map.addSource(sourceId, {
+            type: 'geojson',
+            data: {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                    type: 'LineString',
+                    coordinates: coordinates
+                }
+            }
+        });
+
+        this.map.addLayer({
+            id: layerId,
+            type: 'line',
+            source: sourceId,
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': options.color || '#2196F3',
+                'line-width': options.width || 4,
+                'line-opacity': options.opacity || 0.8
+            }
+        });
+
+        return { sourceId, layerId };
+    }
+
+    /**
      * Decode polyline
      * Mapbox returns polyline6 (encoded) or coordinates array
      */
@@ -346,19 +394,19 @@ class MapboxHelper {
                 // Mapbox format: [[lng, lat], [lng, lat], ...]
                 return encoded;
             }
-            
+
             // If it's a string, try to decode
             if (typeof encoded === 'string') {
                 // Try using @mapbox/polyline if available
                 if (typeof polyline !== 'undefined' && polyline.decode) {
                     return polyline.decode(encoded);
                 }
-                
+
                 // Fallback: Basic polyline decoder (simplified)
                 // For production, include polyline.js: https://www.npmjs.com/package/@mapbox/polyline
                 return this.decodePolylineSimple(encoded);
             }
-            
+
             console.warn('Invalid polyline format:', encoded);
             return [];
         } catch (error) {

@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     working_dir: /var/www
     environment:
-      - MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoidGhpZ2EiLCJhIjoiY21rM3g2b2Q4MDFtYTNtb3UwbnZjdG9nNSJ9.ZT5Ophz4zKLzf0Na5QkHjg
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
       - MAPS_PREFER_MAPBOX=true
       - MAPS_CACHE_ROUTES_HOURS=24
       - MAPS_CACHE_GEOCODE_DAYS=365
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
     working_dir: /var/www
     environment:
-      - MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoidGhpZ2EiLCJhIjoiY21rM3g2b2Q4MDFtYTNtb3UwbnZjdG9nNSJ9.ZT5Ophz4zKLzf0Na5QkHjg
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
       - MAPS_PREFER_MAPBOX=true
     volumes:
       - ./:/var/www
@@ -107,6 +107,32 @@ services:
     depends_on:
       - pgsql
 
+  minio:
+    image: minio/minio
+    container_name: tms_saas_minio
+    restart: unless-stopped
+    ports:
+      - "9010:9000"
+      - "8900:8900"
+    environment:
+      MINIO_ROOT_USER: tms_minio_user
+      MINIO_ROOT_PASSWORD: tms_minio_password
+    command: server /data --console-address ":8900"
+    volumes:
+      - minio_data:/data
+    networks:
+      - tms_network
+
+  minio-init:
+    image: minio/mc
+    container_name: tms_saas_minio_init
+    depends_on:
+      - minio
+    networks:
+      - tms_network
+    entrypoint: >
+      /bin/sh -c " sleep 5; /usr/bin/mc config host add myminio http://minio:9000 tms_minio_user tms_minio_password; /usr/bin/mc rm -r --force myminio/thiga || true; /usr/bin/mc mb myminio/thiga || true; /usr/bin/mc policy set public myminio/thiga; exit 0; "
+
 networks:
   tms_network:
     driver: bridge
@@ -117,4 +143,6 @@ volumes:
   wuzapi_data:
     driver: local
   wuzapi_sessions:
+    driver: local
+  minio_data:
     driver: local
