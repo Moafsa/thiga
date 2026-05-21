@@ -17,6 +17,65 @@ class FiscalDocumentController extends Controller
     }
 
     /**
+     * Display consolidated listing of all CT-e and MDF-e documents
+     */
+    public function indexAll(Request $request)
+    {
+        $tenant = Auth::user()->tenant;
+
+        if (!$tenant) {
+            return redirect()->route('login')->with('error', 'User does not have an associated tenant.');
+        }
+
+        $query = FiscalDocument::where('tenant_id', $tenant->id)
+            ->with(['shipment.senderClient', 'shipment.receiverClient', 'route.driver', 'route.vehicle']);
+
+        // Filter by document type
+        if ($request->filled('document_type') && $request->document_type !== 'all') {
+            $query->where('document_type', $request->document_type);
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Search by access key or mitt number
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('access_key', 'like', "%{$search}%")
+                  ->orWhere('mitt_number', 'like', "%{$search}%");
+            });
+        }
+
+        // Ordering
+        $orderBy = $request->get('order_by', 'created_at');
+        $orderDir = $request->get('order_dir', 'desc');
+
+        $allowedOrderBy = ['created_at', 'authorized_at', 'status', 'mitt_number', 'document_type'];
+        if (!in_array($orderBy, $allowedOrderBy)) {
+            $orderBy = 'created_at';
+        }
+
+        $orderDir = strtolower($orderDir) === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($orderBy, $orderDir);
+
+        $documents = $query->paginate(20)->withQueryString();
+
+        return view('fiscal.all.index', compact('documents'));
+    }
+
+    /**
      * Display a listing of CT-e documents
      */
     public function indexCtes(Request $request)

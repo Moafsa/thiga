@@ -341,6 +341,10 @@ Route::middleware('auth')->group(function () {
 
     // Fiscal routes
     Route::prefix('fiscal')->name('fiscal.')->group(function () {
+        // Consolidated documents listing (CT-e + MDF-e)
+        Route::get('/documents', [App\Http\Controllers\FiscalDocumentController::class, 'indexAll'])->name('documents.index');
+        Route::get('/', [App\Http\Controllers\FiscalDocumentController::class, 'indexAll'])->name('index');
+
         // CT-e listing routes
         Route::get('/ctes', [App\Http\Controllers\FiscalDocumentController::class, 'indexCtes'])->name('ctes.index');
         Route::get('/ctes/{fiscalDocument}', [App\Http\Controllers\FiscalDocumentController::class, 'showCte'])->name('ctes.show');
