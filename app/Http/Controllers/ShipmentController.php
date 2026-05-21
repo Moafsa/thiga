@@ -37,7 +37,12 @@ class ShipmentController extends Controller
         }
 
         if ($request->filled('tracking_number')) {
-            $query->where('tracking_number', 'like', '%' . $request->tracking_number . '%');
+            $search = $request->tracking_number;
+            $query->where(function ($q) use ($search) {
+                $q->where('tracking_number', 'like', '%' . $search . '%')
+                  ->orWhere('cte_number', 'like', '%' . $search . '%')
+                  ->orWhere('nf_key', 'like', '%' . $search . '%');
+            });
         }
 
         if ($request->filled('date_from')) {
@@ -163,7 +168,11 @@ class ShipmentController extends Controller
         // Get CT-e if exists
         $cte = $shipment->cte();
         
-        return view('shipments.show', compact('shipment', 'cte'));
+        // Costing ledger info
+        $costSummaryService = app(\App\Services\CostSummaryService::class);
+        $costingSummary = $costSummaryService->summaryForShipment($shipment);
+        
+        return view('shipments.show', compact('shipment', 'cte', 'costingSummary'));
     }
 
     public function edit(Shipment $shipment)
@@ -423,5 +432,28 @@ class ShipmentController extends Controller
         if (!$tenant || $shipment->tenant_id !== $tenant->id) {
             abort(403, 'Unauthorized access to shipment');
         }
+    }
+
+    /**
+     * Update linked NF-e key/metadata for shipment.
+     */
+    public function updateNfe(Request $request, Shipment $shipment)
+    {
+        $this->authorizeAccess($shipment);
+
+        $validated = $request->validate([
+            'nf_key' => 'nullable|string|size:44',
+            'invoice_number' => 'nullable|string|max:50',
+            'goods_value' => 'nullable|numeric|min:0',
+        ]);
+
+        $shipment->update([
+            'nf_key' => $validated['nf_key'] ?? null,
+            'invoice_number' => $validated['invoice_number'] ?? null,
+            'goods_value' => $validated['goods_value'] ?? null,
+            'value' => $validated['goods_value'] ?? $shipment->value,
+        ]);
+
+        return redirect()->route('shipments.show', $shipment)->with('success', 'Nota Fiscal vinculada com sucesso.');
     }
 }

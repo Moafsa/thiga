@@ -46,7 +46,8 @@
             background-color: var(--cor-principal);
             color: var(--cor-texto-claro);
             line-height: 1.6;
-            padding-bottom: var(--bottom-nav-height);
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
             min-height: 100vh;
         }
 
@@ -61,6 +62,12 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        @media all and (display-mode: standalone) {
+            .driver-header {
+                padding-top: calc(15px + env(safe-area-inset-top));
+            }
         }
 
         .driver-header-left {
@@ -99,7 +106,7 @@
         .header-btn {
             width: 40px;
             height: 40px;
-            border-radius: 10px;
+            border-radius: 4px;
             background-color: var(--cor-principal);
             border: none;
             color: var(--cor-texto-claro);
@@ -107,12 +114,16 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-btn:hover {
             background-color: var(--cor-acento);
             transform: scale(1.05);
+        }
+        
+        .header-btn:active {
+            transform: scale(0.95);
         }
 
         /* Main Content */
@@ -133,8 +144,8 @@
             display: flex;
             justify-content: space-around;
             align-items: center;
-            padding: 10px 0;
-            height: var(--bottom-nav-height);
+            padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+            height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
             z-index: 100;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
         }
@@ -146,9 +157,9 @@
             gap: 5px;
             text-decoration: none;
             color: rgba(245, 245, 245, 0.6);
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             padding: 5px 15px;
-            border-radius: 10px;
+            border-radius: 4px;
         }
 
         .nav-item.active {
@@ -168,7 +179,7 @@
         /* Cards */
         .driver-card {
             background-color: var(--cor-secundaria);
-            border-radius: 15px;
+            border-radius: 4px;
             padding: 20px;
             margin-bottom: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -192,11 +203,11 @@
             background-color: var(--cor-acento);
             color: var(--cor-principal);
             padding: 12px 24px;
-            border-radius: 10px;
+            border-radius: 4px;
             border: none;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -208,15 +219,19 @@
             box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
         }
 
+        .btn-primary:active {
+            transform: scale(0.96);
+        }
+
         .btn-secondary {
             background-color: var(--cor-principal);
             color: var(--cor-texto-claro);
             padding: 12px 24px;
-            border-radius: 10px;
+            border-radius: 4px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -227,11 +242,15 @@
             background-color: rgba(255, 255, 255, 0.1);
         }
 
+        .btn-secondary:active {
+            transform: scale(0.96);
+        }
+
         /* Status Badge */
         .status-badge {
             display: inline-block;
             padding: 6px 12px;
-            border-radius: 20px;
+            border-radius: 2px;
             font-size: 0.85em;
             font-weight: 600;
         }

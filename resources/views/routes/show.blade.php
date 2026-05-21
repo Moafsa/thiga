@@ -796,6 +796,324 @@
     @endif
 </div>
 
+<!-- Custos Operacionais & Margens (Módulo Financeiro) -->
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+        <h3 style="color: var(--cor-acento); margin: 0;">
+            <i class="fas fa-wallet"></i> Custos Operacionais & Margens
+        </h3>
+        <button type="button" class="btn-primary" onclick="openExpenseModal()">
+            <i class="fas fa-plus"></i> Lançar Custo
+        </button>
+    </div>
+
+    <!-- Resumo de Rentabilidade (DRE) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid #4caf50;">
+            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; text-transform: uppercase;">Receita Operacional (Faturamento)</span>
+            <div style="color: #4caf50; font-size: 1.8em; font-weight: 700; margin-top: 5px;">
+                R$ {{ number_format($costingSummary['total_revenue'], 2, ',', '.') }}
+            </div>
+            <div style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 2px;">
+                {{ $route->shipments->count() }} Carga(s) vinculada(s)
+            </div>
+        </div>
+
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid #f44336;">
+            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; text-transform: uppercase;">Custos da Viagem (Lançados)</span>
+            <div style="color: #f44336; font-size: 1.8em; font-weight: 700; margin-top: 5px;">
+                R$ {{ number_format($costingSummary['total_costs'], 2, ',', '.') }}
+            </div>
+            <div style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 2px;">
+                {{ $routeExpenses->count() }} despesa(s) operacional(is)
+            </div>
+        </div>
+
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid {{ $costingSummary['total_margin'] >= 0 ? '#4caf50' : '#f44336' }};">
+            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; text-transform: uppercase;">Margem Operacional Líquida</span>
+            <div style="color: {{ $costingSummary['total_margin'] >= 0 ? '#4caf50' : '#f44336' }}; font-size: 1.8em; font-weight: 700; margin-top: 5px;">
+                R$ {{ number_format($costingSummary['total_margin'], 2, ',', '.') }}
+            </div>
+            <div style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 2px; display: flex; align-items: center; gap: 5px;">
+                <span>Percentual:</span>
+                <span class="status-badge" style="background-color: {{ $costingSummary['total_margin'] >= 0 ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $costingSummary['total_margin'] >= 0 ? '#4caf50' : '#f44336' }}; font-size: 0.9em; padding: 2px 6px; border-radius: 4px;">
+                    {{ number_format($costingSummary['total_margin_pct'], 2, ',', '.') }}%
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Custos Lançados -->
+    <div style="margin-bottom: 35px;">
+        <h4 style="color: var(--cor-texto-claro); margin-bottom: 15px; font-size: 1.1em;">
+            <i class="fas fa-list"></i> Custos Operacionais Lançados
+        </h4>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: var(--cor-principal); border-radius: 10px; overflow: hidden;">
+                <thead>
+                    <tr style="background-color: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Categoria</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Operador / Tipo</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Trecho</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Descrição / Notas</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Método Rateio</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: right;">Valor</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: center;">Comprovante</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($routeExpenses as $expense)
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.02)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 12px 15px; font-weight: 500; color: var(--cor-texto-claro);">
+                                @switch($expense->cost_type)
+                                    @case('combustivel') Combustível @break
+                                    @case('pedagio') Pedágio @break
+                                    @case('diaria_motorista') Diária Motorista @break
+                                    @case('chapa') Chapa / Ajudante @break
+                                    @case('coleta') Custo Coleta @break
+                                    @case('transferencia') Custo Transferência @break
+                                    @case('avaria') Avaria @break
+                                    @case('emissao') Taxa Emissão @break
+                                    @case('imposto') Imposto @break
+                                    @default {{ ucfirst($expense->cost_type) }}
+                                @endswitch
+                            </td>
+                            <td style="padding: 12px 15px;">
+                                <span class="status-badge" style="background-color: {{ $expense->operator_type === 'proprio' ? 'rgba(33, 150, 243, 0.2)' : 'rgba(255, 152, 0, 0.2)' }}; color: {{ $expense->operator_type === 'proprio' ? '#2196F3' : '#FF9800' }}; font-size: 0.85em; padding: 2px 6px; border-radius: 4px;">
+                                    {{ $expense->operator_type === 'proprio' ? 'Próprio' : 'Terceiro' }}
+                                </span>
+                                @if($expense->third_party_name)
+                                    <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.6); margin-top: 4px;">
+                                        {{ $expense->third_party_name }}
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="padding: 12px 15px; color: rgba(245, 245, 245, 0.8);">
+                                {{ $expense->leg ?? '-' }}
+                            </td>
+                            <td style="padding: 12px 15px;">
+                                <span style="color: var(--cor-texto-claro);">{{ $expense->description ?? '-' }}</span>
+                                @if($expense->notes)
+                                    <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.5); margin-top: 3px;">
+                                        Obs: {{ Str::limit($expense->notes, 30) }}
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="padding: 12px 15px;">
+                                <span style="font-size: 0.9em; color: rgba(245, 245, 245, 0.8);">
+                                    @switch($expense->allocation_method)
+                                        @case('proporcional_valor') Prop. Valor CTe @break
+                                        @case('proporcional_peso') Prop. Peso @break
+                                        @case('proporcional_volume') Prop. Volume @break
+                                        @case('igualitario') Igualitário @break
+                                        @case('direto') Direto CTe @break
+                                        @default {{ $expense->allocation_method }}
+                                    @endswitch
+                                </span>
+                            </td>
+                            <td style="padding: 12px 15px; text-align: right; font-weight: 600; color: #f44336;">
+                                R$ {{ number_format($expense->amount, 2, ',', '.') }}
+                            </td>
+                            <td style="padding: 12px 15px; text-align: center;">
+                                @if($expense->receipt_url)
+                                    <a href="{{ route('route-expenses.receipt', $expense) }}" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8em; text-decoration: none; display: inline-block;" target="_blank">
+                                        <i class="fas fa-file-download"></i> Baixar
+                                    </a>
+                                @else
+                                    <span style="color: rgba(245, 245, 245, 0.4); font-size: 0.9em;">-</span>
+                                @endif
+                            </td>
+                            <td style="padding: 12px 15px; text-align: center;">
+                                <div style="display: flex; gap: 5px; justify-content: center;">
+                                    <button type="button" class="btn-secondary" style="padding: 5px 8px; background-color: rgba(255,255,255,0.05); cursor: pointer;" onclick="openExpenseModal({{ json_encode($expense) }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <form action="{{ route('route-expenses.destroy', $expense) }}" method="POST" onsubmit="return confirm('Excluir este custo operacional e todos os seus rateios vinculados?');" style="display: inline;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-secondary" style="padding: 5px 8px; background-color: rgba(244, 67, 54, 0.1); color: #f44336; border-color: rgba(244, 67, 54, 0.2); cursor: pointer;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" style="padding: 20px; text-align: center; color: rgba(245, 245, 245, 0.5);">
+                                <i class="fas fa-info-circle" style="margin-right: 5px;"></i> Nenhum custo operacional lançado para esta rota.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tabela de Rentabilidade por CT-e -->
+    <div>
+        <h4 style="color: var(--cor-texto-claro); margin-bottom: 15px; font-size: 1.1em;">
+            <i class="fas fa-chart-line"></i> Rentabilidade Individual por CT-e / Carga
+        </h4>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: var(--cor-principal); border-radius: 10px; overflow: hidden;">
+                <thead>
+                    <tr style="background-color: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">CT-e / Documento</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">NF-e Vinculada</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: right;">Receita (Frete)</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: right;">Custos Alocados</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: right;">Margem Líquida</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: center;">Margem %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($costingSummary['shipments'] as $shipSummary)
+                        @php
+                            $shipModel = $route->shipments->firstWhere('id', $shipSummary['shipment_id']);
+                        @endphp
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.02)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 12px 15px;">
+                                <a href="{{ route('shipments.show', $shipSummary['shipment_id']) }}" style="color: var(--cor-texto-claro); font-weight: 600; text-decoration: none; display: block;">
+                                    {{ $shipSummary['cte_number'] ?: 'CT-e #' . $shipSummary['shipment_id'] }}
+                                </a>
+                                <span style="font-size: 0.85em; color: rgba(245, 245, 245, 0.6);">
+                                    {{ $shipSummary['title'] }}
+                                </span>
+                            </td>
+                            <td style="padding: 12px 15px; color: rgba(245, 245, 245, 0.8);">
+                                {{ $shipModel && $shipModel->nf_key ? substr($shipModel->nf_key, 25, 9) . ' (Chave)' : ($shipModel->invoice_number ?: '-') }}
+                            </td>
+                            <td style="padding: 12px 15px; text-align: right; font-weight: 500; color: #4caf50;">
+                                R$ {{ number_format($shipSummary['revenue'], 2, ',', '.') }}
+                            </td>
+                            <td style="padding: 12px 15px; text-align: right; font-weight: 500; color: #f44336;">
+                                R$ {{ number_format($shipSummary['allocated_cost'], 2, ',', '.') }}
+                            </td>
+                            <td style="padding: 12px 15px; text-align: right; font-weight: 600; color: {{ $shipSummary['margin'] >= 0 ? '#4caf50' : '#f44336' }};">
+                                R$ {{ number_format($shipSummary['margin'], 2, ',', '.') }}
+                            </td>
+                            <td style="padding: 12px 15px; text-align: center;">
+                                <span class="status-badge" style="background-color: {{ $shipSummary['margin'] >= 0 ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $shipSummary['margin'] >= 0 ? '#4caf50' : '#f44336' }}; font-weight: 600; padding: 2px 6px; border-radius: 4px;">
+                                    {{ number_format($shipSummary['margin_pct'], 2, ',', '.') }}%
+                                </span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Lançamento / Edição de Custos -->
+<div id="modalExpense" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative;">
+        <button onclick="closeExpenseModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 1.5rem; cursor: pointer;">&times;</button>
+        
+        <h3 id="expenseModalTitle" style="color: var(--cor-acento); margin-top: 0; margin-bottom: 25px;">Lançar Novo Custo</h3>
+        
+        <form id="formExpense" method="POST" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="route_id" value="{{ $route->id }}">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Categoria de Custo</label>
+                    <select name="cost_type" id="expense_cost_type" class="form-input" required>
+                        <option value="combustivel">Combustível</option>
+                        <option value="pedagio">Pedágio</option>
+                        <option value="diaria_motorista">Diária Motorista</option>
+                        <option value="chapa">Chapa / Ajudante</option>
+                        <option value="coleta">Custo Coleta</option>
+                        <option value="transferencia">Custo Transferência</option>
+                        <option value="avaria">Avaria</option>
+                        <option value="emissao">Taxa Emissão</option>
+                        <option value="imposto">Imposto (ICMS/ISS)</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Operador / Motorista</label>
+                    <select name="operator_type" id="expense_operator_type" class="form-input" required onchange="toggleThirdPartyField(this.value)">
+                        <option value="proprio">Próprio (Frota)</option>
+                        <option value="terceiro">Terceiro (Agregado/Spot)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="third_party_wrapper" style="display: none; margin-bottom: 15px;">
+                <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Nome do Terceiro / Transportadora</label>
+                <input type="text" name="third_party_name" id="expense_third_party_name" class="form-input" placeholder="Ex: Transportadora Santos LTDA">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Valor (R$)</label>
+                    <input type="number" name="amount" id="expense_amount" class="form-input" min="0.01" step="0.01" required placeholder="0.00">
+                </div>
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Trecho / Leg</label>
+                    <input type="text" name="leg" id="expense_leg" class="form-input" placeholder="Ex: Caxias do Sul - SP">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Forma de Rateio (Distribuição)</label>
+                    <select name="allocation_method" id="expense_allocation_method" class="form-input" required onchange="toggleShipmentField(this.value)">
+                        <option value="proporcional_valor">Proporcional ao Valor do CT-e</option>
+                        <option value="proporcional_peso">Proporcional ao Peso</option>
+                        <option value="proporcional_volume">Proporcional ao Volume</option>
+                        <option value="igualitario">Divisão Igualitária (por quantidade)</option>
+                        <option value="direto">Direto (Vincular a um único CT-e)</option>
+                    </select>
+                </div>
+                <div id="shipment_wrapper" style="display: none;">
+                    <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Vincular ao CT-e</label>
+                    <select name="shipment_id" id="expense_shipment_id" class="form-input">
+                        <option value="">Selecione o CT-e...</option>
+                        @foreach($route->shipments as $ship)
+                            <option value="{{ $ship->id }}">CTe {{ $ship->cte_number ?? 'N/A' }} (Frete: R$ {{ number_format($ship->value, 2, ',', '.') }})</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Descrição</label>
+                <input type="text" name="description" id="expense_description" class="form-input" placeholder="Ex: Combustível Posto Ipiranga">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Observações</label>
+                <textarea name="notes" id="expense_notes" class="form-input" rows="2" placeholder="Detalhes adicionais do lançamento..."></textarea>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Comprovante (PDF/Imagem)</label>
+                <input type="file" name="receipt" id="expense_receipt" class="form-input">
+            </div>
+
+            <!-- Preview do Rateio Simulado -->
+            <div id="simulation-preview" style="display: none; background-color: var(--cor-principal); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px dashed rgba(255, 107, 53, 0.3);">
+                <h5 style="color: var(--cor-acento); margin-top: 0; margin-bottom: 10px; font-size: 0.95em;">Simulação do Rateio</h5>
+                <ul id="simulation-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px;">
+                </ul>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="simulateAllocation()">
+                    <i class="fas fa-eye"></i> Simular Rateio
+                </button>
+                <button type="button" class="btn-secondary" onclick="closeExpenseModal()">Cancelar</button>
+                <button type="submit" class="btn-primary">Salvar Custo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
     <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Cargas ({{ $route->shipments->count() }})</h3>
     <div style="display: grid; gap: 15px;">
@@ -2525,6 +2843,159 @@ document.addEventListener('alpine:init', () => {
                 e.stopPropagation();
             };
         }
+    }
+
+    function openExpenseModal(expense = null) {
+        const modal = document.getElementById('modalExpense');
+        const form = document.getElementById('formExpense');
+        const title = document.getElementById('expenseModalTitle');
+        
+        // Clear simulation preview
+        document.getElementById('simulation-preview').style.display = 'none';
+        
+        if (expense) {
+            // Edit mode
+            title.innerText = 'Editar Custo Operacional';
+            form.action = `/route-expenses/${expense.id}`;
+            
+            // Add PUT spoofing field
+            let methodInput = document.getElementById('expense_form_method');
+            if (!methodInput) {
+                methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                methodInput.id = 'expense_form_method';
+                methodInput.value = 'PUT';
+                form.appendChild(methodInput);
+            }
+            
+            // Fill fields
+            document.getElementById('expense_cost_type').value = expense.cost_type;
+            document.getElementById('expense_amount').value = expense.amount;
+            document.getElementById('expense_allocation_method').value = expense.allocation_method;
+            document.getElementById('expense_operator_type').value = expense.operator_type;
+            document.getElementById('expense_third_party_name').value = expense.third_party_name || '';
+            document.getElementById('expense_leg').value = expense.leg || '';
+            document.getElementById('expense_description').value = expense.description || '';
+            document.getElementById('expense_notes').value = expense.notes || '';
+            document.getElementById('expense_shipment_id').value = expense.shipment_id || '';
+            
+            // Trigger toggles
+            toggleThirdPartyField(expense.operator_type);
+            toggleShipmentField(expense.allocation_method);
+        } else {
+            // Create mode
+            title.innerText = 'Lançar Novo Custo';
+            form.action = '{{ route("route-expenses.store") }}';
+            
+            // Remove PUT spoofing field if exists
+            const methodInput = document.getElementById('expense_form_method');
+            if (methodInput) {
+                methodInput.remove();
+            }
+            
+            // Reset form
+            form.reset();
+            
+            // Set defaults
+            document.getElementById('expense_cost_type').value = 'combustivel';
+            document.getElementById('expense_operator_type').value = 'proprio';
+            document.getElementById('expense_allocation_method').value = 'proporcional_valor';
+            
+            // Trigger toggles
+            toggleThirdPartyField('proprio');
+            toggleShipmentField('proporcional_valor');
+        }
+        
+        modal.style.display = 'flex';
+    }
+
+    function closeExpenseModal() {
+        document.getElementById('modalExpense').style.display = 'none';
+    }
+
+    function toggleThirdPartyField(value) {
+        const wrapper = document.getElementById('third_party_wrapper');
+        const input = document.getElementById('expense_third_party_name');
+        if (value === 'terceiro') {
+            wrapper.style.display = 'block';
+            input.setAttribute('required', 'required');
+        } else {
+            wrapper.style.display = 'none';
+            input.removeAttribute('required');
+        }
+    }
+
+    function toggleShipmentField(value) {
+        const wrapper = document.getElementById('shipment_wrapper');
+        const select = document.getElementById('expense_shipment_id');
+        if (value === 'direto') {
+            wrapper.style.display = 'block';
+            select.setAttribute('required', 'required');
+        } else {
+            wrapper.style.display = 'none';
+            select.removeAttribute('required');
+        }
+    }
+
+    function simulateAllocation() {
+        const routeId = '{{ $route->id }}';
+        const amount = document.getElementById('expense_amount').value;
+        const allocation_method = document.getElementById('expense_allocation_method').value;
+        const shipment_id = document.getElementById('expense_shipment_id').value;
+        
+        if (!amount || amount <= 0 || !allocation_method) {
+            alert('Por favor, informe o valor e a forma de rateio para simular.');
+            return;
+        }
+        
+        const previewContainer = document.getElementById('simulation-preview');
+        const previewList = document.getElementById('simulation-list');
+        
+        previewList.innerHTML = '<li>Carregando simulação...</li>';
+        previewContainer.style.display = 'block';
+        
+        fetch('{{ route("route-expenses.preview") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                route_id: routeId,
+                amount: amount,
+                allocation_method: allocation_method,
+                shipment_id: shipment_id
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            previewList.innerHTML = '';
+            if (data.error) {
+                previewList.innerHTML = `<li style="color: #f44336;">Erro: ${data.error}</li>`;
+                return;
+            }
+            
+            if (!data.allocations || data.allocations.length === 0) {
+                previewList.innerHTML = '<li>Nenhum rateio calculado.</li>';
+                return;
+            }
+            
+            data.allocations.forEach(alloc => {
+                const formattedAmount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(alloc.amount);
+                const invoiceText = alloc.invoice_number ? ` (NF: ${alloc.invoice_number})` : '';
+                previewList.innerHTML += `
+                    <li style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 5px 0; font-size: 0.9em;">
+                        <span style="color: var(--cor-texto-claro); font-weight: 500;">CT-e: ${alloc.cte_number}${invoiceText}</span>
+                        <span style="color: var(--cor-acento); font-weight: 600;">${formattedAmount} (${alloc.pct}%)</span>
+                    </li>
+                `;
+            });
+        })
+        .catch(error => {
+            previewList.innerHTML = `<li style="color: #f44336;">Erro na comunicação com o servidor.</li>`;
+            console.error(error);
+        });
     }
 </script>
 @endpush

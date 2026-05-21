@@ -149,6 +149,8 @@ Route::middleware('auth')->group(function () {
     // Invoicing routes
     Route::prefix('invoicing')->name('invoicing.')->group(function () {
         Route::get('/', [App\Http\Controllers\InvoicingController::class, 'index'])->name('index');
+        Route::post('/generate', [App\Http\Controllers\InvoicingController::class, 'generate'])->name('generate');
+        Route::post('/{invoice}/cancel', [App\Http\Controllers\InvoicingController::class, 'cancel'])->name('cancel');
     });
 
     // Invoice routes
@@ -165,6 +167,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'show'])->name('show');
         Route::get('/{shipment}/edit', [App\Http\Controllers\ShipmentController::class, 'edit'])->name('edit');
         Route::put('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'update'])->name('update');
+        Route::put('/{shipment}/nfe', [App\Http\Controllers\ShipmentController::class, 'updateNfe'])->name('update-nfe');
         Route::delete('/{shipment}', [App\Http\Controllers\ShipmentController::class, 'destroy'])->name('destroy');
     });
 
@@ -368,6 +371,13 @@ Route::middleware('auth')->group(function () {
     // Performance Reports
     Route::get('/reports/performance', [App\Http\Controllers\PerformanceReportController::class, 'index'])->name('reports.performance');
 
+    // Operational Route Expenses (Costing Module)
+    Route::post('/route-expenses', [App\Http\Controllers\RouteExpenseController::class, 'store'])->name('route-expenses.store');
+    Route::put('/route-expenses/{routeExpense}', [App\Http\Controllers\RouteExpenseController::class, 'update'])->name('route-expenses.update');
+    Route::delete('/route-expenses/{routeExpense}', [App\Http\Controllers\RouteExpenseController::class, 'destroy'])->name('route-expenses.destroy');
+    Route::post('/route-expenses/preview', [App\Http\Controllers\RouteExpenseController::class, 'allocationBreakdown'])->name('route-expenses.preview');
+    Route::get('/route-expenses/{routeExpense}/receipt', [App\Http\Controllers\RouteExpenseController::class, 'downloadReceipt'])->name('route-expenses.receipt');
+
     // CT-e XMLs routes
     Route::prefix('cte-xmls')->name('cte-xmls.')->group(function () {
         Route::get('/', [App\Http\Controllers\CteXmlController::class, 'index'])->name('index');
@@ -384,6 +394,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('mark-read');
         Route::post('/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
     });
+
+    // Global search
+    Route::get('/search', [App\Http\Controllers\SearchController::class, 'index'])->name('search');
 
     // Reports routes
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -406,6 +419,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/whatsapp/{whatsappIntegration}/qr', [WhatsAppIntegrationController::class, 'qr'])->name('whatsapp.qr');
             Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::delete('/whatsapp/{whatsappIntegration}', [WhatsAppIntegrationController::class, 'destroy'])->name('whatsapp.destroy');
+
+            // WhatsApp AI Agent settings
+            Route::get('/whatsapp-ai', [App\Http\Controllers\Settings\WhatsAppAiController::class, 'index'])->name('whatsapp-ai.index');
+            Route::post('/whatsapp-ai', [App\Http\Controllers\Settings\WhatsAppAiController::class, 'update'])->name('whatsapp-ai.update');
 
             Route::get('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'index'])->name('email.index');
             Route::put('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'update'])->name('email.update');

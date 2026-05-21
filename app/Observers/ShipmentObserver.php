@@ -45,6 +45,11 @@ class ShipmentObserver
 
         // Update route total revenue if shipment has a route
         $this->updateRouteRevenue($shipment);
+
+        // Recalculate allocations if route is assigned
+        if ($shipment->route_id) {
+            $this->recalculateRouteAllocations($shipment->route_id);
+        }
     }
 
     /**
@@ -98,10 +103,14 @@ class ShipmentObserver
                 $oldRouteId = $shipment->getOriginal('route_id');
                 if ($oldRouteId) {
                     $this->updateRouteRevenueById($oldRouteId);
+                    $this->recalculateRouteAllocations($oldRouteId);
                 }
             }
             // Update current route
             $this->updateRouteRevenue($shipment);
+            if ($shipment->route_id) {
+                $this->recalculateRouteAllocations($shipment->route_id);
+            }
         }
     }
 
@@ -161,6 +170,7 @@ class ShipmentObserver
         // Update route total revenue when shipment is deleted
         if ($shipment->route_id) {
             $this->updateRouteRevenueById($shipment->route_id);
+            $this->recalculateRouteAllocations($shipment->route_id);
         }
     }
 
@@ -217,6 +227,24 @@ class ShipmentObserver
             }
         } catch (\Exception $e) {
             Log::error('Failed to update route revenue by ID', [
+                'route_id' => $routeId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Recalculate route cost allocations when shipments change.
+     */
+    protected function recalculateRouteAllocations(int $routeId): void
+    {
+        try {
+            $route = \App\Models\Route::find($routeId);
+            if ($route) {
+                app(\App\Services\CostAllocationService::class)->recalculate($route);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to recalculate route allocations from observer', [
                 'route_id' => $routeId,
                 'error' => $e->getMessage(),
             ]);

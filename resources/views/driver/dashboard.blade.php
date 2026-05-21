@@ -940,6 +940,24 @@
             font-size: 0.8em;
         }
     }
+
+    @keyframes slideUpToast {
+        from {
+            transform: translate(-50%, 50px);
+            opacity: 0;
+        }
+        to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+        }
+    }
+    
+    .status-badge.pending-sync {
+        background-color: rgba(255, 107, 53, 0.2);
+        color: #FF6B35;
+        border: 2px solid #FF6B35;
+        border-radius: 4px;
+    }
 </style>
 @endpush
 
@@ -1015,6 +1033,18 @@
         // Route switching removed - map no longer displayed on driver dashboard
     })();
 </script>
+
+<!-- Offline Status Bar -->
+<div id="offline-sync-banner" style="display: none; background: linear-gradient(135deg, #FF6B35 0%, #dd5216 100%); color: #ffffff; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-weight: 600; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.25); align-items: center; justify-content: space-between; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.95em;">
+        <i class="fas fa-wifi-slash" id="offline-banner-icon" style="color: #ffffff;"></i>
+        <span id="offline-banner-text" style="color: #ffffff;">Você possui entregas aguardando sinal...</span>
+    </div>
+    <button onclick="startManualSync()" id="offline-sync-btn" class="btn-primary" style="background: #111111; color: #FF6B35; padding: 6px 12px; font-size: 0.85em; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 700; transition: all 0.2s ease;">
+        <i class="fas fa-sync"></i> Sincronizar Agora
+    </button>
+</div>
+
 @if($activeRoute)
     <!-- Route Status Card -->
     <div class="route-status-card">
@@ -1626,7 +1656,116 @@
         }
     }
 
-    function submitStatusUpdate(event) {
+    // ========================================================
+    // IndexedDB & Offline Queue Management
+    // ========================================================
+    const DB_NAME = 'thiga_driver_pwa';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'offline_status_updates';
+
+    function getDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = function(e) {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'shipment_id' });
+                }
+            };
+            request.onsuccess = function(e) {
+                resolve(e.target.result);
+            };
+            request.onerror = function(e) {
+                reject(e.target.error);
+            };
+        });
+    }
+
+    async function saveOfflineUpdate(update) {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.put(update);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getOfflineUpdates() {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function deleteOfflineUpdate(shipmentId) {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.delete(shipmentId);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // ========================================================
+    // Canvas Client-Side Image Compression
+    // ========================================================
+    function compressPhoto(file, maxWidth = 1280, quality = 0.8) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Get base64 DataURL (image/jpeg)
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressedBase64);
+                };
+                img.onerror = function() {
+                    reject(new Error("Erro ao renderizar imagem no Canvas para compressão"));
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() {
+                reject(new Error("Erro ao carregar arquivo de foto"));
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function dataURLtoBlob(dataurl) {
+        var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+            bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], {type:mime});
+    }
+
+    // ========================================================
+    // Status Submit Handlers (Offline & Online Resiliency)
+    // ========================================================
+    async function submitStatusUpdate(event) {
         event.preventDefault();
         
         const submitBtn = document.getElementById('submitStatusBtn');
@@ -1635,85 +1774,417 @@
             submitBtn.disabled = true;
         }
         
-        const formData = new FormData(event.target);
+        const formEl = event.target;
+        const formData = new FormData(formEl);
         const shipmentId = formData.get('shipment_id');
         const status = formData.get('status');
+        const notes = formData.get('notes') || '';
+        const recipientName = formData.get('recipient_name') || '';
+        const recipientDocument = formData.get('recipient_document') || '';
         
+        let signatureData = null;
         if (status === 'delivered' && window.signaturePad && !window.signaturePad.isEmpty()) {
-            formData.set('recipient_signature', window.signaturePad.toDataURL('image/png'));
+            signatureData = window.signaturePad.toDataURL('image/png');
         }
         
-        // Get current location if available
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                formData.append('latitude', position.coords.latitude);
-                formData.append('longitude', position.coords.longitude);
-                formData.append('accuracy', position.coords.accuracy);
-                
-                submitForm(formData, shipmentId);
-            }, function(error) {
-                console.warn('Geolocation not available, submitting without location');
-                submitForm(formData, shipmentId);
+        // Get current geolocation coordinates
+        let lat = 0.00000000;
+        let lng = 0.00000000;
+        let accuracy = null;
+        
+        try {
+            const position = await new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    });
+                } else {
+                    reject(new Error("Não suportado"));
+                }
             });
-        } else {
-            submitForm(formData, shipmentId);
+            lat = position.coords.latitude;
+            lng = position.coords.longitude;
+            accuracy = position.coords.accuracy;
+        } catch (e) {
+            console.warn('Geolocation not obtained, checking window caches', e);
+            if (window.driverCurrentLat && window.driverCurrentLng) {
+                lat = window.driverCurrentLat;
+                lng = window.driverCurrentLng;
+            }
+        }
+        
+        // Compress proof photo if attached
+        const photoFileInput = document.getElementById('proofPhoto');
+        let compressedPhotoBase64 = null;
+        if (photoFileInput && photoFileInput.files && photoFileInput.files[0]) {
+            try {
+                if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Comprimindo Foto...';
+                compressedPhotoBase64 = await compressPhoto(photoFileInput.files[0]);
+            } catch (err) {
+                console.error("Erro na compressão Canvas. Usando fallback bruto.", err);
+                try {
+                    compressedPhotoBase64 = await new Promise((res, rej) => {
+                        const reader = new FileReader();
+                        reader.onload = e => res(e.target.result);
+                        reader.onerror = rej;
+                        reader.readAsDataURL(photoFileInput.files[0]);
+                    });
+                } catch(e2) {
+                    console.error("Erro crítico ao ler arquivo:", e2);
+                }
+            }
+        }
+        
+        // Prepare offline-friendly packet
+        const updatePayload = {
+            shipment_id: shipmentId,
+            status: status,
+            notes: notes,
+            recipient_name: recipientName,
+            recipient_document: recipientDocument,
+            recipient_signature: signatureData,
+            photo: compressedPhotoBase64,
+            latitude: lat,
+            longitude: lng,
+            accuracy: accuracy,
+            completed_at_offline: new Date().toISOString()
+        };
+        
+        // Force offline routing if strictly offline
+        if (!navigator.onLine) {
+            await handleOfflineSave(updatePayload);
+            return;
+        }
+        
+        // Try sending online
+        try {
+            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            
+            const submissionFormData = new FormData();
+            submissionFormData.append('shipment_id', shipmentId);
+            submissionFormData.append('status', status);
+            submissionFormData.append('notes', notes);
+            submissionFormData.append('recipient_name', recipientName);
+            submissionFormData.append('recipient_document', recipientDocument);
+            submissionFormData.append('latitude', lat);
+            submissionFormData.append('longitude', lng);
+            if (accuracy) submissionFormData.append('accuracy', accuracy);
+            
+            if (signatureData) {
+                submissionFormData.append('recipient_signature', signatureData);
+            }
+            
+            if (compressedPhotoBase64) {
+                const photoBlob = dataURLtoBlob(compressedPhotoBase64);
+                submissionFormData.append('photo', photoBlob, 'photo.jpg');
+            }
+            
+            await performOnlineSubmit(submissionFormData, shipmentId);
+        } catch (error) {
+            console.warn("Falha de rede ao transmitir status. Salvando na fila local offline.", error);
+            await handleOfflineSave(updatePayload);
         }
     }
-    
-    function submitForm(formData, shipmentId) {
-        fetch(`/driver/shipments/${shipmentId}/status`, {
+
+    async function performOnlineSubmit(formData, shipmentId) {
+        const response = await fetch(`/driver/shipments/${shipmentId}/status`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
             },
             body: formData
-        })
-        .then(async response => {
-            // Check if response is JSON before trying to parse
-            const contentType = response.headers.get('content-type') || '';
-            const isJson = contentType.includes('application/json');
-            
-            if (!response.ok) {
-                if (isJson) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || errorData.message || 'Erro ao atualizar status');
-                } else {
-                    // Server returned HTML error page, don't try to parse as JSON
-                    throw new Error('Erro ao atualizar status. Tente novamente.');
-                }
-            }
-            
-            if (!isJson) {
-                throw new Error('Resposta inválida do servidor. Tente novamente.');
-            }
-            
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            if (data.message) {
-                alert(data.message);
-                // Force a full page reload to ensure fresh data
-                setTimeout(() => {
-                    window.location.reload(true);
-                }, 500);
-            } else if (data.error || data.message) {
-                alert('Erro ao atualizar status: ' + (data.message || data.error || 'Erro desconhecido'));
+        });
+        
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        
+        if (!response.ok) {
+            if (isJson) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || errorData.message || 'Erro de validação no servidor');
             } else {
-                console.error('Unexpected response format:', data);
-                alert('Erro ao atualizar status: Resposta inesperada do servidor');
+                throw new Error('Servidor retornou um erro inesperado.');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert(error.message || 'Erro ao atualizar status. Tente novamente.');
+        }
+        
+        if (!isJson) {
+            throw new Error('Resposta inválida do servidor.');
+        }
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        if (data.message) {
+            alert(data.message);
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 500);
+        } else if (data.error || data.message) {
+            alert('Erro ao atualizar status: ' + (data.message || data.error || 'Erro desconhecido'));
+        } else {
+            console.error('Unexpected response format:', data);
+            alert('Erro ao atualizar status: Resposta inesperada do servidor');
+        }
+    }
+
+    async function handleOfflineSave(payload) {
+        try {
+            await saveOfflineUpdate(payload);
+            console.log("Status armazenado localmente no IndexedDB:", payload);
+            
+            closeModal('statusModal');
+            updateShipmentDOMOffline(payload.shipment_id, payload.status);
+            await updateOfflineBanner();
+            
+            showPremiumToast("Entrega salva localmente! Sincronizará quando houver internet.");
+        } catch (e) {
+            console.error("Falha ao persistir no IndexedDB:", e);
+            alert("Erro ao gravar dados localmente. Por favor, libere espaço de armazenamento.");
+            
             const submitBtn = document.getElementById('submitStatusBtn');
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-check"></i> Confirmar';
                 submitBtn.disabled = false;
             }
-        });
+        }
     }
+
+    // ========================================================
+    // UI Synchronized Offline States
+    // ========================================================
+    function updateShipmentDOMOffline(shipmentId, status) {
+        const card = document.querySelector(`.shipment-card[data-shipment-id="${shipmentId}"]`);
+        if (!card) return;
+        
+        // Remove interactive action buttons
+        const actions = card.querySelector('.shipment-actions');
+        if (actions) {
+            actions.innerHTML = '';
+        }
+        
+        // Reflect status in custom orange pending sync badge
+        const badge = card.querySelector('.status-badge');
+        if (badge) {
+            badge.className = 'status-badge pending-sync';
+            badge.style.cssText = 'background-color: rgba(255, 107, 53, 0.2); color: #FF6B35; border: 2px solid #FF6B35; border-radius: 4px;';
+            badge.innerHTML = '<i class="fas fa-clock fa-spin"></i> Sincronização Pendente';
+        }
+    }
+
+    async function updateOfflineBanner() {
+        const banner = document.getElementById('offline-sync-banner');
+        if (!banner) return;
+        
+        try {
+            const updates = await getOfflineUpdates();
+            const count = updates.length;
+            
+            if (count > 0) {
+                banner.style.display = 'flex';
+                
+                const textEl = document.getElementById('offline-banner-text');
+                const btnEl = document.getElementById('offline-sync-btn');
+                const iconEl = document.getElementById('offline-banner-icon');
+                
+                if (navigator.onLine) {
+                    textEl.innerHTML = `Você possui <strong>${count}</strong> entrega(s) pendente(s) de envio.`;
+                    btnEl.style.display = 'flex';
+                    btnEl.disabled = false;
+                    btnEl.innerHTML = '<i class="fas fa-sync"></i> Sincronizar Agora';
+                    iconEl.className = 'fas fa-wifi';
+                } else {
+                    textEl.innerHTML = `Modo Offline: <strong>${count}</strong> entrega(s) salvas no dispositivo.`;
+                    btnEl.style.display = 'none';
+                    iconEl.className = 'fas fa-wifi-slash animate-pulse';
+                }
+            } else {
+                banner.style.display = 'none';
+            }
+        } catch (e) {
+            console.error("Erro ao gerenciar banner offline:", e);
+        }
+    }
+
+    // ========================================================
+    // Queue Synchronization Processing Loop
+    // ========================================================
+    let isSyncing = false;
+    
+    async function startManualSync() {
+        if (isSyncing) return;
+        if (!navigator.onLine) {
+            showPremiumToast("Você continua sem conexão com a internet!");
+            return;
+        }
+        
+        const btnEl = document.getElementById('offline-sync-btn');
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+        }
+        
+        await syncOfflineUpdates();
+    }
+    
+    async function syncOfflineUpdates() {
+        if (isSyncing) return;
+        isSyncing = true;
+        
+        try {
+            const updates = await getOfflineUpdates();
+            if (updates.length === 0) {
+                isSyncing = false;
+                await updateOfflineBanner();
+                return;
+            }
+            
+            console.log(`Iniciando envio em segundo plano de ${updates.length} itens do IndexedDB...`);
+            
+            for (let update of updates) {
+                try {
+                    const submissionFormData = new FormData();
+                    submissionFormData.append('shipment_id', update.shipment_id);
+                    submissionFormData.append('status', update.status);
+                    submissionFormData.append('notes', update.notes);
+                    submissionFormData.append('recipient_name', update.recipient_name);
+                    submissionFormData.append('recipient_document', update.recipient_document);
+                    submissionFormData.append('latitude', update.latitude);
+                    submissionFormData.append('longitude', update.longitude);
+                    if (update.accuracy) submissionFormData.append('accuracy', update.accuracy);
+                    if (update.completed_at_offline) {
+                        submissionFormData.append('completed_at_offline', update.completed_at_offline);
+                    }
+                    
+                    if (update.recipient_signature) {
+                        submissionFormData.append('recipient_signature', update.recipient_signature);
+                    }
+                    
+                    if (update.photo) {
+                        const photoBlob = dataURLtoBlob(update.photo);
+                        submissionFormData.append('photo', photoBlob, 'photo.jpg');
+                    }
+                    
+                    const response = await fetch(`/driver/shipments/${update.shipment_id}/status`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        },
+                        body: submissionFormData
+                    });
+                    
+                    if (!response.ok) {
+                        const contentType = response.headers.get('content-type') || '';
+                        if (contentType.includes('application/json')) {
+                            const errData = await response.json();
+                            throw new Error(errData.error || errData.message || 'Erro do servidor');
+                        } else {
+                            throw new Error(`HTTP error ${response.status}`);
+                        }
+                    }
+                    
+                    await deleteOfflineUpdate(update.shipment_id);
+                    console.log(`Shipment ${update.shipment_id} enviado e liberado da base local.`);
+                    
+                } catch (shipmentErr) {
+                    console.error(`Falha no item ${update.shipment_id}:`, shipmentErr);
+                }
+            }
+            
+            const remaining = await getOfflineUpdates();
+            if (remaining.length === 0) {
+                showPremiumToast("Todas as entregas offline foram sincronizadas!");
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 1500);
+            } else {
+                showPremiumToast(`Sincronização parcial realizada. Restam ${remaining.length} pendências.`);
+                await updateOfflineBanner();
+            }
+            
+        } catch (e) {
+            console.error("Erro geral na sincronização offline:", e);
+        } finally {
+            isSyncing = false;
+        }
+    }
+
+    // ========================================================
+    // Premium Toast & Network Listeners
+    // ========================================================
+    function showPremiumToast(message) {
+        const existing = document.querySelector('.premium-system-toast');
+        if (existing) existing.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'premium-system-toast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(36, 90, 73, 0.96);
+            color: #ffffff;
+            padding: 12px 24px;
+            border-radius: 4px;
+            border-left: 4px solid var(--cor-acento);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.45);
+            z-index: 10000;
+            width: 90%;
+            max-width: 400px;
+            font-size: 0.9em;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: slideUpToast 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        `;
+        toast.innerHTML = `
+            <div style="flex-grow: 1; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-info-circle" style="color: var(--cor-acento);"></i>
+                <span>${message}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; padding: 5px; cursor: pointer; opacity: 0.8;">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        if (navigator.vibrate) {
+            navigator.vibrate(80);
+        }
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 4500);
+    }
+
+    window.addEventListener('online', () => {
+        console.log("OnLine: Conexão detectada!");
+        showPremiumToast("Sinal de internet detectado! Sincronizando entregas pendentes...");
+        setTimeout(syncOfflineUpdates, 2000);
+    });
+    
+    window.addEventListener('offline', () => {
+        console.log("OffLine: Conexão interrompida!");
+        showPremiumToast("Sem internet! Operando no modo offline resiliente.");
+        updateOfflineBanner();
+    });
+    
+    // Auto-check for sync every 20 seconds if onLine
+    setInterval(() => {
+        if (navigator.onLine && !isSyncing) {
+            getOfflineUpdates().then(updates => {
+                if (updates.length > 0) {
+                    syncOfflineUpdates();
+                }
+            });
+        }
+    }, 20000);
 
     function startRoute(routeId) {
         if (confirm('Deseja iniciar esta rota?')) {
@@ -2363,7 +2834,17 @@
             labelEl.textContent = labels[preferredNavApp] || 'Google Maps';
         }
         
-        // Update active option in menu - removed since navigation menu is handled by event listeners
+        // Check offline items in IndexedDB and reflect in UI
+        if (typeof getOfflineUpdates === 'function') {
+            getOfflineUpdates().then(updates => {
+                updates.forEach(u => {
+                    updateShipmentDOMOffline(u.shipment_id, u.status);
+                });
+                updateOfflineBanner();
+            }).catch(e => {
+                console.error("Erro ao ler IndexedDB na inicialização:", e);
+            });
+        }
     });
 
     // Initialize route map with Mapbox (similar to routes/show.blade.php)

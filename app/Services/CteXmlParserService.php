@@ -48,25 +48,43 @@ class CteXmlParserService
             
             // Extract document number
             $documentNumber = $this->extractDocumentNumber($xml);
+
+            // Extract fiscal/financial data for cost management
+            $fiscal = $this->extractFiscalData($xml);
             
             Log::info('CT-e XML parsed successfully', [
-                'access_key' => $accessKey,
+                'access_key'      => $accessKey,
                 'document_number' => $documentNumber,
-                'origin' => $origin['name'] ?? 'N/A',
-                'destination' => $destination['name'] ?? 'N/A',
+                'origin'          => $origin['name'] ?? 'N/A',
+                'destination'     => $destination['name'] ?? 'N/A',
+                'freight_value'   => $values['value'] ?? null,
+                'goods_value'     => $fiscal['goods_value'] ?? null,
+                'tax_total'       => $fiscal['tax_total'] ?? null,
+                'nfe_key'         => $fiscal['nfe_key'] ?? null,
             ]);
             
             return [
-                'access_key' => $accessKey,
-                'document_number' => $documentNumber,
-                'origin' => $origin,
-                'destination' => $destination,
-                'pickup_date' => $dates['pickup_date'] ?? null,
-                'delivery_date' => $dates['delivery_date'] ?? null,
-                'value' => $values['value'] ?? null,
-                'weight' => $values['weight'] ?? null,
-                'volume' => $values['volume'] ?? null,
-                'quantity' => $values['quantity'] ?? 1,
+                'access_key'          => $accessKey,
+                'document_number'     => $documentNumber,
+                'origin'              => $origin,
+                'destination'         => $destination,
+                'pickup_date'         => $dates['pickup_date'] ?? null,
+                'delivery_date'       => $dates['delivery_date'] ?? null,
+                'value'               => $values['value'] ?? null,    // vTPrest — valor do frete (receita)
+                'goods_value'         => $fiscal['goods_value'] ?? null, // vCarga — valor da mercadoria
+                'weight'              => $values['weight'] ?? null,
+                'volume'              => $values['volume'] ?? null,
+                'quantity'            => $values['quantity'] ?? 1,
+                // Fiscal / custo
+                'tax_total'           => $fiscal['tax_total'] ?? 0.00, // vTotTrib — imposto total
+                'nfe_key'             => $fiscal['nfe_key'] ?? null,   // chave NF-e vinculada
+                'is_simples_nacional' => $fiscal['is_simples_nacional'] ?? false,
+                'origin_city'         => $fiscal['origin_city'] ?? null,  // município de início (xMunIni)
+                'origin_state'        => $fiscal['origin_state'] ?? null,
+                'destination_city'    => $fiscal['destination_city'] ?? null, // município de fim (xMunFim)
+                'destination_state'   => $fiscal['destination_state'] ?? null,
+                'cfop'                => $fiscal['cfop'] ?? null,
+                'nat_op'              => $fiscal['nat_op'] ?? null,
             ];
         } catch (Exception $e) {
             Log::error('Failed to parse CT-e XML', [
@@ -409,13 +427,13 @@ class CteXmlParserService
     protected function extractValues(SimpleXMLElement $xml): array
     {
         $values = [
-            'value' => null,
-            'weight' => null,
-            'volume' => null,
+            'value'    => null,
+            'weight'   => null,
+            'volume'   => null,
             'quantity' => 1,
         ];
 
-        // Extract value using XPath
+        // Valor do frete (vTPrest)
         try {
             $vTPrest = $xml->xpath('//cte:vPrest/cte:vTPrest | //vPrest/vTPrest');
             if (!empty($vTPrest)) {
@@ -424,73 +442,135 @@ class CteXmlParserService
         } catch (\Exception $e) {
             // XPath failed, will use fallback
         }
-        
-        // Fallback to old method if XPath didn't work
+
         if ($values['value'] === null) {
-            $valuePaths = [
-                'CTe->infCte->vPrest->vTPrest',
-                'infCte->vPrest->vTPrest',
-                'infCTe->vPrest->vTPrest',
-            ];
-
-            foreach ($valuePaths as $path) {
-                $value = $this->getXmlValue($xml, $path);
-                if ($value) {
-                    $values['value'] = (float) $value;
+            foreach (['CTe->infCte->vPrest->vTPrest', 'infCte->vPrest->vTPrest', 'infCTe->vPrest->vTPrest'] as $path) {
+                $v = $this->getXmlValue($xml, $path);
+                if ($v !== null) {
+                    $values['value'] = (float) $v;
                     break;
                 }
             }
         }
 
-        // Extract weight - look for infQ where tpMed='KG'
-        try {
-            $infQ = $xml->xpath('//cte:infQ[cte:tpMed="KG"]/cte:qCarga | //infQ[tpMed="KG"]/qCarga');
-            if (!empty($infQ)) {
-                $values['weight'] = (float)(string)$infQ[0];
-            } else {
-                // Fallback: try to get first qCarga
-                $qCarga = $xml->xpath('//cte:infQ/cte:qCarga | //infQ/qCarga');
-                if (!empty($qCarga)) {
-                    $values['weight'] = (float)(string)$qCarga[0];
-                }
-            }
-        } catch (\Exception $e) {
-            // XPath failed, will use fallback
-        }
-        
-        // Fallback for weight
-        if ($values['weight'] === null) {
-            $weightPaths = [
-                'CTe->infCte->infCTeNorm->infCarga->infQ->qCarga',
-                'infCte->infCTeNorm->infCarga->infQ->qCarga',
-            ];
-
-            foreach ($weightPaths as $path) {
-                $weight = $this->getXmlValue($xml, $path);
-                if ($weight) {
-                    $values['weight'] = (float) $weight;
+        // Peso — preferência: PESO REAL ou PESO BASE DE CALCULO; fallback KG
+        $weightLabels = ['PESO REAL', 'PESO BASE DE CALCULO', 'PESO BRUTO', 'KG'];
+        foreach ($weightLabels as $label) {
+            try {
+                $nodes = $xml->xpath("//cte:infQ[cte:tpMed=\"{$label}\"]/cte:qCarga | //infQ[tpMed=\"{$label}\"]/qCarga");
+                if (!empty($nodes) && (float)(string)$nodes[0] > 0) {
+                    $values['weight'] = (float)(string)$nodes[0];
                     break;
                 }
+            } catch (\Exception $e) {
+                // continue
             }
         }
-        
-        // Extract quantity (volumes)
+
+        // Volume (M3)
         try {
-            $infQVolumes = $xml->xpath('//cte:infQ[cte:tpMed="VOLUMES"]/cte:qCarga | //infQ[tpMed="VOLUMES"]/qCarga');
-            if (!empty($infQVolumes)) {
-                $values['quantity'] = (int)(string)$infQVolumes[0];
-            } else {
-                // Fallback: try to get quantity from infQ where tpMed is not KG
-                $infQOther = $xml->xpath('//cte:infQ[cte:tpMed!="KG"]/cte:qCarga | //infQ[tpMed!="KG"]/qCarga');
-                if (!empty($infQOther)) {
-                    $values['quantity'] = (int)(string)$infQOther[0];
-                }
+            $vol = $xml->xpath('//cte:infQ[cte:tpMed="M3"]/cte:qCarga | //infQ[tpMed="M3"]/qCarga');
+            if (!empty($vol)) {
+                $values['volume'] = (float)(string)$vol[0];
             }
         } catch (\Exception $e) {
-            // XPath failed, will use default
+            // continue
+        }
+
+        // Quantidade (UNIDADE ou VOLUMES)
+        foreach (['UNIDADE', 'VOLUMES', 'CAIXAS'] as $unit) {
+            try {
+                $qtd = $xml->xpath("//cte:infQ[cte:tpMed=\"{$unit}\"]/cte:qCarga | //infQ[tpMed=\"{$unit}\"]/qCarga");
+                if (!empty($qtd) && (int)(string)$qtd[0] > 0) {
+                    $values['quantity'] = (int)(string)$qtd[0];
+                    break;
+                }
+            } catch (\Exception $e) {
+                // continue
+            }
         }
 
         return $values;
+    }
+
+    /**
+     * Extract fiscal/financial data for the cost management module:
+     * - vCarga (goods value)
+     * - vTotTrib (total tax)
+     * - chave NF-e vinculada
+     * - CRT (tax regime — Simples Nacional detection)
+     * - origin/destination municipalities
+     * - CFOP and natureza da operação
+     */
+    protected function extractFiscalData(SimpleXMLElement $xml): array
+    {
+        $data = [
+            'goods_value'         => null,
+            'tax_total'           => 0.00,
+            'nfe_key'             => null,
+            'is_simples_nacional' => false,
+            'origin_city'         => null,
+            'origin_state'        => null,
+            'destination_city'    => null,
+            'destination_state'   => null,
+            'cfop'                => null,
+            'nat_op'              => null,
+        ];
+
+        try {
+            // vCarga — valor da mercadoria transportada
+            $vCarga = $xml->xpath('//cte:infCarga/cte:vCarga | //infCarga/vCarga');
+            if (!empty($vCarga)) {
+                $data['goods_value'] = (float)(string)$vCarga[0];
+            }
+
+            // vTotTrib — total de tributos (ICMS, ISS, etc.)
+            $vTotTrib = $xml->xpath('//cte:imp/cte:vTotTrib | //imp/vTotTrib');
+            if (!empty($vTotTrib)) {
+                $data['tax_total'] = (float)(string)$vTotTrib[0];
+            }
+
+            // Chave da NF-e vinculada (dentro de infDoc)
+            $nfeKey = $xml->xpath('//cte:infDoc/cte:infNFe/cte:chave | //infDoc/infNFe/chave');
+            if (!empty($nfeKey)) {
+                $data['nfe_key'] = (string)$nfeKey[0];
+            }
+
+            // CRT — regime tributário do emitente (1 = Simples Nacional)
+            $crt = $xml->xpath('//cte:emit/cte:CRT | //emit/CRT');
+            if (!empty($crt)) {
+                $data['is_simples_nacional'] = ((int)(string)$crt[0] === 1);
+            }
+
+            // Município de início (origem operacional do trecho)
+            $munIni = $xml->xpath('//cte:ide/cte:xMunIni | //ide/xMunIni');
+            $ufIni  = $xml->xpath('//cte:ide/cte:UFIni | //ide/UFIni');
+            if (!empty($munIni)) {
+                $data['origin_city']  = (string)$munIni[0];
+                $data['origin_state'] = !empty($ufIni) ? (string)$ufIni[0] : null;
+            }
+
+            // Município de fim (destino operacional do trecho)
+            $munFim = $xml->xpath('//cte:ide/cte:xMunFim | //ide/xMunFim');
+            $ufFim  = $xml->xpath('//cte:ide/cte:UFFim | //ide/UFFim');
+            if (!empty($munFim)) {
+                $data['destination_city']  = (string)$munFim[0];
+                $data['destination_state'] = !empty($ufFim) ? (string)$ufFim[0] : null;
+            }
+
+            // CFOP e natureza da operação
+            $cfop  = $xml->xpath('//cte:ide/cte:CFOP | //ide/CFOP');
+            $natOp = $xml->xpath('//cte:ide/cte:natOp | //ide/natOp');
+            if (!empty($cfop))  $data['cfop']   = (string)$cfop[0];
+            if (!empty($natOp)) $data['nat_op'] = (string)$natOp[0];
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract fiscal data from CTe XML', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $data;
     }
 
     /**

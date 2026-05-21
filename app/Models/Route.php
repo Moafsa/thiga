@@ -133,6 +133,22 @@ class Route extends Model
         return $this->hasMany(DriverExpense::class);
     }
 
+    /**
+     * Get the costing module expenses for this route.
+     */
+    public function routeExpenses(): HasMany
+    {
+        return $this->hasMany(RouteExpense::class);
+    }
+
+    /**
+     * Get all cost allocations for shipments in this route.
+     */
+    public function shipmentCostAllocations(): HasMany
+    {
+        return $this->hasMany(ShipmentCostAllocation::class);
+    }
+
     public function shipments(): HasMany
     {
         return $this->hasMany(Shipment::class);

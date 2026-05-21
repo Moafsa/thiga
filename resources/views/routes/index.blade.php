@@ -5,63 +5,195 @@
 
 @push('styles')
 @include('shared.styles')
+<style>
+    .industrial-grid {
+        display: grid; 
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); 
+        gap: 24px;
+        margin-top: 20px;
+    }
+    .industrial-card {
+        background: #111820;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-left: 4px solid var(--cor-acento);
+        border-radius: 4px;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .industrial-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .card-header-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+    .route-title {
+        color: #fff;
+        font-size: 1.25rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 12px 0;
+    }
+    .route-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    .meta-item i {
+        color: var(--cor-acento);
+        opacity: 0.8;
+        width: 16px;
+    }
+    .action-group {
+        display: flex;
+        gap: 8px;
+    }
+    .action-btn-sharp {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 2px;
+        transition: all 0.2s;
+    }
+    .action-btn-sharp:hover {
+        background: var(--cor-acento);
+        color: #000;
+        border-color: var(--cor-acento);
+    }
+    .action-btn-danger {
+        color: #ff4b4b;
+        background: rgba(255, 75, 75, 0.05);
+        border-color: rgba(255, 75, 75, 0.2);
+    }
+    .action-btn-danger:hover {
+        background: #ff4b4b;
+        color: #fff;
+        border-color: #ff4b4b;
+    }
+    .card-footer {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .status-badge-sharp {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 8px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+    .cargo-count {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 600;
+    }
+    .empty-state-industrial {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 80px 20px;
+        background: #111820;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
+    .empty-state-industrial i {
+        font-size: 4rem;
+        color: rgba(255, 255, 255, 0.1);
+        margin-bottom: 20px;
+    }
+</style>
 @endpush
 
 @section('content')
 <div class="page-header">
     <div class="page-header-text">
-        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Rotas</h1>
-        <h2>Gerencie suas rotas</h2>
+        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Rotas de Operação</h1>
+        <h2 style="opacity: 0.6;">Painel de controle logístico</h2>
     </div>
-    <a href="{{ route('routes.create') }}" class="btn-primary">
-        <i class="fas fa-plus"></i>
+    <a href="{{ route('routes.create') }}" class="btn-primary" style="border-radius: 2px; font-weight: 700; text-transform: uppercase; padding: 12px 24px;">
+        <i class="fas fa-plus mr-2"></i>
         Nova Rota
     </a>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+<div class="industrial-grid">
     @forelse($routes as $route)
-        <div style="background-color: var(--cor-secundaria); padding: 25px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div>
-                    <h3 style="color: var(--cor-texto-claro); font-size: 1.3em; margin-bottom: 5px;">{{ $route->name }}</h3>
-                    @if($route->driver)
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Motorista: {{ $route->driver->name }}</p>
-                    @endif
-                    @if($route->vehicle)
-                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">Veículo: {{ $route->vehicle->formatted_plate }}</p>
-                    @endif
+        <div class="industrial-card">
+            <div class="card-header-flex">
+                <div style="flex: 1; padding-right: 15px;">
+                    <h3 class="route-title">{{ $route->name }}</h3>
+                    <div class="route-meta">
+                        @if($route->driver)
+                            <div class="meta-item">
+                                <i class="fas fa-user-circle"></i>
+                                <span>{{ $route->driver->name }}</span>
+                            </div>
+                        @endif
+                        @if($route->vehicle)
+                            <div class="meta-item">
+                                <i class="fas fa-truck"></i>
+                                <span>{{ $route->vehicle->formatted_plate }} ({{ $route->vehicle->model }})</span>
+                            </div>
+                        @endif
+                        <div class="meta-item">
+                            <i class="fas fa-calendar-day"></i>
+                            <span>{{ \Carbon\Carbon::parse($route->scheduled_date)->format('d/m/Y') }}</span>
+                        </div>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <a href="{{ route('routes.show', $route) }}" class="action-btn" title="Ver">
+                <div class="action-group">
+                    <a href="{{ route('routes.show', $route) }}" class="action-btn-sharp" title="Ver">
                         <i class="fas fa-eye"></i>
                     </a>
-                    <a href="{{ route('routes.edit', $route) }}" class="action-btn" title="Editar">
+                    <a href="{{ route('routes.edit', $route) }}" class="action-btn-sharp" title="Editar">
                         <i class="fas fa-edit"></i>
                     </a>
                     <form action="{{ route('routes.destroy', $route) }}" method="POST" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta rota? Esta ação não pode ser desfeita.');">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="action-btn" title="Excluir" style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.3);">
+                        <button type="submit" class="action-btn-sharp action-btn-danger" title="Excluir">
                             <i class="fas fa-trash"></i>
                         </button>
                     </form>
                 </div>
             </div>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <span class="status-badge">{{ $route->status_label }}</span>
-                <span style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-left: 10px;">
-                    {{ $route->shipments->count() }} {{ $route->shipments->count() === 1 ? 'carga' : 'cargas' }}
+            <div class="card-footer">
+                <span class="status-badge-sharp">{{ $route->status_label }}</span>
+                <span class="cargo-count">
+                    {{ $route->shipments->count() }} {{ $route->shipments->count() === 1 ? 'CARGA' : 'CARGAS' }}
                 </span>
             </div>
         </div>
     @empty
-        <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-            <i class="fas fa-route" style="font-size: 5em; color: rgba(245, 245, 245, 0.3); margin-bottom: 20px;"></i>
-            <h3 style="color: var(--cor-texto-claro); font-size: 1.5em; margin-bottom: 10px;">Nenhuma rota encontrada</h3>
-            <a href="{{ route('routes.create') }}" class="btn-primary">
-                <i class="fas fa-plus"></i>
-                Nova Rota
+        <div class="empty-state-industrial">
+            <i class="fas fa-route"></i>
+            <h3 style="color: #fff; font-size: 1.25rem; margin-bottom: 15px; font-weight: 700; text-transform: uppercase;">Nenhuma rota ativa</h3>
+            <a href="{{ route('routes.create') }}" class="btn-primary" style="border-radius: 2px;">
+                CRIAR PRIMEIRA ROTA
             </a>
         </div>
     @endforelse
@@ -71,6 +203,7 @@
     {{ $routes->links() }}
 </div>
 @endsection
+
 
 
 

@@ -37,6 +37,106 @@
     </div>
 </div>
 
+{{-- ── NEXT STEPS FLOW ──────────────────────────────────────── --}}
+@php
+    $hasRoute       = $shipment->route !== null;
+    $hasCte         = $shipment->cte() !== null;
+    $cteAuthorized  = $shipment->hasAuthorizedCte();
+    $isInvoiced     = $shipment->isInvoiced();
+    $isDelivered    = $shipment->status === 'delivered';
+
+    // Determine current step
+    if ($isInvoiced)          $currentStep = 4;
+    elseif ($cteAuthorized)   $currentStep = 3;
+    elseif ($hasRoute)        $currentStep = 2;
+    else                      $currentStep = 1;
+@endphp
+<div style="background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,107,53,0.03));
+            border: 1px solid rgba(255,107,53,0.2); border-radius: 14px; padding: 20px 24px;
+            margin-bottom: 24px; display: flex; align-items: center; gap: 0; flex-wrap: wrap;">
+
+    {{-- Step 1: Rota --}}
+    @php $step1Done = $hasRoute; @endphp
+    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                    background: {{ $step1Done ? '#4caf50' : ($currentStep === 1 ? 'var(--cor-acento)' : 'rgba(255,255,255,0.1)') }};
+                    color: white; font-size: 13px; font-weight: 700; flex-shrink: 0;">
+            {{ $step1Done ? '✓' : '1' }}
+        </div>
+        <div>
+            <div style="font-size: 0.78em; color: rgba(245,245,245,0.5); text-transform: uppercase; letter-spacing: .06em;">Passo 1</div>
+            <div style="font-size: 0.88em; color: {{ $step1Done ? '#4caf50' : 'var(--cor-texto-claro)' }}; font-weight: 600;">Rota</div>
+        </div>
+        @if(!$step1Done)
+            <a href="{{ route('routes.create') }}?shipment={{ $shipment->id }}" class="btn-primary"
+               style="margin-left: auto; padding: 6px 14px; font-size: 0.82em;">
+                <i class="fas fa-route"></i> Criar Rota
+            </a>
+        @elseif($shipment->route)
+            <a href="{{ route('routes.show', $shipment->route) }}"
+               style="margin-left: auto; color: #4caf50; font-size: 0.82em; text-decoration: none;">
+                <i class="fas fa-external-link-alt"></i> {{ $shipment->route->name }}
+            </a>
+        @endif
+    </div>
+
+    <div style="width: 30px; text-align: center; color: rgba(255,255,255,0.15); font-size: 1.2em;">›</div>
+
+    {{-- Step 2: CT-e --}}
+    @php $step2Done = $cteAuthorized; @endphp
+    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                    background: {{ $step2Done ? '#4caf50' : ($currentStep === 2 ? 'var(--cor-acento)' : 'rgba(255,255,255,0.1)') }};
+                    color: white; font-size: 13px; font-weight: 700; flex-shrink: 0;">
+            {{ $step2Done ? '✓' : '2' }}
+        </div>
+        <div>
+            <div style="font-size: 0.78em; color: rgba(245,245,245,0.5); text-transform: uppercase; letter-spacing: .06em;">Passo 2</div>
+            <div style="font-size: 0.88em; color: {{ $step2Done ? '#4caf50' : 'var(--cor-texto-claro)' }}; font-weight: 600;">CT-e</div>
+        </div>
+        @if($currentStep === 2 && !$step2Done)
+            <form action="{{ route('fiscal.issue-cte', $shipment) }}" method="POST" style="margin-left: auto;">
+                @csrf
+                <button type="submit" class="btn-primary" style="padding: 6px 14px; font-size: 0.82em;">
+                    <i class="fas fa-file-invoice"></i> Emitir CT-e
+                </button>
+            </form>
+        @elseif($step2Done)
+            <span style="margin-left: auto; color: #4caf50; font-size: 0.82em;">
+                <i class="fas fa-check-circle"></i> Autorizado
+            </span>
+        @endif
+    </div>
+
+    <div style="width: 30px; text-align: center; color: rgba(255,255,255,0.15); font-size: 1.2em;">›</div>
+
+    {{-- Step 3: Faturamento --}}
+    @php $step3Done = $isInvoiced; @endphp
+    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                    background: {{ $step3Done ? '#4caf50' : ($currentStep === 3 && $isDelivered ? 'var(--cor-acento)' : 'rgba(255,255,255,0.1)') }};
+                    color: white; font-size: 13px; font-weight: 700; flex-shrink: 0;">
+            {{ $step3Done ? '✓' : '3' }}
+        </div>
+        <div>
+            <div style="font-size: 0.78em; color: rgba(245,245,245,0.5); text-transform: uppercase; letter-spacing: .06em;">Passo 3</div>
+            <div style="font-size: 0.88em; color: {{ $step3Done ? '#4caf50' : 'var(--cor-texto-claro)' }}; font-weight: 600;">Faturamento</div>
+        </div>
+        @if($cteAuthorized && $isDelivered && !$isInvoiced)
+            <a href="{{ route('invoicing.index') }}" class="btn-primary"
+               style="margin-left: auto; padding: 6px 14px; font-size: 0.82em;">
+                <i class="fas fa-file-invoice-dollar"></i> Faturar
+            </a>
+        @elseif($step3Done)
+            <span style="margin-left: auto; color: #4caf50; font-size: 0.82em;">
+                <i class="fas fa-check-circle"></i> Faturado
+            </span>
+        @endif
+    </div>
+</div>
+{{-- ── END NEXT STEPS ───────────────────────────────────────── --}}
+
+
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 2px solid rgba(255, 107, 53, 0.3);">
         <div>
@@ -194,6 +294,155 @@
             <p>No CT-e issued yet. Click "Issue CT-e" to start the emission process.</p>
         </div>
     @endif
+</div>
+
+<!-- Vinculação de Nota Fiscal (NF-e) -->
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">
+        <i class="fas fa-file-invoice-dollar"></i> Nota Fiscal Eletrônica (NF-e Vinculada)
+    </h3>
+    
+    <form action="{{ route('shipments.update-nfe', $shipment) }}" method="POST" style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">
+        @csrf
+        @method('PUT')
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Chave de Acesso da NF-e (44 dígitos)</label>
+            <input type="text" name="nf_key" id="nf_key" class="form-input" placeholder="Ex: 35260543677178000184550020003268681018037787" value="{{ $shipment->nf_key }}" maxlength="44" style="font-family: monospace; letter-spacing: 1px;">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div>
+                <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Número da Nota Fiscal</label>
+                <input type="text" name="invoice_number" id="invoice_number" class="form-input" placeholder="Ex: 32686" value="{{ $shipment->invoice_number }}">
+            </div>
+            <div>
+                <label style="display: block; color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 5px;">Valor da Carga / Mercadorias (R$)</label>
+                <input type="number" name="goods_value" id="goods_value" class="form-input" step="0.01" placeholder="Ex: 5009.79" value="{{ $shipment->goods_value ?? ($shipment->value ?? '') }}">
+            </div>
+        </div>
+        
+        <button type="submit" class="btn-primary" style="cursor: pointer;">
+            <i class="fas fa-link"></i> Vincular / Atualizar Nota Fiscal
+        </button>
+    </form>
+</div>
+
+<!-- Custos e Rentabilidade do CT-e -->
+<div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+    <h3 style="color: var(--cor-acento); margin-bottom: 25px;">
+        <i class="fas fa-chart-pie"></i> Margem e Custos do CT-e / Carga
+    </h3>
+
+    <!-- Cards de Rentabilidade (DRE do CT-e) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid #4caf50;">
+            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; text-transform: uppercase;">Receita do Frete</span>
+            <div style="color: #4caf50; font-size: 1.8em; font-weight: 700; margin-top: 5px;">
+                R$ {{ number_format($costingSummary['revenue'], 2, ',', '.') }}
+            </div>
+            <div style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 2px;">
+                Valor cobrado pelo transporte
+            </div>
+        </div>
+
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid #f44336;">
+            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; text-transform: uppercase;">Custos Alocados / Rateados</span>
+            <div style="color: #f44336; font-size: 1.8em; font-weight: 700; margin-top: 5px;">
+                R$ {{ number_format($costingSummary['costs']['total'], 2, ',', '.') }}
+            </div>
+            <div style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 2px;">
+                {{ count($costingSummary['costs']['items']) }} rateio(s) de despesa
+            </div>
+        </div>
+
+        <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px; border-left: 4px solid {{ $costingSummary['margin'] >= 0 ? '#4caf50' : '#f44336' }};">
+            <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.85em; text-transform: uppercase;">Margem Líquida</span>
+            <div style="color: {{ $costingSummary['margin'] >= 0 ? '#4caf50' : '#f44336' }}; font-size: 1.8em; font-weight: 700; margin-top: 5px;">
+                R$ {{ number_format($costingSummary['margin'], 2, ',', '.') }}
+            </div>
+            <div style="color: rgba(245, 245, 245, 0.5); font-size: 0.8em; margin-top: 2px; display: flex; align-items: center; gap: 5px;">
+                <span>Percentual:</span>
+                <span class="status-badge" style="background-color: {{ $costingSummary['margin'] >= 0 ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $costingSummary['margin'] >= 0 ? '#4caf50' : '#f44336' }}; font-size: 0.9em; padding: 2px 6px; border-radius: 4px;">
+                    {{ number_format($costingSummary['margin_pct'], 2, ',', '.') }}%
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Detalhamento dos Custos Rateados/Diretos -->
+    <div>
+        <h4 style="color: var(--cor-texto-claro); margin-bottom: 15px; font-size: 1.1em;">
+            <i class="fas fa-list-ul"></i> Extrato de Custos Alocados a esta Carga
+        </h4>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: var(--cor-principal); border-radius: 10px; overflow: hidden;">
+                <thead>
+                    <tr style="background-color: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Origem / Despesa Rota</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Categoria</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Operador / Tipo</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600;">Critério de Rateio</th>
+                        <th style="padding: 12px 15px; color: var(--cor-acento); font-weight: 600; text-align: right;">Custo Alocado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($costingSummary['costs']['items'] as $item)
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.02)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 12px 15px;">
+                                <a href="{{ route('routes.show', $item['route_id']) }}" style="color: var(--cor-texto-claro); font-weight: 600; text-decoration: none;">
+                                    <i class="fas fa-route"></i> Ver Rota / Viagem
+                                </a>
+                                @if($item['description'])
+                                    <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.6); margin-top: 4px;">
+                                        {{ $item['description'] }}
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="padding: 12px 15px; color: var(--cor-texto-claro); font-weight: 500;">
+                                @switch($item['cost_type'])
+                                    @case('combustivel') Combustível @break
+                                    @case('pedagio') Pedágio @break
+                                    @case('diaria_motorista') Diária Motorista @break
+                                    @case('chapa') Chapa / Ajudante @break
+                                    @case('coleta') Custo Coleta @break
+                                    @case('transferencia') Custo Transferência @break
+                                    @case('avaria') Avaria @break
+                                    @case('emissao') Taxa Emissão @break
+                                    @case('imposto') Imposto @break
+                                    @default {{ ucfirst($item['cost_type']) }}
+                                @endswitch
+                            </td>
+                            <td style="padding: 12px 15px;">
+                                <span class="status-badge" style="background-color: {{ $item['operator_type'] === 'proprio' ? 'rgba(33, 150, 243, 0.2)' : 'rgba(255, 152, 0, 0.2)' }}; color: {{ $item['operator_type'] === 'proprio' ? '#2196F3' : '#FF9800' }}; font-size: 0.85em; padding: 2px 6px; border-radius: 4px;">
+                                    {{ $item['operator_type'] === 'proprio' ? 'Próprio' : 'Terceiro' }}
+                                </span>
+                            </td>
+                            <td style="padding: 12px 15px; color: rgba(245, 245, 245, 0.8); font-size: 0.9em;">
+                                @switch($item['allocation_basis'])
+                                    @case('proporcional_valor') Proporcional ao Valor ({{ number_format($item['allocation_pct'], 2, ',', '.') }}%) @break
+                                    @case('proporcional_peso') Proporcional ao Peso ({{ number_format($item['allocation_pct'], 2, ',', '.') }}%) @break
+                                    @case('proporcional_volume') Proporcional ao Volume ({{ number_format($item['allocation_pct'], 2, ',', '.') }}%) @break
+                                    @case('igualitario') Divisão Igualitária ({{ number_format($item['allocation_pct'], 2, ',', '.') }}%) @break
+                                    @case('direto') Lançamento Direto (100%) @break
+                                    @default {{ $item['allocation_basis'] }} ({{ number_format($item['allocation_pct'], 2, ',', '.') }}%)
+                                @endswitch
+                            </td>
+                            <td style="padding: 12px 15px; text-align: right; font-weight: 600; color: #f44336;">
+                                R$ {{ number_format($item['allocated_amount'], 2, ',', '.') }}
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" style="padding: 20px; text-align: center; color: rgba(245, 245, 245, 0.5);">
+                                <i class="fas fa-info-circle" style="margin-right: 5px;"></i> Nenhum custo alocado a esta carga até o momento.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Timeline Section -->

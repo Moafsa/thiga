@@ -36,6 +36,8 @@
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
 
     @livewireStyles
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
         /* Variables */
@@ -69,7 +71,6 @@
             min-height: 100vh;
         }
 
-        /* Sidebar - overflow hidden evita tooltips/ícones vazando para a área principal */
         .sidebar {
             width: var(--sidebar-width);
             background-color: var(--cor-secundaria);
@@ -80,21 +81,41 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
             padding: 20px 0;
             z-index: 1000;
             overflow-y: auto;
             overflow-x: hidden;
+            transition: width 0.3s ease;
+        }
+        
+        .sidebar.expanded {
+            width: 260px;
         }
 
         .sidebar-logo {
             padding: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             color: var(--cor-acento);
             font-size: 24px;
             border-bottom: 2px solid rgba(255, 107, 53, 0.3);
             width: 100%;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .sidebar-logo-text {
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: 1px;
+            margin-left: 10px;
+            display: none;
+            white-space: nowrap;
+        }
+        
+        .sidebar.expanded .sidebar-logo-text {
+            display: block;
         }
 
         .sidebar-nav {
@@ -102,71 +123,111 @@
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 5px;
             padding: 0 10px;
+        }
+
+        .nav-category {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.4);
+            margin: 15px 0 5px 15px;
+            letter-spacing: 1px;
+            display: none;
+            white-space: nowrap;
+        }
+        
+        .sidebar.expanded .nav-category {
+            display: block;
         }
 
         .sidebar-item {
             position: relative;
             width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         .sidebar-link {
-            width: 50px;
+            width: 100%;
             height: 50px;
             display: flex;
             align-items: center;
-            justify-content: center;
             color: var(--cor-texto-claro);
-            border-radius: 10px;
-            transition: all 0.3s ease;
+            border-radius: 6px;
+            transition: all 0.2s ease;
             text-decoration: none;
-            font-size: 20px;
             position: relative;
+            padding: 0 15px;
+        }
+
+        .sidebar-link i {
+            font-size: 20px;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-link span {
+            margin-left: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            white-space: nowrap;
+            display: none;
+        }
+        
+        .sidebar.expanded .sidebar-link span {
+            display: block;
         }
 
         .sidebar-link:hover {
-            background-color: rgba(255, 107, 53, 0.2);
+            background-color: rgba(255, 107, 53, 0.1);
             color: var(--cor-acento);
-            transform: scale(1.1);
         }
 
         .sidebar-link.active {
-            background-color: var(--cor-acento);
-            color: var(--cor-principal);
+            background-color: rgba(255, 107, 53, 0.15);
+            color: var(--cor-acento);
+            border-left: 3px solid var(--cor-acento);
         }
 
-        .sidebar-link.active:hover {
-            background-color: #FF885A;
-        }
-
-        /* Tooltips removidos (overflow hidden). Use title="" nos links para tooltip nativo. */
         .sidebar-footer {
             margin-top: auto;
-            padding-top: 20px;
+            padding-top: 15px;
             border-top: 2px solid rgba(255, 107, 53, 0.3);
             width: 100%;
+            padding: 15px 10px 0;
         }
 
         .sidebar-logout {
-            width: 50px;
+            width: 100%;
             height: 50px;
             display: flex;
             align-items: center;
-            justify-content: center;
             color: var(--cor-texto-claro);
-            border-radius: 10px;
-            transition: all 0.3s ease;
+            border-radius: 6px;
+            transition: all 0.2s ease;
             text-decoration: none;
-            font-size: 20px;
-            margin: 0 auto;
             cursor: pointer;
             border: none;
             background: transparent;
-            position: relative;
+            padding: 0 15px;
+        }
+
+        .sidebar-logout i {
+            font-size: 20px;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-logout span {
+            margin-left: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            white-space: nowrap;
+            display: none;
+        }
+        
+        .sidebar.expanded .sidebar-logout span {
+            display: block;
         }
 
         .sidebar-logout:hover {
@@ -181,6 +242,11 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .sidebar-expanded-wrapper {
+            margin-left: 260px;
         }
 
         .top-header {
@@ -190,6 +256,24 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .toggle-sidebar-btn {
+            background: transparent;
+            border: none;
+            color: var(--cor-texto-claro);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .toggle-sidebar-btn:hover {
+            color: var(--cor-acento);
         }
 
         .page-title {
@@ -220,29 +304,16 @@
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
-                width: 60px;
+                transform: translateX(-100%);
             }
-
-            .sidebar-link {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
+            .sidebar.expanded {
+                transform: translateX(0);
             }
-
             .main-wrapper {
-                margin-left: 60px;
+                margin-left: 0;
             }
-
-            .top-header {
-                padding: 15px 20px;
-            }
-
-            .page-title {
-                font-size: 20px;
-            }
-
-            .main-content {
-                padding: 20px;
+            .sidebar-expanded-wrapper {
+                margin-left: 0;
             }
         }
     </style>
@@ -250,88 +321,95 @@
     @stack('styles')
 </head>
 
-<body>
+<body x-data="{ sidebarOpen: false }">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ 'expanded': sidebarOpen }">
         <div class="sidebar-logo">
-            <i class="fas fa-truck"></i>
+            <i class="fas fa-truck text-accent"></i>
+            <span class="sidebar-logo-text">TMS SAAS</span>
         </div>
 
         <nav class="sidebar-nav">
             <div class="sidebar-item">
                 <a href="{{ route('dashboard') }}"
                     class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" title="Painel">
-                    <i class="fas fa-home"></i>
+                    <i class="fas fa-home"></i> <span>Painel</span>
                 </a>
             </div>
 
+            <div class="nav-category">Logística</div>
+            
             <div class="sidebar-item">
                 <a href="{{ route('monitoring.index') }}"
                     class="sidebar-link {{ request()->routeIs('monitoring.*') ? 'active' : '' }}" title="Monitoramento">
-                    <i class="fas fa-map-location-dot"></i>
-                </a>
-            </div>
-
-            <div class="sidebar-item">
-                <a href="{{ route('shipments.index') }}"
-                    class="sidebar-link {{ request()->routeIs('shipments.*') ? 'active' : '' }}" title="Cargas">
-                    <i class="fas fa-truck-loading"></i>
+                    <i class="fas fa-map-location-dot"></i> <span>Monitoramento</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('routes.index') }}"
                     class="sidebar-link {{ request()->routeIs('routes.*') ? 'active' : '' }}" title="Rotas">
-                    <i class="fas fa-route"></i>
+                    <i class="fas fa-route"></i> <span>Rotas Operacionais</span>
                 </a>
             </div>
-
+            
             <div class="sidebar-item">
-                <a href="{{ route('cte-xmls.index') }}"
-                    class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" title="CT-e XMLs">
-                    <i class="fas fa-file-code"></i>
-                </a>
-            </div>
-
-            <div class="sidebar-item">
-                <a href="{{ route('fiscal.ctes.index') }}"
-                    class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" title="CT-es">
-                    <i class="fas fa-file-invoice"></i>
+                <a href="{{ route('shipments.index') }}"
+                    class="sidebar-link {{ request()->routeIs('shipments.*') ? 'active' : '' }}" title="Cargas">
+                    <i class="fas fa-truck-loading"></i> <span>Gestão de Cargas</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('drivers.index') }}"
                     class="sidebar-link {{ request()->routeIs('drivers.*') ? 'active' : '' }}" title="Motoristas">
-                    <i class="fas fa-user-tie"></i>
+                    <i class="fas fa-user-tie"></i> <span>Motoristas</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('vehicles.index') }}"
                     class="sidebar-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" title="Veículos">
-                    <i class="fas fa-car"></i>
+                    <i class="fas fa-car"></i> <span>Veículos</span>
+                </a>
+            </div>
+
+            <div class="nav-category">Fiscal & Docs</div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('cte-xmls.index') }}"
+                    class="sidebar-link {{ request()->routeIs('cte-xmls.*') ? 'active' : '' }}" title="CT-e XMLs">
+                    <i class="fas fa-file-code"></i> <span>Upload de XML</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
-                <a href="{{ route('salespeople.index') }}"
-                    class="sidebar-link {{ request()->routeIs('salespeople.*') ? 'active' : '' }}" title="Vendedores">
-                    <i class="fas fa-users"></i>
+                <a href="{{ route('fiscal.ctes.index') }}"
+                    class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" title="CT-es">
+                    <i class="fas fa-file-invoice"></i> <span>Notas e CT-es</span>
                 </a>
             </div>
+
+            <div class="nav-category">Comercial</div>
 
             <div class="sidebar-item">
                 <a href="{{ route('clients.index') }}"
                     class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" title="Clientes">
-                    <i class="fas fa-user-friends"></i>
+                    <i class="fas fa-user-friends"></i> <span>Clientes</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-item">
+                <a href="{{ route('salespeople.index') }}"
+                    class="sidebar-link {{ request()->routeIs('salespeople.*') ? 'active' : '' }}" title="Vendedores">
+                    <i class="fas fa-users"></i> <span>Vendedores</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('proposals.index') }}"
                     class="sidebar-link {{ request()->routeIs('proposals.index') ? 'active' : '' }}" title="Propostas">
-                    <i class="fas fa-file-contract"></i>
+                    <i class="fas fa-file-contract"></i> <span>Propostas</span>
                 </a>
             </div>
 
@@ -339,7 +417,7 @@
                 <a href="{{ route('proposals.quick') }}"
                     class="sidebar-link {{ request()->routeIs('proposals.quick') ? 'active' : '' }}"
                     title="Cotação Rápida">
-                    <i class="fas fa-bolt"></i>
+                    <i class="fas fa-bolt"></i> <span>Cotação Rápida</span>
                 </a>
             </div>
 
@@ -347,41 +425,24 @@
                 <a href="{{ route('freight-tables.index') }}"
                     class="sidebar-link {{ request()->routeIs('freight-tables.*') ? 'active' : '' }}"
                     title="Tabelas de Frete">
-                    <i class="fas fa-table"></i>
-                </a>
-            </div>
-
-            <div class="sidebar-item">
-                <a href="{{ route('reports.index') }}"
-                    class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"
-                    title="Relatórios e Gráficos">
-                    <i class="fas fa-chart-line"></i>
+                    <i class="fas fa-chart-line"></i> <span>Tabelas de Frete</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('invoicing.index') }}"
                     class="sidebar-link {{ request()->routeIs('invoicing.*') ? 'active' : '' }}" title="Faturamento">
-                    <i class="fas fa-file-invoice-dollar"></i>
+                    <i class="fas fa-file-invoice-dollar"></i> <span>Faturamento</span>
                 </a>
             </div>
 
-            <!-- Group: Financeiro -->
-            <div class="sidebar-item">
-                <a href="#" class="sidebar-link" title="Financeiro"
-                    onclick="event.preventDefault(); document.getElementById('finance-submenu').classList.toggle('d-none');">
-                    <i class="fas fa-coins"></i>
-                </a>
-            </div>
-
-            <!-- Submenu (Hidden by default, user can toggle via JS or hover) -->
-            <!-- Ideally this sidebar needs a proper submenu structure. For now, flat list for better access -->
+            <div class="nav-category">Financeiro</div>
 
             <div class="sidebar-item">
                 <a href="{{ route('financial.accounts-receivable') }}"
                     class="sidebar-link {{ request()->routeIs('financial.accounts-receivable') ? 'active' : '' }}"
                     title="Contas a Receber (Dashboard)">
-                    <i class="fas fa-hand-holding-usd"></i>
+                    <i class="fas fa-hand-holding-usd"></i> <span>Contas a Receber</span>
                 </a>
             </div>
 
@@ -389,14 +450,14 @@
                 <a href="{{ route('financial.accounts-payable') }}"
                     class="sidebar-link {{ request()->routeIs('financial.accounts-payable') ? 'active' : '' }}"
                     title="Contas a Pagar (Dashboard)">
-                    <i class="fas fa-file-invoice-dollar text-danger"></i>
+                    <i class="fas fa-money-check-dollar text-danger"></i> <span>Contas a Pagar</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('cash-flow.index') }}"
                     class="sidebar-link {{ request()->routeIs('cash-flow.*') ? 'active' : '' }}" title="Fluxo de Caixa">
-                    <i class="fas fa-chart-area"></i>
+                    <i class="fas fa-chart-area"></i> <span>Fluxo de Caixa</span>
                 </a>
             </div>
 
@@ -404,7 +465,7 @@
                 <a href="{{ route('financial.reconciliation') }}"
                     class="sidebar-link {{ request()->routeIs('financial.reconciliation') ? 'active' : '' }}"
                     title="Conciliação Bancária">
-                    <i class="fas fa-check-double"></i>
+                    <i class="fas fa-check-double"></i> <span>Conciliação Bancária</span>
                 </a>
             </div>
 
@@ -412,14 +473,16 @@
                 <a href="{{ route('financial.reports.dre') }}"
                     class="sidebar-link {{ request()->routeIs('financial.reports.dre') ? 'active' : '' }}"
                     title="DRE (Relatório)">
-                    <i class="fas fa-balance-scale"></i>
+                    <i class="fas fa-balance-scale"></i> <span>DRE (Relatório)</span>
                 </a>
             </div>
+
+            <div class="nav-category">Administração</div>
 
             <div class="sidebar-item">
                 <a href="{{ route('companies.index') }}"
                     class="sidebar-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" title="Empresas">
-                    <i class="fas fa-building"></i>
+                    <i class="fas fa-building"></i> <span>Empresas</span>
                 </a>
             </div>
 
@@ -427,20 +490,28 @@
                 <a href="{{ route('subscriptions.index') }}"
                     class="sidebar-link {{ request()->routeIs('subscriptions.*') ? 'active' : '' }}"
                     title="Assinaturas">
-                    <i class="fas fa-receipt"></i>
+                    <i class="fas fa-receipt"></i> <span>Assinaturas</span>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('settings.integrations.whatsapp-ai.index') }}"
+                    class="sidebar-link {{ request()->routeIs('settings.integrations.whatsapp-ai.*') ? 'active' : '' }}"
+                    title="Agente IA WhatsApp">
+                    <i class="fas fa-robot"></i> <span>Agente IA</span>
                 </a>
             </div>
 
             <div class="sidebar-item">
                 <a href="{{ route('settings.index') }}"
                     class="sidebar-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" title="Configurações">
-                    <i class="fas fa-cog"></i>
+                    <i class="fas fa-cog"></i> <span>Configurações</span>
                 </a>
             </div>
         </nav>
 
         <div class="sidebar-footer">
-            <form method="POST" action="{{ route('logout') }}" style="display: flex; justify-content: center;">
+            <form method="POST" action="{{ route('logout') }}" style="display: flex; flex-direction: column; width: 100%;">
                 @csrf
                 <button type="submit" class="sidebar-logout" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
@@ -450,9 +521,32 @@
     </aside>
 
     <!-- Main Content -->
-    <div class="main-wrapper">
+    <div class="main-wrapper" :class="{ 'sidebar-expanded-wrapper': sidebarOpen }">
         <header class="top-header">
-            <h1 class="page-title">@yield('page-title', 'TMS SaaS')</h1>
+            <div class="header-left">
+                <button type="button" class="toggle-sidebar-btn" x-on:click="sidebarOpen = !sidebarOpen">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">@yield('page-title', 'TMS SaaS')</h1>
+            </div>
+
+            <!-- Global Search -->
+            <div style="flex: 1; max-width: 440px; margin: 0 30px; position: relative;" id="global-search-wrapper">
+                <div style="display: flex; align-items: center; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 14px; gap: 10px;">
+                    <i class="fas fa-search" style="color: rgba(245,245,245,0.4); font-size: 14px;"></i>
+                    <input type="text" id="global-search-input"
+                        placeholder="Buscar clientes, cargas, motoristas, rotas..."
+                        style="background: none; border: none; outline: none; color: var(--cor-texto-claro); font-family: 'Poppins', sans-serif; font-size: 0.88em; width: 100%;"
+                        autocomplete="off">
+                    <kbd id="search-shortcut" style="background: rgba(255,255,255,0.08); color: rgba(245,245,245,0.4); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 2px 6px; font-size: 0.7em; font-family: monospace;">/</kbd>
+                </div>
+                <!-- Dropdown -->
+                <div id="global-search-dropdown"
+                    style="display:none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--cor-secundaria); border: 1px solid rgba(255,107,53,0.25); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); z-index: 2000; overflow: hidden; max-height: 400px; overflow-y: auto;">
+                    <div id="global-search-results"></div>
+                </div>
+            </div>
+
             <div class="user-menu">
                 @include('components.notification-bell')
                 <div class="user-info">
@@ -517,6 +611,102 @@
             }
         });
     </script>
+
+    <!-- Global Search Script -->
+    <script>
+    (function() {
+        const input    = document.getElementById('global-search-input');
+        const dropdown = document.getElementById('global-search-dropdown');
+        const results  = document.getElementById('global-search-results');
+        if (!input) return;
+
+        const typeIcons = {
+            client: 'fa-user-friends', shipment: 'fa-truck-loading',
+            driver: 'fa-user-tie',     route: 'fa-route'
+        };
+
+        const typeLabels = {
+            client: 'Cliente', shipment: 'Carga', driver: 'Motorista', route: 'Rota'
+        };
+
+        let debounce;
+
+        input.addEventListener('input', () => {
+            clearTimeout(debounce);
+            const q = input.value.trim();
+            if (q.length < 2) { dropdown.style.display = 'none'; return; }
+            debounce = setTimeout(() => fetchResults(q), 250);
+        });
+
+        async function fetchResults(q) {
+            try {
+                const res  = await fetch(`{{ route('search') }}?q=${encodeURIComponent(q)}`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                renderResults(data.results, q);
+            } catch (e) {
+                console.error('Search error', e);
+            }
+        }
+
+        function renderResults(items, q) {
+            if (!items || items.length === 0) {
+                results.innerHTML = `<div style="padding: 20px; text-align: center; color: rgba(245,245,245,0.4); font-size: 0.9em;">
+                    <i class="fas fa-search" style="margin-bottom: 8px; display: block;"></i>
+                    Nenhum resultado para "<strong>${q}</strong>"
+                </div>`;
+                dropdown.style.display = 'block';
+                return;
+            }
+
+            let html = '';
+            items.forEach((item, idx) => {
+                html += `<a href="${item.url}" style="display: flex; align-items: center; gap: 14px; padding: 12px 16px; text-decoration: none; transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.05);"
+                    onmouseover="this.style.background='rgba(255,107,53,0.1)'" onmouseout="this.style.background=''">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,107,53,0.12); display: flex; align-items: center; justify-content: center; color: var(--cor-acento); font-size: 13px; flex-shrink: 0;">
+                        <i class="fas ${item.icon}"></i>
+                    </div>
+                    <div style="min-width: 0;">
+                        <div style="color: var(--cor-texto-claro); font-size: 0.9em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.label}</div>
+                        <div style="color: rgba(245,245,245,0.45); font-size: 0.78em;">${typeLabels[item.type] ?? item.type}${item.sublabel ? ' · ' + item.sublabel : ''}</div>
+                    </div>
+                </a>`;
+            });
+
+            // See all results link
+            html += `<a href="{{ route('search') }}?q=${encodeURIComponent(input.value)}" style="display: block; padding: 12px 16px; text-align: center; color: var(--cor-acento); font-size: 0.85em; text-decoration: none; border-top: 1px solid rgba(255,107,53,0.15);">
+                Ver todos os resultados <i class="fas fa-arrow-right" style="font-size: 0.8em;"></i>
+            </a>`;
+
+            results.innerHTML = html;
+            dropdown.style.display = 'block';
+        }
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('global-search-wrapper').contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Keyboard shortcut: press "/" to focus search
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== input &&
+                !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                input.focus();
+                input.select();
+            }
+            if (e.key === 'Escape') {
+                dropdown.style.display = 'none';
+                input.blur();
+            }
+        });
+    })();
+    </script>
+    
+    @livewireScripts
 </body>
 
 </html>

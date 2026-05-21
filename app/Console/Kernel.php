@@ -22,6 +22,14 @@ class Kernel extends ConsoleKernel
         $schedule->job(new \App\Jobs\CheckExpiringCnh())
             ->dailyAt('08:00')
             ->withoutOverlapping();
+
+        // Alert admins about overdue shipments daily at 7 AM
+        $schedule->job(new \App\Jobs\AlertOverdueShipmentsJob())
+            ->dailyAt('07:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->name('alert-overdue-shipments');
+
     }
 
     /**

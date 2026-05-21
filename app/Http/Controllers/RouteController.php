@@ -1508,7 +1508,12 @@ class RouteController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            return view('routes.show', compact('route', 'mdfe'));
+            // Costing Module details
+            $costSummaryService = app(\App\Services\CostSummaryService::class);
+            $costingSummary = $costSummaryService->summaryForRoute($route);
+            $routeExpenses = $route->routeExpenses()->orderBy('created_at', 'desc')->get();
+
+            return view('routes.show', compact('route', 'mdfe', 'costingSummary', 'routeExpenses'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             \Log::error('Route not found', [
                 'route_id' => $route->id ?? 'unknown',
@@ -1684,15 +1689,8 @@ class RouteController extends Controller
 
         $oldVehicleId = $route->vehicle_id;
         $oldStatus = $route->status;
-
         // Calculate and update total revenue if shipments changed
         $route->update($validated);
-
-        // Recalculate total revenue if shipments were updated
-        if ($request->has('shipment_ids')) {
-            $totalRevenue = $route->shipments()->sum('value') ?? 0;
-            $route->update(['total_revenue' => $totalRevenue]);
-        }
 
         // Update vehicle status based on route status
         if ($route->vehicle_id) {
@@ -1742,6 +1740,25 @@ class RouteController extends Controller
             Shipment::whereIn('id', $request->shipment_ids)
                 ->where('tenant_id', $tenant->id)
                 ->update(['route_id' => $route->id]);
+        }
+
+        // Recalculate total revenue and total_cte_value settings for the route
+        $totalRevenue = $route->shipments()->sum('value') ?? 0;
+        $route->update([
+            'total_revenue' => $totalRevenue,
+            'settings' => array_merge($route->settings ?? [], [
+                'total_cte_value' => $totalRevenue,
+            ]),
+        ]);
+
+        // Recalculate cost allocations
+        try {
+            app(\App\Services\CostAllocationService::class)->recalculate($route);
+        } catch (\Exception $e) {
+            \Log::error('Failed to recalculate cost allocations on route update', [
+                'route_id' => $route->id,
+                'error' => $e->getMessage()
+            ]);
         }
 
         return redirect()->route('routes.show', $route)

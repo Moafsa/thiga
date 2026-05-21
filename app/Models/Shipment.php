@@ -59,6 +59,7 @@ class Shipment extends Model
         'cte_number',
         'cte_status',
         'invoice_number',
+        'nf_key',
         'invoice_details',
         'dimensions',
     ];
@@ -126,6 +127,22 @@ class Shipment extends Model
     public function fiscalDocuments(): HasMany
     {
         return $this->hasMany(FiscalDocument::class);
+    }
+
+    /**
+     * Get the route expenses directly linked to this shipment.
+     */
+    public function routeExpenses(): HasMany
+    {
+        return $this->hasMany(RouteExpense::class);
+    }
+
+    /**
+     * Get the cost allocations assigned to this shipment.
+     */
+    public function costAllocations(): HasMany
+    {
+        return $this->hasMany(ShipmentCostAllocation::class);
     }
 
     /**

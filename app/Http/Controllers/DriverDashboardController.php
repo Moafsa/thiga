@@ -781,6 +781,24 @@ class DriverDashboardController extends Controller
                 }
             }
 
+            // Check if there is an offline completion timestamp to preserve SLA metrics
+            $deliveryTime = now();
+            if ($request->has('completed_at_offline') && !empty($request->completed_at_offline)) {
+                try {
+                    $deliveryTime = \Carbon\Carbon::parse($request->completed_at_offline);
+                    Log::info('Using offline completion time for shipment status update', [
+                        'shipment_id' => $shipmentId,
+                        'completed_at_offline' => $request->completed_at_offline,
+                        'parsed_time' => $deliveryTime->toDateTimeString(),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Error parsing completed_at_offline, defaulting to now()', [
+                        'completed_at_offline' => $request->completed_at_offline,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             // Update shipment status
             $updateData = [
                 'status' => $request->status,
@@ -794,13 +812,13 @@ class DriverDashboardController extends Controller
             $shipmentTable = $shipment->getTable();
             if (\Illuminate\Support\Facades\Schema::hasColumn($shipmentTable, 'picked_up_at')) {
                 if ($request->status === 'picked_up') {
-                    $updateData['picked_up_at'] = now();
+                    $updateData['picked_up_at'] = $deliveryTime;
                 }
             }
 
             if (\Illuminate\Support\Facades\Schema::hasColumn($shipmentTable, 'delivered_at')) {
                 if ($request->status === 'delivered') {
-                    $updateData['delivered_at'] = now();
+                    $updateData['delivered_at'] = $deliveryTime;
                 }
             }
 
@@ -830,7 +848,7 @@ class DriverDashboardController extends Controller
                         'proof_type' => $request->status === 'delivered' ? 'delivery' : ($request->status === 'picked_up' ? 'pickup' : 'other'),
                         'description' => $request->notes ?? null,
                         'status' => 'pending',
-                        'delivery_time' => now(),
+                        'delivery_time' => $deliveryTime,
                         'recipient_name' => $request->recipient_name ?? null,
                         'recipient_document' => $request->recipient_document ?? null,
                         'recipient_signature' => $signaturePath ?? null,

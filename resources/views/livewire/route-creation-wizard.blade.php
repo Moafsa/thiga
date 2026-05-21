@@ -1,231 +1,436 @@
-<div class="wizard-container">
-    <!-- Progress Bar -->
-    <div class="wizard-steps mb-8">
-        <div class="step {{ $step >= 1 ? 'active' : '' }}">
-            <div class="step-icon">1</div>
-            <span>Dados Básicos</span>
-        </div>
-        <div class="line {{ $step >= 2 ? 'active' : '' }}"></div>
-        <div class="step {{ $step >= 2 ? 'active' : '' }}">
-            <div class="step-icon">2</div>
-            <span>Cargas</span>
-        </div>
-        <div class="line {{ $step >= 3 ? 'active' : '' }}"></div>
-        <div class="step {{ $step >= 3 ? 'active' : '' }}">
-            <div class="step-icon">3</div>
-            <span>Resumo</span>
-        </div>
-    </div>
-
-    <!-- Step 1: Basic Info -->
-    @if($step == 1)
-        <div class="reco-card animate-in">
-            <div class="reco-card-header">
-                <span class="reco-title"><i class="fas fa-info-circle mr-2"></i> Informações da Rota</span>
+<div class="command-center-container">
+    <div class="command-grid">
+        <!-- Left Pane: Route Specs -->
+        <div class="command-pane pane-left">
+            <div class="pane-header">
+                <h2>Parâmetros da Rota</h2>
+                <p>Configure os dados operacionais.</p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="filter-group">
-                    <label class="block text-sm font-semibold mb-2">Nome da Rota *</label>
-                    <input type="text" wire:model="name" class="filter-input w-full" placeholder="Ex: Rota Matinal Centro">
-                    @error('name') <span class="text-danger text-xs">{{ $message }}</span> @enderror
+            <div class="pane-body">
+                <div class="industrial-input-group">
+                    <label>IDENTIFICAÇÃO (NOME) *</label>
+                    <input type="text" wire:model="name" placeholder="Ex: Rota Noturna SP">
+                    @error('name') <span class="error">{{ $message }}</span> @enderror
                 </div>
-                <div class="filter-group">
-                    <label class="block text-sm font-semibold mb-2">Data Programada *</label>
-                    <input type="date" wire:model="scheduled_date" class="filter-input w-full">
+                <div class="industrial-input-group">
+                    <label>DATA PROGRAMADA *</label>
+                    <input type="date" wire:model="scheduled_date">
+                    @error('scheduled_date') <span class="error">{{ $message }}</span> @enderror
                 </div>
-                <div class="filter-group">
-                    <label class="block text-sm font-semibold mb-2">Motorista</label>
-                    <select wire:model="driver_id" class="filter-input w-full">
-                        <option value="">Selecione um motorista</option>
+                <div class="industrial-input-group">
+                    <label>MOTORISTA RESPONSÁVEL</label>
+                    <select wire:model="driver_id">
+                        <option value="">Selecione...</option>
                         @foreach($drivers as $driver)
                             <option value="{{ $driver->id }}">{{ $driver->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label class="block text-sm font-semibold mb-2">Veículo</label>
-                    <select wire:model="vehicle_id" class="filter-input w-full">
-                        <option value="">Selecione um veículo</option>
+                <div class="industrial-input-group">
+                    <label>VEÍCULO</label>
+                    <select wire:model="vehicle_id">
+                        <option value="">Selecione...</option>
                         @foreach($vehicles as $vehicle)
-                            <option value="{{ $vehicle->id }}">{{ $vehicle->plate }} - {{ $vehicle->model }}</option>
+                            <option value="{{ $vehicle->id }}">{{ $vehicle->plate }} ({{ $vehicle->model }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="industrial-input-group">
+                    <label>FILIAL DE ORIGEM</label>
+                    <select wire:model="branch_id">
+                        <option value="">Selecione...</option>
+                        @foreach($branches as $branch)
+                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                         @endforeach
                     </select>
                 </div>
             </div>
-            <div class="mt-8 flex justify-end">
-                <button wire:click="nextStep" class="btn-filter">Próximo: Selecionar Cargas <i
-                        class="fas fa-arrow-right ml-2"></i></button>
-            </div>
         </div>
-    @endif
 
-    <!-- Step 2: Shipments -->
-    @if($step == 2)
-        <div class="reco-card animate-in">
-            <div class="reco-card-header">
-                <span class="reco-title"><i class="fas fa-box mr-2"></i> Selecionar Cargas e Entregas</span>
+        <!-- Right Pane: Cargo & XML -->
+        <div class="command-pane pane-right">
+            <div class="pane-header flex-between">
+                <div>
+                    <h2>Gestão de Cargas</h2>
+                    <p>Faça upload de XMLs ou selecione cargas pendentes.</p>
+                </div>
+                <button type="button" x-data x-on:click="$dispatch('open-manual-modal')" class="btn-primary" style="padding: 8px 15px; font-size: 0.8rem; border-radius: 2px;">
+                    <i class="fas fa-plus mr-1"></i> Nova Carga Manual
+                </button>
             </div>
 
-            <div class="mb-6">
-                <h3 class="text-sm font-bold uppercase opacity-60 mb-4">Cargas Disponíveis (Shipments)</h3>
-                <div class="overflow-x-auto">
-                    <table class="reco-table">
+            <!-- Manual Cargo Modal (Alpine + Livewire) -->
+            <div x-data="{ open: false }" 
+                 x-show="open" 
+                 x-on:open-manual-modal.window="open = true"
+                 x-on:close-manual-modal.window="open = false"
+                 style="display: none;" 
+                 class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                
+                <div class="command-pane w-full max-w-lg" x-on:click.away="open = false">
+                    <div class="pane-header flex-between">
+                        <h2>Criar Carga Manual</h2>
+                        <button type="button" x-on:click="open = false" class="text-white opacity-50 hover:opacity-100"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="pane-body">
+                        <div class="industrial-input-group">
+                            <label>NOME DO DESTINATÁRIO *</label>
+                            <input type="text" wire:model.defer="manual_receiver_name" placeholder="Ex: Cliente Final S/A">
+                            @error('manual_receiver_name') <span class="error">{{ $message }}</span> @enderror
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="industrial-input-group">
+                                <label>CIDADE DE ENTREGA *</label>
+                                <input type="text" wire:model.defer="manual_delivery_city" placeholder="Ex: São Paulo">
+                                @error('manual_delivery_city') <span class="error">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="industrial-input-group">
+                                <label>ESTADO (UF) *</label>
+                                <input type="text" wire:model.defer="manual_delivery_state" maxlength="2" placeholder="Ex: SP">
+                                @error('manual_delivery_state') <span class="error">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="industrial-input-group">
+                                <label>PESO (KG) *</label>
+                                <input type="number" step="0.1" wire:model.defer="manual_weight" placeholder="0.0">
+                                @error('manual_weight') <span class="error">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="industrial-input-group">
+                                <label>VALOR DA MERCADORIA *</label>
+                                <input type="number" step="0.01" wire:model.defer="manual_value" placeholder="0.00">
+                                @error('manual_value') <span class="error">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="industrial-input-group">
+                            <label>DESCRIÇÃO OPCIONAL</label>
+                            <input type="text" wire:model.defer="manual_description" placeholder="Ex: 5 Caixas de eletrônicos">
+                        </div>
+
+                        <div class="flex justify-end gap-3 mt-4">
+                            <button type="button" x-on:click="open = false" class="px-4 py-2 text-sm text-white opacity-60 hover:opacity-100">Cancelar</button>
+                            <button type="button" wire:click="createManualShipment" wire:loading.attr="disabled" class="btn-execute" style="padding: 10px 20px; font-size: 0.9rem;">
+                                <span wire:loading.remove wire:target="createManualShipment">SALVAR E ADICIONAR</span>
+                                <span wire:loading wire:target="createManualShipment">CRIANDO...</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pane-body">
+                <!-- Dropzone -->
+                <div class="xml-dropzone" x-data="{ isDropping: false }" 
+                     x-on:dragover.prevent="isDropping = true" 
+                     x-on:dragleave.prevent="isDropping = false" 
+                     x-on:drop.prevent="isDropping = false; $wire.uploadMultiple('xml_files', $event.dataTransfer.files)"
+                     x-bind:class="{ 'dropping': isDropping }">
+                    <input type="file" wire:model="xml_files" multiple id="xml-upload" class="hidden-input">
+                    <label for="xml-upload" class="dropzone-label">
+                        <i class="fas fa-file-upload"></i>
+                        <span wire:loading.remove wire:target="xml_files">Arraste os XMLs dos CT-es aqui ou clique para buscar</span>
+                        <span wire:loading wire:target="xml_files">Processando arquivos XML, extraindo dados...</span>
+                    </label>
+                </div>
+
+                <!-- Shipment List -->
+                <div class="shipment-list-container mt-6">
+                    <table class="industrial-table">
                         <thead>
                             <tr>
-                                <th width="40"></th>
-                                <th>Rastreio</th>
-                                <th>Destinatário</th>
-                                <th style="text-align: right;">Peso</th>
-                                <th style="text-align: right;">Valor</th>
+                                <th width="40">INC</th>
+                                <th>RASTREIO</th>
+                                <th>DESTINO</th>
+                                <th class="text-right">PESO</th>
+                                <th class="text-right">VALOR</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($availableShipments as $shipment)
-                                <tr>
-                                    <td><input type="checkbox" wire:model="selectedShipments" value="{{ $shipment->id }}"></td>
-                                    <td>{{ $shipment->tracking_number }}</td>
-                                    <td>{{ $shipment->receiver_name }}</td>
-                                    <td style="text-align: right;">{{ $shipment->weight }}kg</td>
-                                    <td style="text-align: right;">R$ {{ number_format($shipment->value, 2, ',', '.') }}</td>
+                            @forelse($availableShipments as $shipment)
+                                <tr class="{{ in_array($shipment->id, $selectedShipments) ? 'selected-row' : '' }}">
+                                    <td>
+                                        <input type="checkbox" wire:model="selectedShipments" value="{{ $shipment->id }}" class="industrial-checkbox">
+                                    </td>
+                                    <td class="font-mono">
+                                        {{ $shipment->tracking_number }}
+                                        @if(in_array($shipment->id, $selectedShipments))
+                                            <span class="inline-flex items-center justify-center px-2 py-1 ml-2 text-xs font-bold leading-none text-white bg-green-600 rounded">Add</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $shipment->receiver_name }}<br><small style="opacity: 0.5;">{{ $shipment->delivery_city }}/{{ $shipment->delivery_state }}</small></td>
+                                    <td class="text-right">{{ $shipment->weight }}kg</td>
+                                    <td class="text-right text-accent">R$ {{ number_format($shipment->value, 2, ',', '.') }}</td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga pendente no sistema. Faça upload de CT-es para começar.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="flex justify-between mt-8">
-                <button wire:click="prevStep" class="btn-filter" style="background: rgba(255,255,255,0.1); color: #fff;"><i
-                        class="fas fa-arrow-left mr-2"></i> Voltar</button>
-                <button wire:click="nextStep" class="btn-filter">Próximo: Revisar Rota <i
-                        class="fas fa-arrow-right ml-2"></i></button>
+    <!-- Sticky Footer -->
+    <div class="command-footer">
+        <div class="footer-stats">
+            <div class="stat">
+                <span class="label">CARGAS</span>
+                <span class="value">{{ count($selectedShipments) }}</span>
+            </div>
+            <div class="stat">
+                <span class="label">PESO TOTAL</span>
+                <span class="value">{{ number_format($total_weight, 2, ',', '.') }} kg</span>
+            </div>
+            <div class="stat">
+                <span class="label">VALOR DA ROTA</span>
+                <span class="value text-accent">R$ {{ number_format($total_value, 2, ',', '.') }}</span>
             </div>
         </div>
-    @endif
-
-    <!-- Step 3: Summary -->
-    @if($step == 3)
-        <div class="reco-card animate-in">
-            <div class="reco-card-header">
-                <span class="reco-title"><i class="fas fa-check-circle mr-2"></i> Resumo e Confirmação</span>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div class="summary-box">
-                    <span class="label">Total de Cargas</span>
-                    <span class="value">{{ count($selectedShipments) + count($selectedCargo) }}</span>
-                </div>
-                <!-- More summary boxes... -->
-            </div>
-
-            <div class="flex justify-between">
-                <button wire:click="prevStep" class="btn-filter" style="background: rgba(255,255,255,0.1); color: #fff;"><i
-                        class="fas fa-arrow-left mr-2"></i> Ajustar Cargas</button>
-                <button wire:click="save" class="btn-filter" style="background: #4caf50;">Criar Rota Agora <i
-                        class="fas fa-rocket ml-2"></i></button>
-            </div>
+        <div class="footer-actions">
+            <button wire:click="save" class="btn-execute">
+                CONCLUIR E CRIAR ROTA <i class="fas fa-bolt ml-2"></i>
+            </button>
         </div>
-    @endif
+    </div>
 
     <style>
-        .wizard-steps {
+        .command-center-container {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            max-width: 600px;
-            margin: 0 auto 40px;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 100px;
+            font-family: 'Inter', sans-serif;
         }
-
-        .step {
+        .command-grid {
+            display: grid;
+            grid-template-columns: 35% 64%;
+            gap: 20px;
+            align-items: start;
+        }
+        @media (max-width: 1024px) {
+            .command-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .command-pane {
+            background: #111820; /* Dark brutalist bg */
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .pane-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .pane-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #fff;
+            margin: 0;
+        }
+        .pane-header p {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin: 4px 0 0 0;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pane-body {
+            padding: 25px;
+        }
+        .industrial-input-group {
+            margin-bottom: 20px;
+        }
+        .industrial-input-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
+        }
+        .industrial-input-group input, 
+        .industrial-input-group select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 2px;
+            font-family: inherit;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+        .industrial-input-group input:focus, 
+        .industrial-input-group select:focus {
+            outline: none;
+            border-color: var(--cor-acento);
+            background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 0 1px var(--cor-acento);
+        }
+        .error {
+            color: #ff4b4b;
+            font-size: 0.75rem;
+            margin-top: 5px;
+            display: block;
+        }
+        
+        .xml-dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            padding: 40px 20px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .xml-dropzone.dropping {
+            border-color: var(--cor-acento);
+            background: rgba(255, 107, 53, 0.05); /* rgba value of accent */
+        }
+        .hidden-input {
+            opacity: 0;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            cursor: pointer;
+        }
+        .dropzone-label {
             display: flex;
             flex-direction: column;
             align-items: center;
-            z-index: 2;
-            position: relative;
+            gap: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            font-size: 0.95rem;
+        }
+        .dropzone-label i {
+            font-size: 2.2rem;
+            color: var(--cor-acento);
+            opacity: 0.8;
         }
 
-        .step-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--cor-secundaria);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-bottom: 8px;
-            transition: all 0.3s;
+        .industrial-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
         }
-
-        .step.active .step-icon {
-            background: var(--cor-acento);
-            border-color: var(--cor-acento);
-            color: var(--cor-principal);
-        }
-
-        .step span {
-            font-size: 0.75em;
-            font-weight: 600;
-            text-transform: uppercase;
+        .industrial-table th {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.08);
             color: rgba(255, 255, 255, 0.4);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
         }
-
-        .step.active span {
+        .industrial-table td {
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            vertical-align: middle;
+            transition: background 0.2s;
+            color: #ececec;
+        }
+        .industrial-table tbody tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .selected-row td {
+            background: rgba(255, 107, 53, 0.05) !important;
+            border-bottom-color: rgba(255, 107, 53, 0.1);
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            letter-spacing: 0.5px;
             color: #fff;
         }
-
-        .line {
-            flex: 1;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 0 15px;
-            margin-bottom: 20px;
-            position: relative;
+        .text-accent {
+            color: var(--cor-acento);
+            font-weight: 700;
+        }
+        .industrial-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--cor-acento);
+            cursor: pointer;
         }
 
-        .line.active {
-            background: var(--cor-acento);
-            opacity: 0.5;
+        .command-footer {
+            position: fixed;
+            bottom: 0;
+            left: 280px; /* Sidebar width from app.blade.php typical layout */
+            right: 0;
+            background: #0d1318;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 50;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
         }
-
-        .animate-in {
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
+        @media (max-width: 991px) {
+            .command-footer {
+                left: 0;
+                padding: 15px 20px;
             }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
+        }
+        @media (max-width: 768px) {
+            .command-footer {
+                flex-direction: column;
+                gap: 15px;
             }
         }
-
-        .summary-box {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        .footer-stats {
+            display: flex;
+            gap: 50px;
+        }
+        .stat {
             display: flex;
             flex-direction: column;
         }
-
-        .summary-box .label {
-            font-size: 0.7em;
+        .stat .label {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.4);
             text-transform: uppercase;
-            opacity: 0.5;
-            margin-bottom: 5px;
-        }
-
-        .summary-box .value {
-            font-size: 1.4em;
             font-weight: 700;
-            color: var(--cor-acento);
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .btn-execute {
+            background: var(--cor-acento);
+            color: #000;
+            font-weight: 800;
+            font-size: 1rem;
+            padding: 16px 35px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.2);
+        }
+        .btn-execute:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+            background: #ff7f50;
         }
     </style>
 </div>
