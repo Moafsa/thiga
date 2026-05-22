@@ -109,7 +109,25 @@ class WuzApiService
             ]);
 
             if ($response->failed() && $response->status() !== 409) {
+                // If it's explicitly saying "already connected", we can treat it as success
+                $body = strtolower($response->body());
+                if (str_contains($body, 'already connected')) {
+                    return [
+                        'code' => 200,
+                        'success' => true,
+                        'data' => json_decode($response->body(), true) ?? ['message' => 'Already connected'],
+                    ];
+                }
                 throw new Exception('Failed to connect session: ' . $response->body());
+            }
+
+            // Status 409 could mean already connected too, or other conflict.
+            if ($response->status() === 409) {
+                return [
+                    'code' => 200,
+                    'success' => true,
+                    'data' => json_decode($response->body(), true) ?? ['message' => 'Already connected'],
+                ];
             }
 
             return $response->json();

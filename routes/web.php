@@ -55,6 +55,12 @@ Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefi
     Route::get('/usage', [App\Http\Controllers\Api\MapsController::class, 'getUsage']);
 });
 
+// ✨ WhatsApp Integrations - Real-Time QR Code
+Route::middleware(['auth', 'tenant'])->prefix('whatsapp/integrations')->group(function () {
+    Route::post('{integration}/connect', [WhatsAppIntegrationController::class, 'connect'])->name('whatsapp.connect');
+    Route::get('{integration}/check-status', [WhatsAppIntegrationController::class, 'checkStatus'])->name('whatsapp.check-status');
+});
+
 // Rotas protegidas
 Route::middleware('auth')->group(function () {
     Route::get('/smart-dispatch-test', function () {
@@ -424,8 +430,9 @@ Route::middleware('auth')->group(function () {
         Route::prefix('integrations')->name('integrations.')->group(function () {
             Route::get('/whatsapp', [WhatsAppIntegrationController::class, 'index'])->name('whatsapp.index');
             Route::post('/whatsapp', [WhatsAppIntegrationController::class, 'store'])->name('whatsapp.store');
-            Route::post('/whatsapp/{whatsappIntegration}/sync', [WhatsAppIntegrationController::class, 'sync'])->name('whatsapp.sync');
             Route::get('/whatsapp/{whatsappIntegration}/qr', [WhatsAppIntegrationController::class, 'qr'])->name('whatsapp.qr');
+            Route::get('/whatsapp/{whatsappIntegration}/status', [WhatsAppIntegrationController::class, 'status'])->name('whatsapp.status');
+            Route::post('/whatsapp/{whatsappIntegration}/sync', [WhatsAppIntegrationController::class, 'sync'])->name('whatsapp.sync');
             Route::post('/whatsapp/{whatsappIntegration}/logout', [WhatsAppIntegrationController::class, 'logout'])->name('whatsapp.logout');
             Route::delete('/whatsapp/{whatsappIntegration}', [WhatsAppIntegrationController::class, 'destroy'])->name('whatsapp.destroy');
 

@@ -17,13 +17,11 @@ use Exception;
 class WhatsAppAiService
 {
     protected WuzApiService $wuzApiService;
-    protected string $openaiApiKey;
     protected string $model = 'gpt-4-turbo'; // Upgrade to GPT-4 Turbo for reliable function calling
 
     public function __construct(WuzApiService $wuzApiService)
     {
         $this->wuzApiService = $wuzApiService;
-        $this->openaiApiKey = config('services.openai.api_key');
     }
 
     /**
@@ -37,6 +35,12 @@ class WhatsAppAiService
             $messageType = $messageData['type'] ?? 'text';
 
             if ($messageType !== 'text') {
+                return;
+            }
+
+            // Check if AI is enabled for this tenant
+            $settings = $integration->tenant->metadata['whatsapp_ai'] ?? [];
+            if (empty($settings['ai_enabled'])) {
                 return;
             }
 
@@ -149,6 +153,12 @@ class WhatsAppAiService
     protected function generateAiResponseWithTools(string $userMessage, string $phone, WhatsAppIntegration $integration, ?Client $client, ?CrmDeal $deal): ?string
     {
         try {
+            $apiKey = $integration->tenant->resolveOpenAiApiKey();
+            if (empty($apiKey)) {
+                Log::warning('OpenAI API key not configured for tenant', ['tenant_id' => $integration->tenant_id]);
+                return "A inteligência artificial não está configurada no momento.";
+            }
+
             $messages = [
                 ['role' => 'system', 'content' => $this->buildSystemPrompt($client, $deal)],
                 ['role' => 'user', 'content' => $userMessage]
@@ -157,7 +167,7 @@ class WhatsAppAiService
             $tools = $this->getAvailableTools();
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->openaiApiKey,
+                'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type' => 'application/json',
             ])->post('https://api.openai.com/v1/chat/completions', [
                 'model' => $this->model,
@@ -198,7 +208,7 @@ class WhatsAppAiService
 
                 // Second call to get final text response
                 $secondResponse = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $this->openaiApiKey,
+                    'Authorization' => 'Bearer ' . $apiKey,
                     'Content-Type' => 'application/json',
                 ])->post('https://api.openai.com/v1/chat/completions', [
                     'model' => $this->model,

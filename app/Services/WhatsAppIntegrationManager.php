@@ -434,9 +434,18 @@ class WhatsAppIntegrationManager
 
         try {
             $status = $this->wuzApiService->getSessionStatus($token);
-            $isConnected = (bool) data_get($status, 'data.Connected', false);
-            $jid = data_get($status, 'data.jid', '');
-            $isLoggedIn = !empty($jid);
+            $state = $this->extractSessionState($status);
+            
+            $isConnected = $state['connected'];
+            $isLoggedIn = !empty($state['jid']);
+            
+            // Se já tem um QR Code no status, podemos devolver direto
+            if (!empty($state['qrcode'])) {
+                Log::info('QR Code obtained directly from session status', [
+                    'integration_id' => $integration->id,
+                ]);
+                return $state['qrcode'];
+            }
         } catch (Exception $exception) {
             Log::warning('WuzAPI session status unavailable, attempting to connect anyway', [
                 'integration_id' => $integration->id,
@@ -773,94 +782,90 @@ class WhatsAppIntegrationManager
     }
 
     /**
+     * Resolve integration by instance name.
+     */
+    public function resolveByInstanceName(string $instanceName): ?WhatsAppIntegration
+    {
+        if (empty($instanceName)) {
+            return null;
+        }
+        
+        return WhatsAppIntegration::where('name', $instanceName)->first();
+    }
+
+    /**
+     * Check if string is a valid WhatsApp JID.
+     */
+    public function isWhatsAppJid(?string $jid): bool
+    {
+        return !empty($jid) && str_ends_with($jid, '@s.whatsapp.net');
+    }
+
+    /**
+     * Extract normalized session state from any WuzAPI payload.
+     * 
+     * @return array{connected: bool, logged_in: bool, jid: string|null, qrcode: string|null, raw_state: string}
+     */
+    public function extractSessionState(array $payload): array
+    {
+        $data = $payload['data'] ?? $payload;
+        
+        return [
+            'connected' => (bool) ($data['Connected'] ?? $data['connected'] ?? false),
+            'logged_in' => (bool) ($data['LoggedIn'] ?? $data['loggedIn'] ?? false),
+            'jid' => $data['jid'] ?? $data['Jid'] ?? null,
+            'qrcode' => $data['qrcode'] ?? $data['QRCode'] ?? null,
+            'raw_state' => strtolower((string) ($data['state'] ?? $data['status'] ?? $data['connection'] ?? 'unknown')),
+        ];
+    }
+
+    /**
+     * Public method to parse status (useful for controllers).
+     */
+    public function parseSessionStatus(array $payload): string
+    {
+        return $this->determineStatus($payload);
+    }
+
+    /**
      * Determine integration status from WuzAPI payload.
-     * 
-     * Important: IsLoggedIn means QR was scanned and authenticated (user is logged in WhatsApp).
-     * IsConnected only means websocket connection is active, but user might not be logged in yet.
-     * 
-     * The /session/status endpoint returns: {"Connected": bool, "LoggedIn": bool}
-     * The /session/connect endpoint returns: {"data": {"jid": "...", "Connected": true, ...}}
-     * 
-     * CRITICAL: Having a JID in the database doesn't mean the user is currently logged in.
-     * We must check the actual session status via /session/status to know if it's active.
      */
     protected function determineStatus(array $payload): string
     {
-        // The /session/status returns directly: {"Connected": bool, "LoggedIn": bool}
-        // The /session/connect returns: {"data": {"jid": "...", "Connected": true, ...}}
+        $state = $this->extractSessionState($payload);
         
-        // Check if payload has 'data' wrapper (from connect) or direct fields (from status)
-        $data = $payload['data'] ?? $payload;
-        
-        // Check LoggedIn status - this is the MOST IMPORTANT indicator
-        // LoggedIn = true means QR was scanned, authenticated, and session is ACTIVE
-        $isLoggedIn = (bool) ($data['LoggedIn'] ?? $data['loggedIn'] ?? false);
-        
-        // Check Connected status - websocket connection (but might not be logged in)
-        $isConnected = (bool) ($data['Connected'] ?? $data['connected'] ?? false);
-        
-        // IMPORTANT: Only consider connected if BOTH LoggedIn AND Connected are true
-        // Having a JID in database doesn't mean the session is active - we need to check the actual status
-        if ($isLoggedIn && $isConnected) {
+        // Se existe um JID pareado, consideramos conectado
+        if ($this->isWhatsAppJid($state['jid'])) {
+            return WhatsAppIntegration::STATUS_CONNECTED;
+        }
+
+        // Se está explicitly logged in and connected
+        if ($state['logged_in'] && $state['connected']) {
             return WhatsAppIntegration::STATUS_CONNECTED;
         }
         
-        // If connected but not logged in, it's pending (waiting for QR scan)
-        if ($isConnected && !$isLoggedIn) {
+        // Se tem QR code na resposta ou state pending
+        if (!empty($state['qrcode']) || 
+            str_contains($state['raw_state'], 'qr') ||
+            str_contains($state['raw_state'], 'pending') ||
+            str_contains($state['raw_state'], 'connecting') ||
+            str_contains($state['raw_state'], 'loading')) {
             return WhatsAppIntegration::STATUS_PENDING;
         }
+
+        // Se state explicitamente diz connected/open
+        if (str_contains($state['raw_state'], 'connected') || str_contains($state['raw_state'], 'open') || str_contains($state['raw_state'], 'loggedin')) {
+            return WhatsAppIntegration::STATUS_PENDING; // Could be connected but not fully logged in
+        }
         
-        // If has JID in payload but not logged in, it could mean:
-        // 1. Session exists but is not active (disconnected)
-        // 2. QR was just scanned and session is being established (pending)
-        // We need to check if it's connected to determine which case it is
-        $hasJid = !empty($data['jid'] ?? $data['Jid'] ?? null);
-        if ($hasJid && !$isLoggedIn) {
-            // If connected but not logged in yet, it's pending (QR was scanned, establishing session)
-            if ($isConnected) {
-                return WhatsAppIntegration::STATUS_PENDING;
-            }
-            // If not connected and has JID, it means session exists but is not active
+        if (str_contains($state['raw_state'], 'disconnected') || 
+            str_contains($state['raw_state'], 'close') || 
+            str_contains($state['raw_state'], 'loggedout')) {
             return WhatsAppIntegration::STATUS_DISCONNECTED;
         }
         
-        // If we have no clear indication, check if we have any connection indicators
-        // If we have Connected=true but LoggedIn is missing/false, it might be establishing
-        if ($isConnected && !$isLoggedIn) {
-            // Connected but not logged in - likely pending (QR scan in progress)
-            return WhatsAppIntegration::STATUS_PENDING;
-        }
-        
-        // If we have neither Connected nor LoggedIn, and no JID, it's likely disconnected
-        // But if we have a JID, it might be a session that exists but is not active
-        if (!$isConnected && !$isLoggedIn && !$hasJid) {
-            return WhatsAppIntegration::STATUS_DISCONNECTED;
-        }
-        
-        // Check state/status fields as fallback
-        $state = strtolower((string) ($payload['state'] ?? $payload['status'] ?? $payload['connection'] ?? 'unknown'));
-
-        return match (true) {
-            str_contains($state, 'connected') && str_contains($state, 'loggedin') => WhatsAppIntegration::STATUS_CONNECTED,
-            str_contains($state, 'connected'),
-            str_contains($state, 'open'),
-            str_contains($state, 'loggedin') => WhatsAppIntegration::STATUS_PENDING, // Connected but might not be fully logged in
-
-            str_contains($state, 'qr'),
-            str_contains($state, 'loading'),
-            str_contains($state, 'pending'),
-            str_contains($state, 'connecting') => WhatsAppIntegration::STATUS_PENDING,
-
-            str_contains($state, 'disconnected'),
-            str_contains($state, 'close'),
-            str_contains($state, 'closed'),
-            str_contains($state, 'loggedout') => WhatsAppIntegration::STATUS_DISCONNECTED,
-
-            // If state is unknown and we have no clear indicators, default to pending instead of disconnected
-            // This is safer - pending means "we're not sure, but might be connecting"
-            // Disconnected should only be used when we're CERTAIN it's disconnected
-            default => WhatsAppIntegration::STATUS_PENDING, // Default to pending if unknown (safer than disconnected)
-        };
+        // Padrão
+        return WhatsAppIntegration::STATUS_PENDING;
     }
 
     /**
@@ -869,6 +874,90 @@ class WhatsAppIntegrationManager
     protected function defaultWebhookUrl(): string
     {
         return config('services.wuzapi.webhook_url') ?: url('/api/webhooks/whatsapp');
+    }
+
+    /**
+     * ✨ NOVO: Inicia sessão no WuzAPI
+     */
+    public function startSessionInWuzapi(WhatsAppIntegration $integration, string $sessionName): bool
+    {
+        try {
+            $baseUrl = config('app.url');
+
+            // Se em Docker, usar host.docker.internal
+            if (str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '127.0.0.1')) {
+                $port = parse_url($baseUrl, PHP_URL_PORT) ?? 80;
+                $webhookUrl = "http://host.docker.internal:{$port}/api/webhooks/whatsapp";
+            } else {
+                $webhookUrl = $baseUrl . '/api/webhooks/whatsapp';
+            }
+
+            // Usar WuzApiService para iniciar sessão
+            $result = $this->wuzApiService->startSession($sessionName, $webhookUrl);
+
+            if (!$result['success'] ?? false) {
+                Log::warning('WuzAPI session start failed', [
+                    'error' => $result['error'] ?? 'Unknown error',
+                ]);
+                return false;
+            }
+
+            return true;
+
+        } catch (Exception $e) {
+            Log::error('Error starting WuzAPI session', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * ✨ NOVO: Obter status da sessão
+     */
+    public function getStatus(WhatsAppIntegration $integration): string
+    {
+        try {
+            if (!$integration->session_name) {
+                return 'DISCONNECTED';
+            }
+
+            $status = $this->wuzApiService->getSessionStatus($integration->session_name);
+
+            return match($status) {
+                'CONNECTED', 'online' => 'CONNECTED',
+                'QRCODE', 'qr', 'pending' => 'QRCODE',
+                default => 'DISCONNECTED',
+            };
+
+        } catch (Exception $e) {
+            Log::warning('Error checking WuzAPI status', [
+                'error' => $e->getMessage(),
+            ]);
+            return 'ERROR';
+        }
+    }
+
+    /**
+     * ✨ NOVO: Melhorar getQrCode
+     */
+    public function getQrCode(WhatsAppIntegration $integration): ?string
+    {
+        try {
+            if (!$integration->session_name) {
+                return null;
+            }
+
+            $qrCode = $this->wuzApiService->getQrCode($integration->session_name);
+
+            return $qrCode;
+
+        } catch (Exception $e) {
+            Log::warning('Error fetching QR code', [
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }
 

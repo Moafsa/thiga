@@ -295,6 +295,7 @@
                         <button type="button"
                                 class="btn btn-secondary"
                                 data-qr-endpoint="{{ route('settings.integrations.whatsapp.qr', $integration) }}"
+                                data-status-endpoint="{{ route('settings.integrations.whatsapp.status', $integration) }}"
                                 data-integration-id="{{ $integration->id }}"
                                 onclick="loadQrCode(this)">
                             <i class="fas fa-qrcode"></i>
@@ -353,33 +354,36 @@
     let currentIntegrationId = null;
 
     async function loadQrCode(button) {
-        const endpoint = button.getAttribute('data-qr-endpoint');
         const integrationId = button.getAttribute('data-integration-id');
-        currentQrEndpoint = endpoint;
         currentIntegrationId = integrationId;
-        currentStatusEndpoint = `/settings/integrations/whatsapp/${integrationId}/status`;
 
         try {
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
 
-            await fetchAndDisplayQr(endpoint);
             showQrModal();
-            
-            // Start auto-refresh every 18 seconds (closer to 20s expiration, giving more time to scan)
-            startQrAutoRefresh(endpoint);
-            
-            // Start checking connection status every 3 seconds after QR is shown
-            startStatusCheck();
+
+            // ✨ NOVO: Chamar novo endpoint que inicia sessão
+            const connectEndpoint = `/whatsapp/integrations/${integrationId}/connect`;
+            const statusEndpoint = `/whatsapp/integrations/${integrationId}/check-status`;
+
+            currentQrEndpoint = connectEndpoint;
+            currentStatusEndpoint = statusEndpoint;
+
+            // Iniciar conexão e buscar QR
+            await fetchAndDisplayQr(connectEndpoint);
+
+            // ✨ NOVO: Polling em tempo real (5 segundos)
+            startQrAutoRefresh(connectEndpoint);
+            startStatusCheck(statusEndpoint);
+
         } catch (error) {
-            // Show more helpful error message
             let errorMessage = error.message;
-            
             if (errorMessage.includes('já está conectado') || errorMessage.includes('Already Loggedin')) {
-                errorMessage = 'WhatsApp já está conectado. Por favor, clique no botão "Desconectar" primeiro e depois tente gerar o QR Code novamente.';
+                errorMessage = 'WhatsApp já está conectado. Por favor, clique no botão "Desconectar" primeiro.';
             }
-            
             alert(errorMessage);
+            hideQrModal();
         } finally {
             button.disabled = false;
             button.innerHTML = '<i class="fas fa-qrcode"></i> Ver QR Code';
@@ -439,7 +443,10 @@
 
             const data = await response.json();
 
-            if (!data.qr || data.qr === '') {
+            // ✨ NOVO: Aceitar qr_code ou qr
+            const qrCodeData = data.qr_code || data.qr;
+
+            if (!qrCodeData || qrCodeData === '') {
                 const errorMessage = data.message || 'QR Code indisponível no momento.';
                 throw new Error(errorMessage);
             }
@@ -447,7 +454,16 @@
             // Success - show QR code
             qrLoading.style.display = 'none';
             qrError.style.display = 'none';
-            qrImage.src = data.qr;
+
+            // ✨ NOVO: Suportar base64 direto
+            if (qrCodeData.startsWith('data:image')) {
+                qrImage.src = qrCodeData;
+            } else if (qrCodeData.startsWith('/')) {
+                qrImage.src = qrCodeData;
+            } else {
+                // Assume base64 string, convert to data URI
+                qrImage.src = 'data:image/png;base64,' + qrCodeData;
+            }
             qrImage.style.display = 'block';
         } catch (error) {
             // Clear timeout if still active
@@ -497,43 +513,25 @@
             clearInterval(qrRefreshInterval);
         }
 
-        // Refresh every 18 seconds (closer to 20s expiration, giving more time to scan)
-        // WhatsApp QR codes expire in ~20 seconds, so we refresh before expiration
-        // But we give more time (18s instead of 15s) to allow user to scan
+        // ✨ NOVO: Polling a cada 5 segundos (como ConextBot)
         qrRefreshInterval = setInterval(async () => {
             if (document.getElementById('qrModal').style.display === 'flex') {
-                // Check if already connected before refreshing
                 try {
-                    const statusResponse = await fetch(currentStatusEndpoint);
-                    const statusData = await statusResponse.json();
-                    
-                    if (statusData.connected) {
-                        // Already connected, stop refreshing QR
-                        stopQrAutoRefresh();
-                        return;
-                    }
-                } catch (error) {
-                    // Continue with QR refresh if status check fails
-                }
-                
-                try {
-                    console.log('Auto-refreshing QR code...');
                     await fetchAndDisplayQr(endpoint);
                 } catch (error) {
                     console.error('Error auto-refreshing QR code:', error);
-                    
-                    // If error indicates already connected, stop auto-refresh
+
                     if (error.message && error.message.includes('já está conectado')) {
                         console.log('WhatsApp already connected, stopping QR refresh');
                         stopQrAutoRefresh();
-                        
+
                         // Show message to user
                         const qrError = document.getElementById('qrError');
                         const qrErrorText = document.getElementById('qrErrorText');
                         if (qrError && qrErrorText) {
                             qrErrorText.textContent = 'WhatsApp já está conectado. Fechando...';
                             qrError.style.display = 'block';
-                            
+
                             // Reload page after 2 seconds
                             setTimeout(() => {
                                 window.location.reload();
@@ -572,14 +570,17 @@
             }
 
             try {
-                const response = await fetch(currentStatusEndpoint);
+                const response = await fetch(currentStatusEndpoint, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
                 const data = await response.json();
 
-                // Only consider connected if BOTH isLoggedIn AND isConnected are true
-                // This prevents false positives when only websocket is connected
-                const actuallyConnected = data.connected === true && 
-                                         data.isLoggedIn === true && 
-                                         data.isConnected === true;
+                // Only consider connected if the backend reports it as connected
+                // The backend already handles the complex logic of checking JID, loggedIn, etc.
+                const actuallyConnected = data.connected === true;
 
                 if (actuallyConnected) {
                     // Connected! Stop all intervals and show success
@@ -618,7 +619,56 @@
                 console.error('Error checking status:', error);
                 // Continue checking even if one check fails
             }
-        }, 3000); // Check every 3 seconds
+        }, 5000); // ✨ NOVO: Check every 5 seconds (como ConextBot)
+    }
+
+    function startStatusCheck(statusEndpoint) {
+        // Clear any existing interval
+        if (statusCheckInterval) {
+            clearInterval(statusCheckInterval);
+        }
+
+        // ✨ NOVO: Polling a cada 5 segundos
+        statusCheckInterval = setInterval(async () => {
+            if (!statusEndpoint || document.getElementById('qrModal').style.display !== 'flex') {
+                stopStatusCheck();
+                return;
+            }
+
+            try {
+                const response = await fetch(statusEndpoint);
+                const data = await response.json();
+
+                // Se conectou, para polling e mostra sucesso
+                if (data.is_connected) {
+                    stopQrAutoRefresh();
+                    stopStatusCheck();
+
+                    const qrImage = document.getElementById('qrImage');
+                    const qrLoading = document.getElementById('qrLoading');
+                    const qrError = document.getElementById('qrError');
+                    const qrConnecting = document.getElementById('qrConnecting');
+                    const qrConnectingText = document.getElementById('qrConnectingText');
+
+                    qrImage.style.display = 'none';
+                    qrLoading.style.display = 'none';
+                    qrError.style.display = 'none';
+                    qrConnecting.style.display = 'block';
+                    qrConnectingText.innerHTML = '<i class="fas fa-check-circle" style="color:#2ecc71;"></i> Conectado com sucesso! Fechando...';
+                    qrConnecting.style.backgroundColor = 'rgba(46, 204, 113, 0.2)';
+                    qrConnecting.style.borderColor = 'rgba(46, 204, 113, 0.5)';
+                    qrConnecting.style.color = '#2ecc71';
+
+                    // Reload page after 2 seconds
+                    setTimeout(() => {
+                        hideQrModal();
+                        window.location.reload();
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }, 5000); // ✨ NOVO: Check every 5 seconds
     }
 
     function stopStatusCheck() {

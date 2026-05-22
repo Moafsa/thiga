@@ -56,16 +56,30 @@ class WebhookController extends Controller
             }
 
             $token = $this->extractIntegrationToken($request);
+            $integration = null;
 
             if (!$token) {
-                Log::warning('WhatsApp webhook sem token identificado', [
+                // Try resolving by instanceName if token is not available directly
+                $instanceName = $data['instance'] ?? $data['instanceName'] ?? $request->input('instance') ?? $request->header('Instance-Name');
+                if ($instanceName) {
+                    $integration = $this->whatsAppIntegrationManager->resolveByInstanceName($instanceName);
+                    if ($integration) {
+                        $token = $integration->getUserToken();
+                    }
+                }
+            }
+
+            if (!$token && !$integration) {
+                Log::warning('WhatsApp webhook sem token ou instância identificada', [
                     'payload_keys' => array_keys($data),
                     'headers' => $request->headers->all(),
                 ]);
-                return response()->json(['status' => 'ignored', 'reason' => 'missing_token'], 202);
+                return response()->json(['status' => 'ignored', 'reason' => 'missing_identifier'], 202);
             }
 
-            $integration = $this->whatsAppIntegrationManager->resolveByToken($token);
+            if (!$integration) {
+                $integration = $this->whatsAppIntegrationManager->resolveByToken($token);
+            }
 
             if (!$integration) {
                 Log::warning('WhatsApp webhook com token desconhecido', [
@@ -103,6 +117,9 @@ class WebhookController extends Controller
                     $this->handleConnectionEvent($data, $integration, 'disconnected');
                     break;
                 case 'QrCode':
+                case 'code':
+                case 'success':
+                case 'qr':
                     $this->handleQrCodeEvent($data, $integration);
                     break;
                 default:
@@ -112,8 +129,12 @@ class WebhookController extends Controller
                         $decoded = json_decode($jsonData, true);
                         if (is_array($decoded)) {
                             $innerType = $decoded['type'] ?? '';
-                            if (in_array($innerType, ['LoggedIn', 'LoggedOut', 'Connected', 'Disconnected', 'QrCode'])) {
-                                $this->handleConnectionEvent($decoded, $integration, strtolower($innerType));
+                            if (in_array($innerType, ['LoggedIn', 'LoggedOut', 'Connected', 'Disconnected', 'QrCode', 'code', 'success', 'qr'])) {
+                                if (in_array($innerType, ['QrCode', 'code', 'success', 'qr'])) {
+                                    $this->handleQrCodeEvent($decoded, $integration);
+                                } else {
+                                    $this->handleConnectionEvent($decoded, $integration, strtolower($innerType));
+                                }
                             }
                         }
                     } else {

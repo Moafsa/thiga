@@ -23,8 +23,6 @@ class WhatsAppAiController extends Controller
             ->where('status', 'connected')
             ->exists();
 
-        $hasOpenAiKey = !empty(config('services.openai.api_key'));
-
         $settings = $tenant?->metadata['whatsapp_ai'] ?? [
             'ai_enabled'              => false,
             'notify_on_status_change' => true,
@@ -33,6 +31,9 @@ class WhatsAppAiController extends Controller
             'notify_inactive_client'  => false,
             'ai_persona'              => '',
         ];
+
+        $tenantHasKey = !empty($settings['openai_api_key_encrypted']);
+        $hasOpenAiKey = $tenantHasKey || !empty(config('services.openai.api_key'));
 
         $aiEnabled = $settings['ai_enabled'] ?? false;
 
@@ -49,44 +50,29 @@ class WhatsAppAiController extends Controller
             return back()->with('error', 'Tenant não encontrado.');
         }
 
-        // Update OpenAI key in .env if provided (not placeholder)
+        $currentMeta = $tenant->metadata ?? [];
+        $waSettings = $currentMeta['whatsapp_ai'] ?? [];
+
+        // Save OpenAI key in database
         $newKey = $request->input('openai_api_key');
         if ($newKey && !str_contains($newKey, '•')) {
-            $this->updateEnvKey('OPENAI_API_KEY', $newKey);
+            $waSettings['openai_api_key_encrypted'] = \Illuminate\Support\Facades\Crypt::encryptString($newKey);
         }
 
-        // Save settings to tenant metadata
-        $currentMeta = $tenant->metadata ?? [];
-        $currentMeta['whatsapp_ai'] = [
-            'ai_enabled'               => $request->boolean('ai_enabled'),
-            'notify_on_status_change'  => $request->boolean('notify_on_status_change'),
-            'notify_proposal_followup' => $request->boolean('notify_proposal_followup'),
-            'notify_overdue_invoice'   => $request->boolean('notify_overdue_invoice'),
-            'notify_inactive_client'   => $request->boolean('notify_inactive_client'),
-            'ai_persona'               => $request->input('ai_persona', ''),
-        ];
+        // Save other settings to tenant metadata
+        $waSettings['ai_enabled']               = $request->boolean('ai_enabled');
+        $waSettings['notify_on_status_change']  = $request->boolean('notify_on_status_change');
+        $waSettings['notify_proposal_followup'] = $request->boolean('notify_proposal_followup');
+        $waSettings['notify_overdue_invoice']   = $request->boolean('notify_overdue_invoice');
+        $waSettings['notify_inactive_client']   = $request->boolean('notify_inactive_client');
+        $waSettings['ai_persona']               = $request->input('ai_persona', '');
+
+        $currentMeta['whatsapp_ai'] = $waSettings;
 
         $tenant->update(['metadata' => $currentMeta]);
 
         Artisan::call('config:clear');
 
         return back()->with('success', 'Configurações do Agente IA salvas com sucesso!');
-    }
-
-    private function updateEnvKey(string $key, string $value): void
-    {
-        $envPath = base_path('.env');
-        if (!file_exists($envPath)) return;
-
-        $content = file_get_contents($envPath);
-        $escaped = addcslashes($value, '"');
-
-        if (preg_match("/^{$key}=.*/m", $content)) {
-            $content = preg_replace("/^{$key}=.*/m", "{$key}=\"{$escaped}\"", $content);
-        } else {
-            $content .= "\n{$key}=\"{$escaped}\"";
-        }
-
-        file_put_contents($envPath, $content);
     }
 }

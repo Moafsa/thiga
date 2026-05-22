@@ -81,6 +81,96 @@ class WhatsAppIntegrationController extends Controller
     }
 
     /**
+     * ✨ NOVO: Iniciar conexão e gerar QR Code em tempo real
+     */
+    public function connect(Request $request, WhatsAppIntegration $whatsappIntegration): JsonResponse
+    {
+        try {
+            // 1️⃣ Inicia sessão no WuzAPI se ainda não foi
+            if (!$whatsappIntegration->session_name) {
+                $sessionName = "tenant-{$whatsappIntegration->tenant_id}-integration-{$whatsappIntegration->id}";
+
+                $success = $this->integrationManager->startSessionInWuzapi(
+                    $whatsappIntegration,
+                    $sessionName
+                );
+
+                if (!$success) {
+                    return response()->json([
+                        'error' => 'Não foi possível iniciar sessão no WuzAPI',
+                        'status' => 'error',
+                    ], 500);
+                }
+
+                $whatsappIntegration->update(['session_name' => $sessionName]);
+            }
+
+            // 2️⃣ Fetcha QR Code
+            $qrCode = $this->integrationManager->getQrCode($whatsappIntegration);
+
+            // 3️⃣ Verifica status atual
+            $status = $this->integrationManager->getStatus($whatsappIntegration);
+
+            return response()->json([
+                'session_name' => $whatsappIntegration->session_name,
+                'status' => $status,
+                'qr_code' => $qrCode,
+                'is_connected' => $status === 'CONNECTED',
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('WhatsApp connect error', [
+                'integration_id' => $whatsappIntegration->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage(),
+                'status' => 'error',
+            ], 500);
+        }
+    }
+
+    /**
+     * ✨ NOVO: Verificar status periodicamente (polling)
+     */
+    public function checkStatus(Request $request, WhatsAppIntegration $whatsappIntegration): JsonResponse
+    {
+        try {
+            $status = $this->integrationManager->getStatus($whatsappIntegration);
+
+            // Se conectou, sincroniza no DB
+            if ($status === 'CONNECTED' && $whatsappIntegration->connection_status !== 'connected') {
+                $whatsappIntegration->update([
+                    'connection_status' => 'connected',
+                    'connected_at' => now(),
+                ]);
+            }
+
+            $qrCode = null;
+            if (in_array($status, ['QRCODE', 'GENERATING_QR'])) {
+                $qrCode = $this->integrationManager->getQrCode($whatsappIntegration);
+            }
+
+            return response()->json([
+                'status' => $status,
+                'is_connected' => $status === 'CONNECTED',
+                'qr_code' => $qrCode,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('WhatsApp status check error', [
+                'integration_id' => $whatsappIntegration->id,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Sync integration state.
      */
     public function sync(WhatsAppIntegration $whatsappIntegration): RedirectResponse
@@ -188,15 +278,14 @@ class WhatsAppIntegrationController extends Controller
             }
             
             // Extract actual connection state from WuzAPI response
-            $data = $rawStatus['data'] ?? $rawStatus;
-            $isLoggedIn = (bool) ($data['LoggedIn'] ?? $data['loggedIn'] ?? false);
-            $isConnected = (bool) ($data['Connected'] ?? $data['connected'] ?? false);
-            $hasJid = !empty($data['jid'] ?? $data['Jid'] ?? null);
-            $jid = $data['jid'] ?? $data['Jid'] ?? null;
+            $state = $this->integrationManager->extractSessionState($rawStatus);
+            $isLoggedIn = $state['logged_in'];
+            $isConnected = $state['connected'];
+            $hasJid = !empty($state['jid']);
+            $jid = $state['jid'];
             
-            // Only consider truly connected if BOTH LoggedIn AND Connected are true
-            // This prevents false positives when only websocket is connected but QR wasn't scanned
-            $actuallyConnected = $isLoggedIn && $isConnected;
+            // actuallyConnected = logged_in || jid
+            $actuallyConnected = $isLoggedIn || $hasJid;
             
             Log::info('WhatsApp status check', [
                 'integration_id' => $whatsappIntegration->id,
@@ -206,7 +295,7 @@ class WhatsAppIntegrationController extends Controller
                 'jid' => $jid ? (substr($jid, 0, 20) . '...') : null,
                 'actuallyConnected' => $actuallyConnected,
                 'current_db_status' => $whatsappIntegration->status,
-                'raw_status_keys' => array_keys($data),
+                'raw_status_keys' => array_keys($rawStatus['data'] ?? $rawStatus),
             ]);
             
             // Only update database status if it's actually different to avoid false updates

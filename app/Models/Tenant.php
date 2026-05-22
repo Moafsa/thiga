@@ -272,4 +272,25 @@ class Tenant extends Model
     {
         return $query->where('uses_own_asaas', false);
     }
+
+    /**
+     * Resolve OpenAI API Key for this tenant.
+     */
+    public function resolveOpenAiApiKey(): ?string
+    {
+        $settings = $this->metadata['whatsapp_ai'] ?? [];
+        
+        if (!empty($settings['openai_api_key_encrypted'])) {
+            try {
+                return \Illuminate\Support\Facades\Crypt::decryptString($settings['openai_api_key_encrypted']);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to decrypt OpenAI API key for tenant', [
+                    'tenant_id' => $this->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return config('services.openai.api_key');
+    }
 }
