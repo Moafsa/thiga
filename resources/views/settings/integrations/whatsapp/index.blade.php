@@ -415,15 +415,18 @@
             }
             
             const fetchOptions = {
+                method: 'POST',
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                 }
             };
-            
+
             if (controller) {
                 fetchOptions.signal = controller.signal;
             }
-            
+
             const response = await fetch(endpoint, fetchOptions);
             
             if (timeoutId) clearTimeout(timeoutId);
