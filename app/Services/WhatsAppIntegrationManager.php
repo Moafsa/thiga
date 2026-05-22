@@ -906,11 +906,16 @@ class WhatsAppIntegrationManager
                 $webhookUrl = $baseUrl . '/api/webhooks/whatsapp';
             }
 
-            // Usar WuzApiService para iniciar sessão
-            $result = $this->wuzApiService->startSession($sessionName, $webhookUrl);
+            // Usar WuzApiService::createUser() para criar sessão
+            $result = $this->wuzApiService->createUser(
+                $sessionName,
+                $sessionName, // token = sessionName
+                $webhookUrl,
+                ['Message', 'Connected', 'Disconnected', 'ReadReceipt']
+            );
 
-            if (!$result['success'] ?? false) {
-                Log::warning('WuzAPI session start failed', [
+            if (!($result['success'] ?? false)) {
+                Log::warning('WuzAPI session creation failed', [
                     'error' => $result['error'] ?? 'Unknown error',
                 ]);
                 return false;
