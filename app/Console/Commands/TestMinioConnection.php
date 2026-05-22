@@ -71,7 +71,8 @@ class TestMinioConnection extends Command
             $storage = Storage::disk('minio');
             $files = $storage->listContents('');
             $this->line('✓ Successfully connected to MinIO');
-            $this->line("  Files in bucket: " . count($files));
+            $fileCount = iterator_count($files);
+            $this->line("  Files in bucket: " . $fileCount);
         } catch (\Exception $e) {
             $this->error('❌ Could not connect to MinIO');
             $this->error('   Error: ' . $e->getMessage());
