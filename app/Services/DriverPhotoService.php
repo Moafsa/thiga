@@ -277,17 +277,29 @@ class DriverPhotoService
     }
 
     /**
-     * Get storage disk for photos (MinIO if available, otherwise public)
+     * Get storage disk for photos (MinIO preferred, fallback to public with warning)
      */
     public static function getStorageDisk(): string
     {
-        // Always try MinIO first - let the upload handle the fallback
+        // Check if MinIO is configured
         $minioConfig = config('filesystems.disks.minio');
-        if ($minioConfig && isset($minioConfig['bucket']) && isset($minioConfig['endpoint'])) {
-            return 'minio';
+        if (!$minioConfig || !isset($minioConfig['bucket']) || !isset($minioConfig['endpoint'])) {
+            \Log::warning('MinIO not configured, using public disk');
+            return 'public';
         }
-        
-        return 'public';
+
+        // Check if FILESYSTEM_DISK is configured to use MinIO
+        $defaultDisk = config('filesystems.default');
+        if ($defaultDisk !== 'minio') {
+            \Log::warning('FILESYSTEM_DISK is not set to minio, using public disk', [
+                'current' => $defaultDisk,
+                'expected' => 'minio',
+            ]);
+            return 'public';
+        }
+
+        // Use MinIO as configured
+        return 'minio';
     }
 
     /**

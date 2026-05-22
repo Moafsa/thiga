@@ -23,6 +23,7 @@ services:
       - pgsql
       - redis
       - wuzapi
+      - minio
 
   pgsql:
     image: postgres:15-alpine
@@ -79,6 +80,7 @@ services:
     depends_on:
       - pgsql
       - redis
+      - minio
     command: php artisan queue:work --verbose --tries=3 --timeout=90
 
   scheduler:
@@ -97,6 +99,7 @@ services:
     depends_on:
       - pgsql
       - redis
+      - minio
     command: php artisan schedule:work
 
   wuzapi:

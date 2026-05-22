@@ -60,12 +60,12 @@ return [
 
         'minio' => [
             'driver' => 's3',
-            'key' => env('MINIO_ACCESS_KEY', 'UXBjzrcpwQqHkeaDwGXv'),
-            'secret' => env('MINIO_SECRET_KEY', '9reDc6Vc5YiegpcSNObCEx3PMJkT3feZ3EF92UDQ'),
+            'key' => env('MINIO_ACCESS_KEY'),
+            'secret' => env('MINIO_SECRET_KEY'),
             'region' => env('MINIO_REGION', 'us-east-1'),
             'bucket' => env('MINIO_BUCKET', 'thiga'),
-            'url' => env('MINIO_URL', 'https://ws3.conext.click'),
-            'endpoint' => env('MINIO_ENDPOINT', 'https://ws3.conext.click'),
+            'url' => env('MINIO_URL'),
+            'endpoint' => env('MINIO_ENDPOINT'),
             'use_path_style_endpoint' => true,
             'throw' => false,
         ],
