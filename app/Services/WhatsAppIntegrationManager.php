@@ -419,14 +419,28 @@ class WhatsAppIntegrationManager
     }
 
     /**
-     * Get QR code for integration.
+     * Get QR code for integration (supports both session_name and token-based approaches).
      */
-    public function getQrCode(WhatsAppIntegration $integration): string
+    public function getQrCode(WhatsAppIntegration $integration): ?string
     {
+        // ✨ NOVO: Try session_name based approach first (for real-time QR code)
+        if ($integration->session_name) {
+            try {
+                return $this->wuzApiService->getQrCode($integration->session_name);
+            } catch (Exception $e) {
+                Log::debug('QR code fetch via session_name failed, trying token approach', [
+                    'integration_id' => $integration->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue to token-based approach below
+            }
+        }
+
+        // Original token-based approach (for backwards compatibility)
         $token = $integration->getUserToken();
 
         if (!$token) {
-            throw new Exception('Integration token not available');
+            return null; // Changed from throwing exception to returning null
         }
 
         $isConnected = false;
@@ -938,26 +952,5 @@ class WhatsAppIntegrationManager
         }
     }
 
-    /**
-     * ✨ NOVO: Melhorar getQrCode
-     */
-    public function getQrCode(WhatsAppIntegration $integration): ?string
-    {
-        try {
-            if (!$integration->session_name) {
-                return null;
-            }
-
-            $qrCode = $this->wuzApiService->getQrCode($integration->session_name);
-
-            return $qrCode;
-
-        } catch (Exception $e) {
-            Log::warning('Error fetching QR code', [
-                'error' => $e->getMessage(),
-            ]);
-            return null;
-        }
-    }
 }
 
