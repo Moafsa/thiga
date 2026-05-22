@@ -941,13 +941,24 @@ class WhatsAppIntegrationManager
                 return 'DISCONNECTED';
             }
 
-            $status = $this->wuzApiService->getSessionStatus($integration->session_name);
+            $response = $this->wuzApiService->getSessionStatus($integration->session_name);
 
-            return match($status) {
-                'CONNECTED', 'online' => 'CONNECTED',
-                'QRCODE', 'qr', 'pending' => 'QRCODE',
-                default => 'DISCONNECTED',
-            };
+            // Extrair dados da resposta
+            $data = $response['data'] ?? [];
+            $isConnected = $data['Connected'] ?? false;
+            $isLoggedIn = $data['LoggedIn'] ?? false;
+
+            // Se está conectado ou logado, retorna CONNECTED
+            if ($isConnected || $isLoggedIn) {
+                return 'CONNECTED';
+            }
+
+            // Se não está conectado, verifica se há QR code
+            if (!empty($data['QRCode'])) {
+                return 'QRCODE';
+            }
+
+            return 'DISCONNECTED';
 
         } catch (Exception $e) {
             Log::warning('Error checking WuzAPI status', [
