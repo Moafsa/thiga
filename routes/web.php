@@ -56,7 +56,7 @@ Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefi
 });
 
 // ✨ WhatsApp Integrations - Real-Time QR Code
-Route::middleware(['auth', 'tenant'])->prefix('whatsapp/integrations')->group(function () {
+Route::middleware('auth')->prefix('whatsapp/integrations')->group(function () {
     Route::post('{integration}/connect', [WhatsAppIntegrationController::class, 'connect'])->name('whatsapp.connect');
     Route::get('{integration}/check-status', [WhatsAppIntegrationController::class, 'checkStatus'])->name('whatsapp.check-status');
 });
