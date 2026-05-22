@@ -1,3 +1,5 @@
+
+
 <?php $__env->startSection('title', 'Dashboard - TMS SaaS'); ?>
 <?php $__env->startSection('page-title', 'Dashboard'); ?>
 
@@ -358,6 +360,49 @@
         </div>
     </a>
     <?php endif; ?>
+
+    <a href="<?php echo e(route('drivers.index')); ?>" class="stat-card" style="text-decoration: none;">
+        <div class="stat-icon" style="background-color: #4CAF50;">
+            <i class="fas fa-id-card-alt"></i>
+        </div>
+        <div class="stat-content">
+            <h3><?php echo e($driversStats['active']); ?></h3>
+            <p>Motoristas Ativos</p>
+            <div class="stat-trend">
+                Em rota: <?php echo e($driversStats['on_route']); ?> |
+                Total: <?php echo e($driversStats['total']); ?>
+
+            </div>
+        </div>
+    </a>
+
+    <a href="<?php echo e(route('vehicles.index')); ?>" class="stat-card" style="text-decoration: none;">
+        <div class="stat-icon" style="background-color: #2196F3;">
+            <i class="fas fa-truck-moving"></i>
+        </div>
+        <div class="stat-content">
+            <h3><?php echo e($vehiclesStats['active']); ?></h3>
+            <p>Veículos Ativos</p>
+            <div class="stat-trend">
+                Total: <?php echo e($vehiclesStats['total']); ?>
+
+            </div>
+        </div>
+    </a>
+
+    <div class="stat-card" style="cursor: default;">
+        <div class="stat-icon" style="background-color: <?php echo e($performanceKpis['on_time_rate'] >= 90 ? '#4CAF50' : ($performanceKpis['on_time_rate'] >= 70 ? '#FFC107' : '#f44336')); ?>;">
+            <i class="fas fa-tachometer-alt"></i>
+        </div>
+        <div class="stat-content">
+            <h3><?php echo e(number_format($performanceKpis['on_time_rate'], 1)); ?>%</h3>
+            <p>Pontualidade</p>
+            <div class="stat-trend">
+                Tempo médio: <?php echo e(round($performanceKpis['avg_delivery_time'])); ?>min |
+                Dist. média: <?php echo e(number_format($performanceKpis['avg_distance'], 1, ',', '.')); ?>km
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="charts-section">

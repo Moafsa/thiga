@@ -73,4 +73,54 @@ class Plan extends Model
     {
         return $query->where('is_popular', true);
     }
+
+    /**
+     * Calculate split amount based on price
+     * E.g., price=1000, split_percentage=10 => 100
+     */
+    public function calculateSplitAmount($amount): float
+    {
+        return round($amount * ($this->split_percentage / 100), 2);
+    }
+
+    /**
+     * Get split percentage as float
+     */
+    public function getSplitPercentageAttribute(): float
+    {
+        return (float) $this->attributes['split_percentage'] ?? 0;
+    }
+
+    /**
+     * Get net amount after split commission
+     */
+    public function getNetAmountAttribute(): float
+    {
+        return $this->price - $this->calculateSplitAmount($this->price);
+    }
+
+    /**
+     * Scope: Filter plans with split commission
+     */
+    public function scopeWithSplit($query)
+    {
+        return $query->where('split_percentage', '>', 0);
+    }
+
+    /**
+     * Scope: Filter plans without split commission
+     */
+    public function scopeWithoutSplit($query)
+    {
+        return $query->where('split_percentage', '=', 0);
+    }
+
+    /**
+     * Get formatted split percentage
+     */
+    public function getFormattedSplitAttribute(): string
+    {
+        return number_format($this->split_percentage, 2, ',', '.') . '%';
+    }
+
 }

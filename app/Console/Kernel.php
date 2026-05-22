@@ -30,6 +30,17 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->name('alert-overdue-shipments');
 
+        // Check for missing route costs twice a day
+        $schedule->command('route:check-costs')
+            ->twiceDaily(10, 16)
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // Check for missing CT-e costs twice a day
+        $schedule->command('cte:check-costs')
+            ->twiceDaily(11, 17)
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

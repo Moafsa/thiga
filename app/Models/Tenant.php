@@ -179,4 +179,97 @@ class Tenant extends Model
 
         return $token;
     }
+
+    // ========== ASAAS MULTI-TENANT METHODS ==========
+
+    /**
+     * Check if tenant has configured their own Asaas account
+     */
+    public function hasAsaasConfigured(): bool
+    {
+        return $this->uses_own_asaas &&
+               !empty($this->asaas_api_key) &&
+               !empty($this->asaas_webhook_token);
+    }
+
+    /**
+     * Get appropriate Asaas service for this tenant
+     * Returns tenant's own service if configured, otherwise superadmin's
+     */
+    public function getAsaasService(): \App\Services\AsaasService
+    {
+        if ($this->hasAsaasConfigured()) {
+            return new \App\Services\AsaasService(
+                apiKey: $this->asaas_api_key,
+                webhookToken: $this->asaas_webhook_token,
+                baseUrl: config('services.asaas.api_url'),
+                accountType: 'tenant'
+            );
+        }
+
+        // Return superadmin's Asaas service
+        return app(\App\Services\AsaasService::class);
+    }
+
+    /**
+     * Get tenant invoices (faturas do superadmin para este tenant)
+     */
+    public function tenantInvoices()
+    {
+        return $this->hasMany(\App\Models\TenantInvoice::class);
+    }
+
+    /**
+     * Get split billings for this tenant
+     */
+    public function splitBillings()
+    {
+        return $this->hasMany(\App\Models\SplitBilling::class);
+    }
+
+    /**
+     * Get total amount paid to superadmin
+     */
+    public function getTotalPaidToSuperAdminAttribute(): float
+    {
+        return (float) $this->tenantInvoices()
+            ->where('status', 'paid')
+            ->sum('total_amount');
+    }
+
+    /**
+     * Get total commission paid to superadmin
+     */
+    public function getTotalCommissionPaidAttribute(): float
+    {
+        return (float) $this->tenantInvoices()
+            ->where('status', 'paid')
+            ->sum('split_amount');
+    }
+
+    /**
+     * Get total pending amount
+     */
+    public function getTotalPendingAmountAttribute(): float
+    {
+        return (float) $this->tenantInvoices()
+            ->whereIn('status', ['issued', 'overdue'])
+            ->sum('total_amount');
+    }
+
+    /**
+     * Scope: Get tenants that use their own Asaas
+     */
+    public function scopeWithOwnAsaas($query)
+    {
+        return $query->where('uses_own_asaas', true);
+    }
+
+    /**
+     * Scope: Get tenants that use superadmin Asaas
+     */
+    public function scopeWithSuperAdminAsaas($query)
+    {
+        return $query->where('uses_own_asaas', false);
+    }
 }

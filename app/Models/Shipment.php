@@ -228,5 +228,13 @@ class Shipment extends Model
               ->where('status', 'authorized');
         });
     }
+
+    /**
+     * Get direct expenses for this shipment.
+     */
+    public function shipmentExpenses(): HasMany
+    {
+        return $this->hasMany(ShipmentExpense::class);
+    }
 }
 

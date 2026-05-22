@@ -61,19 +61,41 @@
 
         {{-- Features --}}
         <div class="form-group">
-            <label class="form-label">Features (uma por linha)</label>
+            <label class="form-label">Funcionalidades do Plano (uma por linha)</label>
             <textarea name="features_raw" class="form-control" rows="6" placeholder="CT-e ilimitado&#10;MDF-e ilimitado&#10;Motoristas ilimitados&#10;Suporte prioritário">{{ old('features_raw', $plan ? implode("\n", $plan->features ?? []) : '') }}</textarea>
-            <div style="font-size:11px;color:var(--sa-muted);margin-top:4px;">Estas features aparecem na página de planos do site</div>
+            <div style="font-size:11px;color:var(--sa-muted);margin-top:4px;">Escreva uma funcionalidade por linha. Elas aparecerão na página de venda de planos.</div>
         </div>
 
         {{-- Limits --}}
-        <div class="form-group">
-            <label class="form-label">Limites (JSON)</label>
-            <textarea name="limits_raw" class="form-control" rows="4" placeholder='{"drivers": 10, "vehicles": 10, "shipments_per_month": 500}'>{{ old('limits_raw', $plan ? json_encode($plan->limits ?? [], JSON_PRETTY_PRINT) : '') }}</textarea>
-            <div style="font-size:11px;color:var(--sa-muted);margin-top:4px;">Limites técnicos aplicados ao tenant (JSON)</div>
+        <div class="form-group mt-4">
+            <label class="form-label" style="font-size: 1.1em; color: var(--sa-accent);"><i class="fas fa-sliders-h"></i> Limites Técnicos</label>
+            <div style="font-size:11px;color:var(--sa-muted);margin-bottom:15px;">Configure os limites do sistema para os assinantes deste plano. Deixe em branco para ilimitado.</div>
+            
+            <div class="sa-grid sa-grid-2">
+                <div class="form-group">
+                    <label class="form-label">Lmite de Motoristas</label>
+                    <input type="number" name="limits[drivers]" class="form-control" value="{{ old('limits.drivers', $plan ? data_get($plan->limits, 'drivers') : '') }}" placeholder="Ex: 10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Limite de Veículos</label>
+                    <input type="number" name="limits[vehicles]" class="form-control" value="{{ old('limits.vehicles', $plan ? data_get($plan->limits, 'vehicles') : '') }}" placeholder="Ex: 15">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">CT-es por Mês</label>
+                    <input type="number" name="limits[ctes_per_month]" class="form-control" value="{{ old('limits.ctes_per_month', $plan ? data_get($plan->limits, 'ctes_per_month') : '') }}" placeholder="Ex: 500">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">MDF-es por Mês</label>
+                    <input type="number" name="limits[mdfes_per_month]" class="form-control" value="{{ old('limits.mdfes_per_month', $plan ? data_get($plan->limits, 'mdfes_per_month') : '') }}" placeholder="Ex: 500">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Usuários Administrativos</label>
+                    <input type="number" name="limits[users]" class="form-control" value="{{ old('limits.users', $plan ? data_get($plan->limits, 'users') : '') }}" placeholder="Ex: 5">
+                </div>
+            </div>
         </div>
 
-        <div style="display:flex;gap:10px;margin-top:8px;">
+        <div style="display:flex;gap:10px;margin-top:15px;">
             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {{ $plan ? 'Atualizar Plano' : 'Criar Plano' }}</button>
             <a href="{{ route('superadmin.plans.index') }}" class="btn btn-ghost">Cancelar</a>
         </div>
@@ -88,7 +110,6 @@ document.querySelector('form').addEventListener('submit', function(e) {
     const featuresRaw = document.querySelector('[name="features_raw"]').value;
     const lines = featuresRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-    const input = document.createElement('input');
     lines.forEach((f, i) => {
         const inp = document.createElement('input');
         inp.type = 'hidden';
@@ -96,19 +117,6 @@ document.querySelector('form').addEventListener('submit', function(e) {
         inp.value = f;
         this.appendChild(inp);
     });
-
-    // Limits JSON
-    const limitsRaw = document.querySelector('[name="limits_raw"]').value;
-    try {
-        const limits = JSON.parse(limitsRaw || '{}');
-        Object.entries(limits).forEach(([k, v]) => {
-            const inp = document.createElement('input');
-            inp.type = 'hidden';
-            inp.name = `limits[${k}]`;
-            inp.value = v;
-            this.appendChild(inp);
-        });
-    } catch(err) { /* invalid JSON, server will handle validation */ }
 });
 </script>
 @endpush

@@ -1,3 +1,5 @@
+
+
 <?php $__env->startSection('title', 'Configurações - TMS SaaS'); ?>
 <?php $__env->startSection('page-title', 'Configurações'); ?>
 
@@ -77,6 +79,22 @@
         </div>
         <h3>Integrações WhatsApp</h3>
         <p>Configure instâncias WuzAPI, tokens, QR Codes e notificações do WhatsApp</p>
+    </a>
+
+    <a href="<?php echo e(route('settings.integrations.asaas.index')); ?>" class="settings-card" style="border: 2px solid #001e60;">
+        <div class="settings-card-icon" style="background: linear-gradient(135deg, #001e60 0%, #0045ff 100%);">
+            <i class="fas fa-wallet"></i>
+        </div>
+        <h3>💳 Integração Asaas</h3>
+        <p>Configure sua chave do Asaas para emitir boletos e PIX diretamente na sua conta</p>
+    </a>
+
+    <a href="<?php echo e(route('settings.integrations.whatsapp-ai.index')); ?>" class="settings-card" style="border: 2px solid #9c27b0;">
+        <div class="settings-card-icon" style="background: linear-gradient(135deg, #9c27b0 0%, #e040fb 100%);">
+            <i class="fas fa-robot"></i>
+        </div>
+        <h3>🤖 Agente IA WhatsApp</h3>
+        <p>Configure o Agente Autônomo para responder clientes e gerar insights no CRM</p>
     </a>
 </div>
 <?php $__env->stopSection(); ?>

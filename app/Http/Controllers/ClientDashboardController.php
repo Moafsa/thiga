@@ -23,50 +23,65 @@ class ClientDashboardController extends Controller
     }
 
     /**
+     * Get all client IDs associated with the user across tenants
+     */
+    protected function getUserClientIds($user, $mainClient = null): array
+    {
+        $clientUserAssignments = ClientUser::where('user_id', $user->id)->get();
+        $clientIds = $clientUserAssignments->pluck('client_id')->toArray();
+        
+        if ($mainClient) {
+            $clientIds[] = $mainClient->id;
+        } else {
+            // Also add any client that is directly linked to the user's id
+            $directClients = Client::where('user_id', $user->id)->pluck('id')->toArray();
+            $clientIds = array_merge($clientIds, $directClients);
+        }
+        
+        return array_unique($clientIds);
+    }
+
+    /**
      * Display client dashboard
      */
     public function index(Request $request)
     {
         $user = Auth::user();
-        $tenant = $user->tenant;
+        
+        $clientIds = $this->getUserClientIds($user);
 
-        if (!$tenant) {
-            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
-        }
-
-        // Get client associated with user
-        $client = Client::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$client) {
+        if (empty($clientIds)) {
             return redirect()->route('dashboard')
-                ->with('error', 'Você não está registrado como cliente.');
+                ->with('error', 'Você não está registrado como cliente em nenhuma transportadora.');
         }
+        
+        // Use the first client as context, or find the one for current tenant if available
+        $client = Client::whereIn('id', $clientIds)
+            ->where('tenant_id', $user->tenant_id ?? 0)
+            ->first() ?? Client::whereIn('id', $clientIds)->first();
 
         // Get active shipments
-        $activeShipments = Shipment::where('sender_client_id', $client->id)
+        $activeShipments = Shipment::whereIn('sender_client_id', $clientIds)
             ->whereIn('status', ['pending', 'picked_up', 'in_transit'])
-            ->with(['route', 'driver', 'receiverClient', 'deliveryProofs'])
+            ->with(['route', 'driver', 'receiverClient', 'deliveryProofs', 'tenant'])
             ->orderBy('pickup_date', 'desc')
             ->limit(10)
             ->get();
 
         // Get recent proposals
-        $recentProposals = Proposal::where('client_id', $client->id)
-            ->with(['salesperson'])
+        $recentProposals = Proposal::whereIn('client_id', $clientIds)
+            ->with(['salesperson', 'tenant'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
         // Get pending invoices
-        $pendingInvoices = Invoice::where('client_id', $client->id)
+        $pendingInvoices = Invoice::whereIn('client_id', $clientIds)
             ->whereIn('status', ['open', 'overdue'])
+            ->with(['tenant'])
             ->orderBy('due_date', 'asc')
             ->limit(5)
             ->get();
-
-        $clientIds = [$client->id];
 
         $stats = [
             'total_shipments' => Shipment::whereIn('sender_client_id', $clientIds)->count(),
@@ -250,23 +265,18 @@ class ClientDashboardController extends Controller
     public function shipments(Request $request)
     {
         $user = Auth::user();
-        $tenant = $user->tenant;
+        
+        $clientIds = $this->getUserClientIds($user);
 
-        if (!$tenant) {
-            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
-        }
-
-        $client = Client::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$client) {
+        if (empty($clientIds)) {
             return redirect()->route('client.dashboard')
                 ->with('error', 'Você não está registrado como cliente.');
         }
+        
+        $client = Client::whereIn('id', $clientIds)->first();
 
-        $query = Shipment::where('sender_client_id', $client->id)
-            ->with(['route', 'driver', 'receiverClient', 'deliveryProofs']);
+        $query = Shipment::whereIn('sender_client_id', $clientIds)
+            ->with(['route', 'driver', 'receiverClient', 'deliveryProofs', 'tenant']);
 
         // Filters
         if ($request->filled('status')) {
@@ -296,19 +306,13 @@ class ClientDashboardController extends Controller
     public function showShipment(Shipment $shipment)
     {
         $user = Auth::user();
-        $tenant = $user->tenant;
+        $clientIds = $this->getUserClientIds($user);
 
-        if (!$tenant) {
-            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
-        }
-
-        $client = Client::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$client || $shipment->sender_client_id !== $client->id) {
+        if (empty($clientIds) || !in_array($shipment->sender_client_id, $clientIds)) {
             abort(403, 'Acesso negado.');
         }
+
+        $client = Client::whereIn('id', $clientIds)->first();
 
         $shipment->load(['route', 'driver', 'receiverClient', 'deliveryProofs', 'fiscalDocuments']);
 
@@ -467,23 +471,18 @@ class ClientDashboardController extends Controller
     public function invoices(Request $request)
     {
         $user = Auth::user();
-        $tenant = $user->tenant;
+        
+        $clientIds = $this->getUserClientIds($user);
 
-        if (!$tenant) {
-            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
-        }
-
-        $client = Client::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$client) {
+        if (empty($clientIds)) {
             return redirect()->route('client.dashboard')
                 ->with('error', 'Você não está registrado como cliente.');
         }
+        
+        $client = Client::whereIn('id', $clientIds)->first();
 
-        $query = Invoice::where('client_id', $client->id)
-            ->with(['items']);
+        $query = Invoice::whereIn('client_id', $clientIds)
+            ->with(['items', 'tenant']);
 
         // Filter by status
         if ($request->filled('status')) {
@@ -503,10 +502,10 @@ class ClientDashboardController extends Controller
 
         // Statistics
         $stats = [
-            'total' => Invoice::where('client_id', $client->id)->sum('total_amount'),
-            'paid' => Invoice::where('client_id', $client->id)->where('status', 'paid')->sum('total_amount'),
-            'pending' => Invoice::where('client_id', $client->id)->whereIn('status', ['open', 'overdue'])->sum('total_amount'),
-            'overdue' => Invoice::where('client_id', $client->id)->where('status', 'overdue')->sum('total_amount'),
+            'total' => Invoice::whereIn('client_id', $clientIds)->sum('total_amount'),
+            'paid' => Invoice::whereIn('client_id', $clientIds)->where('status', 'paid')->sum('total_amount'),
+            'pending' => Invoice::whereIn('client_id', $clientIds)->whereIn('status', ['open', 'overdue'])->sum('total_amount'),
+            'overdue' => Invoice::whereIn('client_id', $clientIds)->where('status', 'overdue')->sum('total_amount'),
         ];
 
         return view('client.invoices', compact('client', 'invoices', 'stats'));
@@ -518,19 +517,13 @@ class ClientDashboardController extends Controller
     public function showInvoice(Invoice $invoice)
     {
         $user = Auth::user();
-        $tenant = $user->tenant;
+        $clientIds = $this->getUserClientIds($user);
 
-        if (!$tenant) {
-            return redirect()->route('login')->with('error', 'Usuário não possui tenant associado.');
-        }
-
-        $client = Client::where('tenant_id', $tenant->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$client || $invoice->client_id !== $client->id) {
+        if (empty($clientIds) || !in_array($invoice->client_id, $clientIds)) {
             abort(403, 'Acesso negado.');
         }
+
+        $client = Client::whereIn('id', $clientIds)->first();
 
         $invoice->load(['items', 'payments', 'items.shipment']);
 

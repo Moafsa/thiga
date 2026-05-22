@@ -42,7 +42,7 @@
         padding: 12px 14px;
         font-family: inherit;
         background-color: rgba(255, 255, 255, 0.1);
-        color: var(--cor-texto-claro);
+        color: var(--cor-texto-claro) !important;
     }
 
     .form-group input:focus {

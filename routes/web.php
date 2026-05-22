@@ -233,6 +233,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/{client}/restore-listing', [App\Http\Controllers\ClientController::class, 'restoreListing'])->name('restore-listing');
     });
 
+    // CRM Routes
+    Route::prefix('crm')->name('crm.')->group(function () {
+        Route::get('/', \App\Http\Livewire\Crm\CrmBoard::class)->name('board');
+    });
+
     // Drivers routes
     Route::prefix('drivers')->name('drivers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DriverController::class, 'index'])->name('index');
@@ -431,7 +436,12 @@ Route::middleware('auth')->group(function () {
             Route::get('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'index'])->name('email.index');
             Route::put('/email', [App\Http\Controllers\Settings\EmailConfigController::class, 'update'])->name('email.update');
             Route::post('/email/test', [App\Http\Controllers\Settings\EmailConfigController::class, 'test'])->name('email.test');
+            
+            // Asaas Settings
+            Route::get('/asaas', [App\Http\Controllers\Settings\AsaasConfigController::class, 'index'])->name('asaas.index');
+            Route::put('/asaas', [App\Http\Controllers\Settings\AsaasConfigController::class, 'update'])->name('asaas.update');
         });
+
     });
 });
 
@@ -445,10 +455,12 @@ Route::prefix('superadmin')->name('superadmin.')->middleware('web')->group(funct
     Route::post('/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])->name('logout');
 
     // Protegidas pelo guard superadmin
-    Route::middleware('superadmin')->group(function () {
-
-        // Dashboard
+    Route::middleware(['superadmin'])->group(function () {
         Route::get('/', [App\Http\Controllers\SuperAdmin\DashboardController::class, 'index'])->name('dashboard');
+
+        // Configurações Globais
+        Route::get('/settings', [App\Http\Controllers\SuperAdmin\SettingsController::class, 'index'])->name('settings.index');
+        Route::post('/settings', [App\Http\Controllers\SuperAdmin\SettingsController::class, 'update'])->name('settings.update');
 
         // Tenants
         Route::prefix('tenants')->name('tenants.')->group(function () {

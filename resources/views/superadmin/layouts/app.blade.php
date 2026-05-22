@@ -188,6 +188,9 @@
             <a href="{{ route('superadmin.plans.index') }}" class="{{ request()->routeIs('superadmin.plans.*') ? 'active' : '' }}">
                 <i class="fas fa-tags"></i> Planos
             </a>
+            <a href="{{ route('superadmin.settings.index') }}" class="{{ request()->routeIs('superadmin.settings.*') ? 'active' : '' }}">
+                <i class="fas fa-cog"></i> Configurações
+            </a>
         </nav>
         <div class="sa-footer">
             <form method="POST" action="{{ route('superadmin.logout') }}">

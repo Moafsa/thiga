@@ -1,3 +1,5 @@
+
+
 <?php $__env->startSection('title', 'Monitoramento - TMS SaaS'); ?>
 <?php $__env->startSection('page-title', 'Monitoramento em Tempo Real'); ?>
 

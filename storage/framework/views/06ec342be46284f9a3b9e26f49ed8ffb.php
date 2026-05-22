@@ -1,3 +1,5 @@
+
+
 <?php $__env->startSection('title', 'Cargas - TMS SaaS'); ?>
 <?php $__env->startSection('page-title', 'Cargas'); ?>
 
@@ -283,8 +285,8 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label>Rastreamento</label>
-                <input type="text" name="tracking_number" value="<?php echo e(request('tracking_number')); ?>" placeholder="Código">
+                <label>Rastreamento / CT-e / Chave NF-e</label>
+                <input type="text" name="tracking_number" value="<?php echo e(request('tracking_number')); ?>" placeholder="Buscar por código, CTe ou Chave">
             </div>
             <div class="filter-group">
                 <label>Data De</label>

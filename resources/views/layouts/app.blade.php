@@ -39,6 +39,10 @@
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
+    <!-- Bootstrap CSS (needed for financial and report views) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+
     <style>
         /* Variables */
         :root {
@@ -393,6 +397,13 @@
             <div class="nav-category">Comercial</div>
 
             <div class="sidebar-item">
+                <a href="{{ route('crm.board') }}"
+                    class="sidebar-link {{ request()->routeIs('crm.*') ? 'active' : '' }}" title="CRM & Pipeline">
+                    <i class="fas fa-bullseye"></i> <span>CRM & Pipeline</span>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
                 <a href="{{ route('clients.index') }}"
                     class="sidebar-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" title="Clientes">
                     <i class="fas fa-user-friends"></i> <span>Clientes</span>
@@ -491,14 +502,6 @@
                     class="sidebar-link {{ request()->routeIs('subscriptions.*') ? 'active' : '' }}"
                     title="Assinaturas">
                     <i class="fas fa-receipt"></i> <span>Assinaturas</span>
-                </a>
-            </div>
-
-            <div class="sidebar-item">
-                <a href="{{ route('settings.integrations.whatsapp-ai.index') }}"
-                    class="sidebar-link {{ request()->routeIs('settings.integrations.whatsapp-ai.*') ? 'active' : '' }}"
-                    title="Agente IA WhatsApp">
-                    <i class="fas fa-robot"></i> <span>Agente IA</span>
                 </a>
             </div>
 

@@ -189,14 +189,30 @@ class FreightCalculationService
         ];
     }
 
-    /**
-     * Find freight table for tenant and destination
-     */
-    protected function findFreightTable(Tenant $tenant, string $destination): ?FreightTable
+    protected function findFreightTable(Tenant $tenant, string $destination, ?int $clientId = null): ?FreightTable
     {
+        // Query builder for active freight tables in tenant
+        $baseQuery = FreightTable::where('tenant_id', $tenant->id)->active();
+
+        // If client_id is provided, try to find a table specific to this client first
+        if ($clientId) {
+            $clientQuery = clone $baseQuery;
+            $table = $clientQuery->whereHas('clients', function ($q) use ($clientId) {
+                $q->where('clients.id', $clientId);
+            })->where('destination_name', 'like', "%{$destination}%")->first();
+            
+            if ($table) return $table;
+            
+            // Try CEP logic for client tables
+            if (preg_match('/^\d{5}-?\d{3}$/', $destination)) {
+                $cep = preg_replace('/\D/', '', $destination);
+                $table = $this->findTableByCep($tenant, $cep, $clientId);
+                if ($table) return $table;
+            }
+        }
+
         // 1. Try to find by destination name (Exact or Partial match)
-        $table = FreightTable::where('tenant_id', $tenant->id)
-            ->active()
+        $table = (clone $baseQuery)
             ->where('destination_name', 'like', "%{$destination}%")
             ->first();
 
@@ -207,7 +223,8 @@ class FreightCalculationService
         // 2. Try to find by CEP if destination looks like a CEP
         if (preg_match('/^\d{5}-?\d{3}$/', $destination)) {
             $cep = preg_replace('/\D/', '', $destination);
-            return $this->findTableByCep($tenant, $cep);
+            $table = $this->findTableByCep($tenant, $cep);
+            if ($table) return $table;
         }
 
         // 3. Smart Fallback: Geocode the city name to get a CEP
@@ -215,15 +232,10 @@ class FreightCalculationService
         try {
             $geoResult = $this->mapsService->geocode($destination);
 
-            // Check if we got a valid result with a postal code or address that allows us to infer a CEP
-            // MapsService normalized format might vary, but let's assume it has address components or formatted_address
-            // For now, let's look for a CEP pattern in the formatted address as a simple heuristic
-            // OR ideally MapsService returns structured data. The cached unified service returns 'formatted_address'.
-
             if ($geoResult && isset($geoResult['formatted_address'])) {
                 if (preg_match('/(\d{5}-\d{3})/', $geoResult['formatted_address'], $matches)) {
                     $cep = preg_replace('/\D/', '', $matches[1]);
-                    $table = $this->findTableByCep($tenant, $cep);
+                    $table = $this->findTableByCep($tenant, $cep, $clientId) ?? $this->findTableByCep($tenant, $cep);
                     if ($table)
                         return $table;
                 }
@@ -233,18 +245,22 @@ class FreightCalculationService
         }
 
         // Return default table if exists
-        return FreightTable::where('tenant_id', $tenant->id)
-            ->active()
-            ->default()
-            ->first();
+        return (clone $baseQuery)->default()->first();
     }
 
-    private function findTableByCep(Tenant $tenant, string $cep): ?FreightTable
+    private function findTableByCep(Tenant $tenant, string $cep, ?int $clientId = null): ?FreightTable
     {
-        return FreightTable::where('tenant_id', $tenant->id)
+        $query = FreightTable::where('tenant_id', $tenant->id)
             ->active()
-            ->where('destination_type', 'cep_range')
-            ->get()
+            ->where('destination_type', 'cep_range');
+            
+        if ($clientId) {
+            $query->whereHas('clients', function ($q) use ($clientId) {
+                $q->where('clients.id', $clientId);
+            });
+        }
+
+        return $query->get()
             ->first(function ($table) use ($cep) {
                 return $table->isCepInRange($cep);
             });

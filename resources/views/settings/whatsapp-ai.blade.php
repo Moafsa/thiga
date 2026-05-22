@@ -187,20 +187,19 @@
 </div>
 
 <!-- Configuration Form -->
-<div class="ai-card">
-    <h2><i class="fas fa-cog"></i> Configuração</h2>
+    <div class="ai-card">
+        <h2><i class="fas fa-cog"></i> Configuração</h2>
 
-    @if(!$hasOpenAiKey)
-    <div class="info-box" style="margin-bottom: 20px; border-color: rgba(255,193,7,0.3); background: rgba(255,193,7,0.05);">
-        <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
-        <p>Para usar o Agente IA, você precisa de uma chave da API OpenAI.
-            <a href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--cor-acento);">Obtenha aqui →</a>
-        </p>
-    </div>
-    @endif
+        @if(!$hasOpenAiKey)
+            <div class="info-box" style="margin-bottom: 20px; border-color: rgba(255,193,7,0.3); background: rgba(255,193,7,0.1);">
+                <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
+                <p>Para usar o Agente IA, você precisa de uma chave da API OpenAI. 
+                   <a href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--cor-acento); text-decoration: underline;">Obtenha uma chave aqui</a> e configure na aba de <a href="{{ route('settings.index') }}" style="color: var(--cor-acento); text-decoration: underline;">Configurações Gerais</a>.</p>
+            </div>
+        @endif
 
-    <form method="POST" action="{{ route('settings.whatsapp-ai.update') }}">
-        @csrf
+        <form action="{{ route('settings.integrations.whatsapp-ai.update') }}" method="POST">
+            @csrf
 
         <!-- OpenAI Key -->
         <div style="margin-bottom: 20px;">
