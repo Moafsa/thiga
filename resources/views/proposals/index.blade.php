@@ -25,19 +25,147 @@
             background-color: rgba(244, 67, 54, 0.2);
             color: #f44336;
         }
+
+        /* Modal Custom Styles */
+        .widget-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .widget-modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .widget-modal-content {
+            background-color: var(--cor-secundaria);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            color: var(--cor-texto-claro);
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .widget-modal-overlay.show .widget-modal-content {
+            transform: scale(1);
+        }
+
+        .widget-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .widget-modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--cor-acento);
+            margin: 0;
+        }
+
+        .widget-modal-close {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+        }
+
+        .widget-modal-close:hover {
+            color: var(--cor-acento);
+        }
+
+        .widget-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .widget-code-box {
+            background-color: var(--cor-principal);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            position: relative;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            word-break: break-all;
+            color: #a8ffb2;
+        }
+
+        .widget-copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: var(--cor-acento);
+            color: var(--cor-principal);
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .widget-copy-btn:hover {
+            opacity: 0.9;
+        }
+
+        .widget-preview-container {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
+            max-width: 400px;
+            margin: 10px auto 0;
+        }
     </style>
 @endpush
 
 @section('content')
+<div x-data="{ showWidgetModal: false }">
     <div class="page-header">
         <div class="page-header-text">
             <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Propostas</h1>
             <h2>Gerencie suas propostas comerciais</h2>
         </div>
-        <a href="{{ route('proposals.create') }}" class="btn-primary">
-            <i class="fas fa-plus"></i>
-            Nova Proposta
-        </a>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button @click="showWidgetModal = true" class="btn-secondary">
+                <i class="fas fa-code"></i>
+                Widget Calculadora
+            </button>
+            <a href="{{ route('proposals.create') }}" class="btn-primary">
+                <i class="fas fa-plus"></i>
+                Nova Proposta
+            </a>
+        </div>
     </div>
 
     <!-- Filters -->
@@ -180,44 +308,34 @@
         </script>
     @endpush
     <!-- Embed Modal -->
-    <div id="embedModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Widget da Calculadora de Frete</h3>
-                <button onclick="document.getElementById('embedModal').classList.add('hidden')"
-                    class="text-gray-400 hover:text-gray-500">
-                    <span class="text-2xl">&times;</span>
+    <div class="widget-modal-overlay" :class="{ 'show': showWidgetModal }" @click.self="showWidgetModal = false">
+        <div class="widget-modal-content">
+            <div class="widget-modal-header">
+                <h3 class="widget-modal-title">Widget da Calculadora de Frete</h3>
+                <button @click="showWidgetModal = false" class="widget-modal-close">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <div class="space-y-4">
-                <p class="text-sm text-gray-600">Copie o código abaixo e cole no seu site para exibir a calculadora de
-                    fretes.</p>
+            <div class="widget-modal-body">
+                <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 10px;">
+                    Copie o código abaixo e cole no seu site para exibir a calculadora de fretes.
+                </p>
 
-                <div class="bg-gray-100 p-4 rounded text-sm font-mono break-all relative group">
-                    <code
-                        id="embedCode">&lt;iframe src="{{ route('public.calculator.show', Auth::user()->tenant->domain ?? 'seu-dominio') }}" width="100%" height="550" frameborder="0" style="border:0; max-width: 400px; margin: 0 auto; display: block;"&gt;&lt;/iframe&gt;</code>
-                    <button
-                        onclick="navigator.clipboard.writeText(document.getElementById('embedCode').innerText); alert('Copiado!')"
-                        class="absolute top-2 right-2 bg-white px-2 py-1 text-xs border rounded hover:bg-gray-50 text-indigo-600">
-                        Copiar
+                <div class="widget-code-box">
+                    <code id="embedCode">&lt;iframe src="{{ route('public.calculator.show', Auth::user()->tenant->domain ?? 'seu-dominio') }}" width="100%" height="550" frameborder="0" style="border:0; max-width: 400px; margin: 0 auto; display: block;"&gt;&lt;/iframe&gt;</code>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('embedCode').innerText); alert('Código copiado!')" class="widget-copy-btn">
+                        <i class="fas fa-copy"></i> Copiar
                     </button>
                 </div>
 
-                <div class="mt-4">
-                    <h4 class="text-sm font-medium text-gray-900 mb-2">Visualização:</h4>
+                <h4 style="font-size: 0.95em; font-weight: 600; margin-bottom: 10px;">Visualização:</h4>
+                <div class="widget-preview-container">
                     <iframe src="{{ route('public.calculator.show', Auth::user()->tenant->domain ?? 'seu-dominio') }}"
-                        width="100%" height="400" frameborder="0" class="border rounded shadow-sm mx-auto"
-                        style="max-width: 400px;"></iframe>
+                        width="100%" height="450" frameborder="0" style="display: block; border: none;"></iframe>
                 </div>
-            </div>
-
-            <div class="mt-6 flex justify-end">
-                <button onclick="document.getElementById('embedModal').classList.add('hidden')"
-                    class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
-                    Fechar
-                </button>
             </div>
         </div>
     </div>
+</div>
 @endsection
