@@ -10,7 +10,6 @@ use App\Models\WhatsAppIntegration;
 use App\Models\WhatsAppConversationContext;
 use App\Models\CrmDeal;
 use App\Models\CrmInteraction;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -473,6 +472,28 @@ class WhatsAppAiService
                     ],
                 ],
             ],
+            [
+                'type'     => 'function',
+                'function' => [
+                    'name'        => 'lookup_address',
+                    'description' => 'Busca e valida um endereço ou CEP via Mapbox. Use SEMPRE que o cliente informar um CEP ou cidade como origem ou destino. Retorna o endereço completo encontrado para o cliente confirmar. Se o CEP trouxer um endereço, apresente ao cliente e pergunte se está correto.',
+                    'parameters'  => [
+                        'type'       => 'object',
+                        'properties' => [
+                            'query'   => [
+                                'type'        => 'string',
+                                'description' => 'CEP (ex: 95270-000) ou cidade/endereço a buscar',
+                            ],
+                            'context' => [
+                                'type'        => 'string',
+                                'enum'        => ['origin', 'destination'],
+                                'description' => 'Se está buscando a ORIGEM ou o DESTINO do frete',
+                            ],
+                        ],
+                        'required' => ['query', 'context'],
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -488,6 +509,9 @@ class WhatsAppAiService
         string $phone
     ): array {
         switch ($name) {
+            case 'lookup_address':
+                return $this->lookupAddressWithMapbox($args['query'], $args['context'] ?? 'origin');
+
             case 'update_client_profile':
                 if (!$client) return ['error' => 'Cliente não encontrado no contexto.'];
                 $updateData = array_filter([
@@ -659,6 +683,100 @@ class WhatsAppAiService
     }
 
     /**
+     * Look up address or CEP via Mapbox Geocoding API.
+     * Returns structured address data for the AI to confirm with the user.
+     */
+    protected function lookupAddressWithMapbox(string $query, string $context = 'origin'): array
+    {
+        try {
+            $accessToken = config('services.mapbox.access_token');
+
+            // Detect if it's a CEP (e.g. 95270-000 or 95270000)
+            $isCep = (bool) preg_match('/^\d{5}-?\d{3}$/', trim($query));
+            $searchQuery = $isCep ? preg_replace('/\D/', '', $query) : $query;
+
+            if (empty($accessToken)) {
+                return ['found' => false, 'context' => $context, 'query' => $query, 'error' => 'Serviço de busca de endereço não configurado.'];
+            }
+
+            $response = Http::timeout(10)->get(
+                'https://api.mapbox.com/geocoding/v5/mapbox.places/' . urlencode($searchQuery) . '.json',
+                [
+                    'access_token' => $accessToken,
+                    'country'      => 'BR',
+                    'language'     => 'pt',
+                    'types'        => 'postcode,address,place,locality',
+                    'limit'        => 1,
+                ]
+            );
+
+            if (!$response->successful() || empty($response->json()['features'])) {
+                return [
+                    'found'   => false,
+                    'context' => $context,
+                    'query'   => $query,
+                    'error'   => 'Endereço não encontrado. Verifique o CEP ou informe a cidade e estado.',
+                ];
+            }
+
+            $feature     = $response->json()['features'][0];
+            $placeName   = $feature['place_name'] ?? $query;
+            $placeType   = $feature['place_type'][0] ?? 'place';
+            $contextList = $feature['context'] ?? [];
+
+            $street = $neighborhood = $city = $state = $postcode = null;
+
+            if (in_array($placeType, ['address', 'postcode'])) {
+                $street = $feature['text'] ?? null;
+            } elseif ($placeType === 'place') {
+                $city = $feature['text'] ?? null;
+            }
+
+            foreach ($contextList as $ctx) {
+                $id   = $ctx['id'] ?? '';
+                $text = $ctx['text'] ?? '';
+                if (str_starts_with($id, 'neighborhood'))  { $neighborhood = $text; }
+                elseif (str_starts_with($id, 'locality') || str_starts_with($id, 'place')) { $city = $city ?? $text; }
+                elseif (str_starts_with($id, 'region'))    {
+                    $sc    = $ctx['short_code'] ?? '';
+                    $state = $sc ? strtoupper(str_replace('BR-', '', $sc)) : $text;
+                }
+                elseif (str_starts_with($id, 'postcode'))  { $postcode = $text; }
+            }
+
+            $parts   = array_filter([$street, $neighborhood, $city, $state ? "({$state})" : null, $postcode ? "CEP {$postcode}" : null]);
+            $summary = implode(', ', $parts) ?: $placeName;
+
+            $instruction = $isCep
+                ? "Apresente ao usuário: '{$summary}'. Pergunte se este endereço está correto. Se sim, pergunte o número do estabelecimento e complemento (opcional)."
+                : "Cidade encontrada: '{$summary}'. Confirme com o usuário se está correto.";
+
+            return [
+                'found'             => true,
+                'context'           => $context,
+                'query'             => $query,
+                'formatted_address' => $placeName,
+                'summary'           => $summary,
+                'street'            => $street,
+                'neighborhood'      => $neighborhood,
+                'city'              => $city,
+                'state'             => $state,
+                'postcode'          => $postcode,
+                'is_cep'            => $isCep,
+                'instruction'       => $instruction,
+            ];
+        } catch (Exception $e) {
+            Log::error('Address lookup failed: ' . $e->getMessage());
+            return [
+                'found'   => false,
+                'context' => $context,
+                'query'   => $query,
+                'error'   => 'Não consegui verificar o endereço. Pode informar a cidade e estado manualmente?',
+            ];
+        }
+    }
+
+    /**
      * Normalize phone number for database search.
      * Strips @lid suffix (WuzAPI LID format) and non-digit characters.
      */
@@ -710,11 +828,11 @@ class WhatsAppAiService
         $prompt .= "Após o cadastro, pergunte como pode ajudar (cotação de frete, rastreamento, financeiro, etc.).\n\n";
 
         $prompt .= "ETAPA 3 — COTAÇÃO DE FRETE (colete UM dado por vez, nesta ordem):\n";
-        $prompt .= "  3a. Cidade ou CEP de ORIGEM\n";
-        $prompt .= "  3b. Cidade ou CEP de DESTINO\n";
+        $prompt .= "  3a. Cidade ou CEP de ORIGEM — assim que o cliente informar, use IMEDIATAMENTE 'lookup_address' (context=origin) para buscar e validar. Apresente o endereço encontrado e pergunte: 'Encontrei o endereço [rua], [bairro], [cidade]-[estado]. Está correto?' Se sim, peça o número/complemento/referência se for necessário para a coleta. Se não, peça mais detalhes.\n";
+        $prompt .= "  3b. Cidade ou CEP de DESTINO — mesma lógica: use 'lookup_address' (context=destination) imediatamente ao receber.\n";
         $prompt .= "  3c. Peso total em kg\n";
-        $prompt .= "  3d. Valor da mercadoria em reais (diga que pode ser aproximado, ou 0 se não souber)\n";
-        $prompt .= "  3e. Dimensões: pergunte se tem (comprimento x largura x altura em cm) — opcional, mas ajuda\n";
+        $prompt .= "  3d. Valor da mercadoria em reais (pode ser aproximado, ou 0 se não souber)\n";
+        $prompt .= "  3e. Dimensões: pergunte se tem (comprimento x largura x altura em cm) — opcional\n";
         $prompt .= "  3f. Serviços especiais: paletização, entrega em mercado/CD, descarga, fim de semana? — opcional\n";
         $prompt .= "Depois de ter origem + destino + peso + valor NF, execute 'calculate_freight_quote'.\n\n";
 
