@@ -219,7 +219,7 @@ class WhatsAppAiService
             }
 
             // Build system prompt (always fresh, not stored in history)
-            $systemPrompt = $this->buildSystemPrompt($client, $deal);
+            $systemPrompt = $this->buildSystemPrompt($client, $deal, $integration);
 
             // Build messages array: system + history + new user message
             $messages = array_merge(
@@ -683,29 +683,78 @@ class WhatsAppAiService
     }
 
     /**
-     * Look up address or CEP via Mapbox Geocoding API.
-     * Returns structured address data for the AI to confirm with the user.
+     * Look up address or CEP.
+     * Strategy: ViaCEP API for Brazilian CEPs (100% coverage, free), Mapbox for city names.
      */
     protected function lookupAddressWithMapbox(string $query, string $context = 'origin'): array
     {
         try {
+            $query = trim($query);
+            $isCep = (bool) preg_match('/^\d{5}-?\d{3}$/', $query);
+
+            // ─── Strategy 1: ViaCEP for Brazilian CEPs ───────────────────────────
+            if ($isCep) {
+                $cepDigits = preg_replace('/\D/', '', $query);
+                $viacep = Http::timeout(8)->get("https://viacep.com.br/ws/{$cepDigits}/json/");
+
+                if ($viacep->successful() && !isset($viacep->json()['erro'])) {
+                    $data         = $viacep->json();
+                    $street       = $data['logradouro'] ?? null;
+                    $neighborhood = $data['bairro'] ?? null;
+                    $city         = $data['localidade'] ?? null;
+                    $state        = $data['uf'] ?? null;
+                    $postcode     = $data['cep'] ?? $cepDigits;
+
+                    $parts   = array_filter([$street, $neighborhood, $city, $state, "CEP {$postcode}"]);
+                    $summary = implode(', ', $parts);
+
+                    $hasStreet   = !empty($street);
+                    $instruction = $hasStreet
+                        ? "CEP encontrado. Apresente: '{$summary}'. Pergunte se está correto. Se sim, pergunte o número do estabelecimento e complemento (opcional)."
+                        : "CEP encontrado: {$city}-{$state}, CEP {$postcode}. Confirme com o usuário se esta cidade está correta."
+                    ;
+
+                    return [
+                        'found'        => true,
+                        'source'       => 'viacep',
+                        'context'      => $context,
+                        'query'        => $query,
+                        'summary'      => $summary,
+                        'street'       => $street,
+                        'neighborhood' => $neighborhood,
+                        'city'         => $city,
+                        'state'        => $state,
+                        'postcode'     => $postcode,
+                        'is_cep'       => true,
+                        'has_street'   => $hasStreet,
+                        'instruction'  => $instruction,
+                    ];
+                }
+
+                // ViaCEP failed — CEP may be invalid or service down
+                return [
+                    'found'   => false,
+                    'context' => $context,
+                    'query'   => $query,
+                    'error'   => "CEP {$query} não encontrado. Pode informar a cidade e estado?",
+                ];
+            }
+
+            // ─── Strategy 2: Mapbox for city/address text search ────────────────
             $accessToken = config('services.mapbox.access_token');
-
-            // Detect if it's a CEP (e.g. 95270-000 or 95270000)
-            $isCep = (bool) preg_match('/^\d{5}-?\d{3}$/', trim($query));
-            $searchQuery = $isCep ? preg_replace('/\D/', '', $query) : $query;
-
             if (empty($accessToken)) {
-                return ['found' => false, 'context' => $context, 'query' => $query, 'error' => 'Serviço de busca de endereço não configurado.'];
+                return ['found' => false, 'context' => $context, 'query' => $query,
+                    'error' => 'Informe a cidade e estado (ex: "Bento Gonçalves, RS")']
+                ;
             }
 
             $response = Http::timeout(10)->get(
-                'https://api.mapbox.com/geocoding/v5/mapbox.places/' . urlencode($searchQuery) . '.json',
+                'https://api.mapbox.com/geocoding/v5/mapbox.places/' . urlencode($query) . '.json',
                 [
                     'access_token' => $accessToken,
                     'country'      => 'BR',
                     'language'     => 'pt',
-                    'types'        => 'postcode,address,place,locality',
+                    'types'        => 'place,locality,address',
                     'limit'        => 1,
                 ]
             );
@@ -715,7 +764,7 @@ class WhatsAppAiService
                     'found'   => false,
                     'context' => $context,
                     'query'   => $query,
-                    'error'   => 'Endereço não encontrado. Verifique o CEP ou informe a cidade e estado.',
+                    'error'   => "Não encontrei '{$query}'. Tente informar 'Cidade, UF' (ex: Bento Gonçalves, RS).",
                 ];
             }
 
@@ -728,42 +777,37 @@ class WhatsAppAiService
 
             if (in_array($placeType, ['address', 'postcode'])) {
                 $street = $feature['text'] ?? null;
-            } elseif ($placeType === 'place') {
+            } elseif (in_array($placeType, ['place', 'locality'])) {
                 $city = $feature['text'] ?? null;
             }
 
             foreach ($contextList as $ctx) {
                 $id   = $ctx['id'] ?? '';
                 $text = $ctx['text'] ?? '';
-                if (str_starts_with($id, 'neighborhood'))  { $neighborhood = $text; }
-                elseif (str_starts_with($id, 'locality') || str_starts_with($id, 'place')) { $city = $city ?? $text; }
-                elseif (str_starts_with($id, 'region'))    {
+                if (str_starts_with($id, 'neighborhood'))  $neighborhood = $text;
+                elseif (str_starts_with($id, 'locality') || str_starts_with($id, 'place'))  $city = $city ?? $text;
+                elseif (str_starts_with($id, 'region')) {
                     $sc    = $ctx['short_code'] ?? '';
                     $state = $sc ? strtoupper(str_replace('BR-', '', $sc)) : $text;
-                }
-                elseif (str_starts_with($id, 'postcode'))  { $postcode = $text; }
+                } elseif (str_starts_with($id, 'postcode')) $postcode = $text;
             }
 
-            $parts   = array_filter([$street, $neighborhood, $city, $state ? "({$state})" : null, $postcode ? "CEP {$postcode}" : null]);
+            $parts   = array_filter([$street, $neighborhood, $city, $state]);
             $summary = implode(', ', $parts) ?: $placeName;
 
-            $instruction = $isCep
-                ? "Apresente ao usuário: '{$summary}'. Pergunte se este endereço está correto. Se sim, pergunte o número do estabelecimento e complemento (opcional)."
-                : "Cidade encontrada: '{$summary}'. Confirme com o usuário se está correto.";
-
             return [
-                'found'             => true,
-                'context'           => $context,
-                'query'             => $query,
-                'formatted_address' => $placeName,
-                'summary'           => $summary,
-                'street'            => $street,
-                'neighborhood'      => $neighborhood,
-                'city'              => $city,
-                'state'             => $state,
-                'postcode'          => $postcode,
-                'is_cep'            => $isCep,
-                'instruction'       => $instruction,
+                'found'        => true,
+                'source'       => 'mapbox',
+                'context'      => $context,
+                'query'        => $query,
+                'summary'      => $summary,
+                'street'       => $street,
+                'neighborhood' => $neighborhood,
+                'city'         => $city,
+                'state'        => $state,
+                'postcode'     => $postcode,
+                'is_cep'       => false,
+                'instruction'  => "Cidade encontrada: '{$summary}'. Confirme com o usuário se está correto.",
             ];
         } catch (Exception $e) {
             Log::error('Address lookup failed: ' . $e->getMessage());
@@ -794,63 +838,72 @@ class WhatsAppAiService
     }
 
     /**
-     * Build system prompt — step-by-step conversational flow with onboarding
+     * Build system prompt — step-by-step conversational flow with onboarding.
+     * Receives the integration to include the company (tenant) name.
      */
-    protected function buildSystemPrompt(?Client $client, ?CrmDeal $deal): string
+    protected function buildSystemPrompt(?Client $client, ?CrmDeal $deal, ?WhatsAppIntegration $integration = null): string
     {
-        $isNewLead = !$client || str_starts_with($client->name ?? '', 'Lead WhatsApp');
-        $hasName   = $client && !str_starts_with($client->name, 'Lead WhatsApp');
-        $hasEmail  = $client && !empty($client->email);
+        $hasName    = $client && !str_starts_with($client->name ?? '', 'Lead WhatsApp');
+        $hasEmail   = $client && !empty($client->email);
+        $hasCompany = $client && !empty($client->company_name);
+        $clientType = $client->client_type ?? null;
 
-        $prompt  = "Você é a assistente inteligente de uma transportadora brasileira. Seja simpática, clara e profissional.\n\n";
+        // Tenant / company name for agent identity
+        $companyName = $integration?->tenant?->name ?? 'nossa transportadora';
+
+        $prompt  = "Você é a assistente virtual da transportadora {$companyName}. Seja simpática, clara e profissional.\n";
+        $prompt .= "Quando perguntarem qual transportadora você representa, responda: '{$companyName}'.\n\n";
+
         $prompt .= "REGRA FUNDAMENTAL — PERGUNTE UM ITEM POR VEZ:\n";
-        $prompt .= "Nunca faça mais de UMA pergunta por mensagem. Aguarde a resposta do usuário antes de fazer a próxima pergunta. ";
-        $prompt .= "Após cada resposta, confirme o que foi dito e parta para a próxima informação necessária.\n\n";
+        $prompt .= "Nunca faça mais de UMA pergunta por mensagem. Aguarde a resposta antes de continuar.\n\n";
 
-        // Tell AI what we already know about the client
-        $prompt .= "DADOS JÁ COLETADOS DO CLIENTE:\n";
-        if ($hasName)  $prompt .= "- Nome/Empresa: {$client->name}\n";
-        if ($hasEmail) $prompt .= "- Email: {$client->email}\n";
+        // Inform AI what we already know
+        $prompt .= "DADOS JÁ CONHECIDOS DO CLIENTE:\n";
+        if ($hasName)    $prompt .= "- Nome: {$client->name}\n";
+        if ($hasEmail)   $prompt .= "- Email: {$client->email}\n";
+        if ($hasCompany) $prompt .= "- Empresa: {$client->company_name}\n";
+        if ($clientType) $prompt .= "- Tipo: " . ($clientType === 'pj' ? 'Pessoa Jurídica' : 'Pessoa Física') . "\n";
         if ($client && !empty($client->cnpj)) $prompt .= "- CNPJ/CPF: {$client->cnpj}\n";
         if (!$hasName && !$hasEmail) $prompt .= "- (Nenhum dado coletado ainda)\n";
         $prompt .= "\n";
 
-        $prompt .= "FLUXO OBRIGATÓRIO DE ATENDIMENTO:\n\n";
+        $prompt .= "FLUXO OBRIGATÓRIO:\n\n";
 
-        $prompt .= "ETAPA 1 — BOAS-VINDAS E CADASTRO (se dados não coletados):\n";
-        $prompt .= "Se ainda não souber o nome do cliente, comece com uma saudação calorosa e pergunte SOMENTE o nome.\n";
-        $prompt .= "Depois de ter o nome, pergunte se é pessoa física ou empresa.\n";
-        $prompt .= "Se for empresa, pergunte o nome da empresa.\n";
-        $prompt .= "Depois pergunte o email para envio de proposta.\n";
-        $prompt .= "Sempre use 'update_client_profile' para salvar os dados assim que forem informados.\n\n";
+        $prompt .= "ETAPA 1 — BOAS-VINDAS (primeiro contato):\n";
+        $prompt .= "Se ainda não souber o nome do cliente, cumprimente e pergunte SOMENTE o nome.\n";
+        $prompt .= "Se já tiver o nome mas não o email, pergunte o email para envio de propostas.\n";
+        $prompt .= "NÃO pergunte sobre pessoa física/empresa neste momento. Isso será coletado apenas se necessário para o orçamento.\n";
+        $prompt .= "Use 'update_client_profile' para salvar nome e email assim que forem informados.\n\n";
 
         $prompt .= "ETAPA 2 — IDENTIFICAR A NECESSIDADE:\n";
-        $prompt .= "Após o cadastro, pergunte como pode ajudar (cotação de frete, rastreamento, financeiro, etc.).\n\n";
+        $prompt .= "Após saudar, pergunte como pode ajudar.\n\n";
 
-        $prompt .= "ETAPA 3 — COTAÇÃO DE FRETE (colete UM dado por vez, nesta ordem):\n";
-        $prompt .= "  3a. Cidade ou CEP de ORIGEM — assim que o cliente informar, use IMEDIATAMENTE 'lookup_address' (context=origin) para buscar e validar. Apresente o endereço encontrado e pergunte: 'Encontrei o endereço [rua], [bairro], [cidade]-[estado]. Está correto?' Se sim, peça o número/complemento/referência se for necessário para a coleta. Se não, peça mais detalhes.\n";
-        $prompt .= "  3b. Cidade ou CEP de DESTINO — mesma lógica: use 'lookup_address' (context=destination) imediatamente ao receber.\n";
-        $prompt .= "  3c. Peso total em kg\n";
-        $prompt .= "  3d. Valor da mercadoria em reais (pode ser aproximado, ou 0 se não souber)\n";
-        $prompt .= "  3e. Dimensões: pergunte se tem (comprimento x largura x altura em cm) — opcional\n";
-        $prompt .= "  3f. Serviços especiais: paletização, entrega em mercado/CD, descarga, fim de semana? — opcional\n";
-        $prompt .= "Depois de ter origem + destino + peso + valor NF, execute 'calculate_freight_quote'.\n\n";
+        $prompt .= "ETAPA 3 — COTAÇÃO DE FRETE (colete UM dado por vez):\n";
+        $prompt .= "  3a. CEP ou cidade de ORIGEM — assim que receber, chame IMEDIATAMENTE 'lookup_address' (context=origin).\n";
+        $prompt .= "      Se encontrar: apresente 'Encontrei: [resumo]. Está correto?' e aguarde confirmação. Se sim, siga.\n";
+        $prompt .= "      Se for CEP e tiver rua: pergunte o número e complemento (opcional) após confirmar.\n";
+        $prompt .= "  3b. CEP ou cidade de DESTINO — mesma lógica, chame 'lookup_address' (context=destination).\n";
+        $prompt .= "  3c. Peso total em kg.\n";
+        $prompt .= "  3d. Valor da mercadoria em reais (pode ser 0 se não souber).\n";
+        $prompt .= "  3e. Se não souber o tipo de cliente: pergunte se é pessoa física ou empresa. Use 'update_client_profile' para salvar.\n";
+        $prompt .= "  3f. Dimensões do volume (opcional): comprimento x largura x altura em cm.\n";
+        $prompt .= "  3g. Serviços especiais: paletização, entrega em mercado/CD, descarga, fim de semana? (opcional)\n";
+        $prompt .= "Execute 'calculate_freight_quote' somente após ter: origem + destino + peso + valor NF.\n\n";
 
-        $prompt .= "ETAPA 4 — APRESENTAR O RESULTADO:\n";
-        $prompt .= "Informe APENAS o valor total do frete, de forma simples e direta.\n";
-        $prompt .= "Exemplo: 'O frete de [origem] para [destino] ficou R\$ [valor]. Deseja formalizar a proposta?'\n";
-        $prompt .= "NÃO liste Ad Valorem, GRIS, pedágio, frete peso ou qualquer outro item do breakdown. Apenas o total.\n\n";
+        $prompt .= "ETAPA 4 — RESULTADO:\n";
+        $prompt .= "Informe SOMENTE o valor total: 'O frete de [origem] para [destino] ficou R\$ [valor]. Deseja formalizar?'\n";
+        $prompt .= "NÃO liste GRIS, Ad Valorem, pedágio ou qualquer outro item. Apenas o total.\n\n";
 
-        $prompt .= "OUTRAS CAPACIDADES (use quando o cliente pedir):\n";
-        $prompt .= "- Rastreamento de cargas: use 'get_shipments_status'\n";
-        $prompt .= "- Faturas em aberto: use 'get_open_invoices'\n";
-        $prompt .= "- Lançar despesas de rota/CT-e: use 'add_route_expense' ou 'add_cte_expense'\n";
+        $prompt .= "OUTRAS CAPACIDADES:\n";
+        $prompt .= "- Rastreamento: use 'get_shipments_status'\n";
+        $prompt .= "- Faturas: use 'get_open_invoices'\n";
+        $prompt .= "- Despesas de rota: use 'add_route_expense' ou 'add_cte_expense'\n";
         $prompt .= "- Transferir para humano: use 'request_human_transfer' se cliente pedir desconto ou reclamar\n\n";
 
-        $prompt .= "REGRAS ADICIONAIS:\n";
-        $prompt .= "- Nunca mencione erros técnicos. Diga apenas que está verificando.\n";
+        $prompt .= "REGRAS FINAIS:\n";
         $prompt .= "- Não repita perguntas já respondidas.\n";
-        $prompt .= "- Mantenha as mensagens curtas — máximo 3 linhas por resposta.";
+        $prompt .= "- Mensagens curtas — máximo 3 linhas.\n";
+        $prompt .= "- Nunca mencione erros técnicos.";
 
         return $prompt;
     }
