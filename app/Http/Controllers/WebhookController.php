@@ -88,15 +88,21 @@ class WebhookController extends Controller
                 return response()->json(['status' => 'ignored', 'reason' => 'unknown_token'], 202);
             }
 
-            $eventType = $data['event'] ?? $data['type'] ?? 'none';
+            // Determine event type correctly (handling array structures from WuzAPI)
+            $eventType = 'none';
+            if (isset($data['event']) && is_array($data['event']) && isset($data['event']['type'])) {
+                $eventType = $data['event']['type'];
+            } elseif (isset($data['event']) && is_string($data['event'])) {
+                $eventType = $data['event'];
+            } elseif (isset($data['type']) && is_string($data['type'])) {
+                $eventType = $data['type'];
+            }
+
             Log::info('WhatsApp webhook recebido', [
                 'integration_id' => $integration->id,
                 'event' => $eventType,
                 'has_jsonData' => isset($data['jsonData']),
             ]);
-
-            // Handle different event types
-            $eventType = $data['event'] ?? $data['type'] ?? '';
             
             switch ($eventType) {
                 case 'Message':
@@ -166,15 +172,57 @@ class WebhookController extends Controller
      */
     protected function handleMessage(array $data, WhatsAppIntegration $integration): void
     {
-        $messageData = $data['data'] ?? [];
+        // Extract from WuzAPI's actual format
+        $eventInfo = data_get($data, 'event.Info', []);
+        $eventMessage = data_get($data, 'event.Message', []);
+
+        // Ignore messages from ourselves or if there's no message content
+        if (empty($eventInfo) || data_get($eventInfo, 'IsFromMe') === true) {
+            return;
+        }
+
+        // Check if message is a system or protocol message (like HistorySync)
+        if (data_get($eventMessage, 'protocolMessage') !== null) {
+            return;
+        }
+
+        $sender = data_get($eventInfo, 'Sender', '');
+        if (empty($sender)) {
+            return;
+        }
+
+        // Remove device part if present (e.g., 551199999999:7@s.whatsapp.net -> 551199999999@s.whatsapp.net)
+        // WuzAPI rejects messages sent to JIDs containing device parts
+        if (str_contains($sender, ':')) {
+            $parts = explode('@', $sender);
+            $numberPart = explode(':', $parts[0])[0];
+            $domainPart = $parts[1] ?? 's.whatsapp.net';
+            $sender = $numberPart . '@' . $domainPart;
+        }
+
+        // Extract message content. Can be text, extended text, etc.
+        $messageText = data_get($eventMessage, 'conversation') 
+            ?? data_get($eventMessage, 'extendedTextMessage.text') 
+            ?? data_get($eventMessage, 'imageMessage.caption') 
+            ?? '';
+
+        $messageType = data_get($eventInfo, 'Type', 'unknown');
+
+        // Construct messageData in the format WhatsAppAiService expects
+        $messageData = [
+            'from' => $sender, // Keep as JID for sending replies
+            'phone' => preg_replace('/[^0-9]/', '', explode('@', $sender)[0] ?? ''),
+            'message' => $messageText,
+            'type' => $messageType,
+        ];
         
-        if (empty($messageData)) {
+        if (empty($messageText)) {
             return;
         }
 
         // Check if message is a delivery confirmation response
-        $message = $messageData['message'] ?? '';
-        $phone = $messageData['from'] ?? '';
+        $message = $messageData['message'];
+        $phone = $messageData['phone'];
         
         // Simple pattern matching for confirmation responses
         $confirmedPatterns = ['confirmado', 'confirmar', 'recebi', 'recebido', 'ok', 'sim', 'yes'];

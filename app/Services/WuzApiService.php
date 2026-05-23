@@ -20,7 +20,7 @@ class WuzApiService
     /**
      * Create a new WhatsApp user session
      */
-    public function createUser(string $name, string $token, ?string $webhook = null, array $events = ['Message', 'ReadReceipt', 'Presence']): array
+    public function createUser(string $name, string $token, ?string $webhook = null, array $events = ['Message', 'ReadReceipt', 'Presence', 'Connected', 'Disconnected']): array
     {
         try {
             if (!$this->adminToken) {
@@ -90,7 +90,7 @@ class WuzApiService
     /**
      * Ensure WhatsApp session is connected and QR is generated.
      */
-    public function connectSession(string $userToken, array $events = ['All'], bool $immediate = true): array
+    public function connectSession(string $userToken, array $events = ['Message', 'Connected', 'Disconnected', 'ReadReceipt'], bool $immediate = true): array
     {
         try {
             $payload = [
@@ -293,13 +293,14 @@ class WuzApiService
     /**
      * Set webhook for receiving messages
      */
-    public function setWebhook(string $userToken, string $webhookUrl, array $events = ['Message', 'ReadReceipt', 'Presence']): array
+    public function setWebhook(string $userToken, string $webhookUrl, array $events = ['Message', 'ReadReceipt', 'Presence', 'Connected', 'Disconnected']): array
     {
         try {
             $response = Http::withHeaders($this->userHeaders($userToken, [
                 'Content-Type' => 'application/json',
             ]))->post("{$this->baseUrl}/webhook", [
-                'webhook' => $webhookUrl,
+                'webhookurl' => $webhookUrl,
+                'webhook' => $webhookUrl, // Keep both just in case
                 'events' => $events,
             ]);
 

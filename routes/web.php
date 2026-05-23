@@ -56,13 +56,12 @@ Route::middleware(['auth', App\Http\Middleware\CheckMapsApiQuota::class])->prefi
 });
 
 // ✨ WhatsApp Integrations - Real-Time QR Code
-Route::middleware('auth')->prefix('whatsapp/integrations')->group(function () {
-    Route::post('{integration}/connect', [WhatsAppIntegrationController::class, 'connect'])->name('whatsapp.connect');
-    Route::get('{integration}/check-status', [WhatsAppIntegrationController::class, 'checkStatus'])->name('whatsapp.check-status');
+Route::middleware(['web'])->group(function () {
+    Route::post('/whatsapp/integrations/{whatsappIntegration}/connect', [WhatsAppIntegrationController::class, 'connect'])->name('whatsapp.connect');
+    Route::get('/whatsapp/integrations/{whatsappIntegration}/check-status', [WhatsAppIntegrationController::class, 'checkStatus'])->name('whatsapp.check-status');
 });
 
-// Rotas protegidas
-Route::middleware('auth')->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/smart-dispatch-test', function () {
         return view('smart-dispatch-test');
     })->name('smart-dispatch-test');

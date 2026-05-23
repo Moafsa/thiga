@@ -86,23 +86,17 @@ class WhatsAppIntegrationController extends Controller
     public function connect(Request $request, WhatsAppIntegration $whatsappIntegration): JsonResponse
     {
         try {
-            // 1️⃣ Inicia sessão no WuzAPI se ainda não foi
-            if (!$whatsappIntegration->session_name) {
-                $sessionName = "tenant-{$whatsappIntegration->tenant_id}-integration-{$whatsappIntegration->id}";
+            // 1️⃣ Garante que a sessão está iniciada no WuzAPI
+            $success = $this->integrationManager->startSessionInWuzapi(
+                $whatsappIntegration,
+                "" // sessionName não é mais usado
+            );
 
-                $success = $this->integrationManager->startSessionInWuzapi(
-                    $whatsappIntegration,
-                    $sessionName
-                );
-
-                if (!$success) {
-                    return response()->json([
-                        'error' => 'Não foi possível iniciar sessão no WuzAPI',
-                        'status' => 'error',
-                    ], 500);
-                }
-
-                $whatsappIntegration->update(['session_name' => $sessionName]);
+            if (!$success) {
+                return response()->json([
+                    'error' => 'Não foi possível iniciar sessão no WuzAPI',
+                    'status' => 'error',
+                ], 500);
             }
 
             // 2️⃣ Fetcha QR Code
@@ -179,6 +173,21 @@ class WhatsAppIntegrationController extends Controller
         $this->authorizeIntegration($whatsappIntegration);
 
         try {
+            // Force webhook and connectSession to ensure correct events are subscribed
+            try {
+                $wuzApiService = app(\App\Services\WuzApiService::class);
+                $wuzApiService->setWebhook(
+                    $whatsappIntegration->getUserToken(),
+                    $whatsappIntegration->webhook_url ?? config('services.wuzapi.webhook_url') ?: url('/api/webhooks/whatsapp')
+                );
+                $wuzApiService->connectSession(
+                    $whatsappIntegration->getUserToken(),
+                    ['Message', 'Connected', 'Disconnected', 'ReadReceipt']
+                );
+            } catch (\Exception $e) {
+                Log::warning('Failed to force webhook/connect during sync', ['error' => $e->getMessage()]);
+            }
+
             $this->integrationManager->syncSession($whatsappIntegration);
 
             return redirect()
@@ -326,8 +335,9 @@ class WhatsAppIntegrationController extends Controller
             }
 
             return response()->json([
-                'status' => $whatsappIntegration->status,
+                'status' => $actuallyConnected ? 'connected' : $whatsappIntegration->status,
                 'connected' => $actuallyConnected, // Use actual connection state, not database status
+                'is_connected' => $actuallyConnected, // Required by frontend check
                 'isLoggedIn' => $isLoggedIn,
                 'isConnected' => $isConnected,
                 'last_synced_at' => $whatsappIntegration->last_synced_at?->toIso8601String(),

@@ -28,6 +28,7 @@ class Tenant extends Model
         'email_config',
         'send_proposal_by_email',
         'send_proposal_by_whatsapp',
+        'metadata',
     ];
 
     protected $hidden = [
@@ -40,6 +41,7 @@ class Tenant extends Model
         'email_config' => 'array',
         'send_proposal_by_email' => 'boolean',
         'send_proposal_by_whatsapp' => 'boolean',
+        'metadata' => 'array',
     ];
 
     /**

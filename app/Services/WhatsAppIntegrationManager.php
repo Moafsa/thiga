@@ -78,22 +78,20 @@ class WhatsAppIntegrationManager
             $webhookAlreadySet = false;
         }
 
-        // Only set webhook if user already existed (wasn't just created)
-        if (!$webhookAlreadySet) {
-            try {
-                $this->wuzApiService->setWebhook($token, $webhookUrl);
-                Log::info('WuzAPI webhook set successfully', [
-                    'integration_id' => $integration->id,
-                    'webhook_url' => $webhookUrl,
-                ]);
-            } catch (Exception $e) {
-                // Log warning but don't fail the entire integration creation
-                Log::warning('WuzAPI set webhook warning (non-critical)', [
-                    'integration_id' => $integration->id,
-                    'error' => $e->getMessage(),
-                ]);
-                // Continue anyway - webhook might be set later or user might not be ready yet
-            }
+        // Always set webhook to ensure events are properly subscribed
+        try {
+            $this->wuzApiService->setWebhook($token, $webhookUrl);
+            Log::info('WuzAPI webhook set successfully', [
+                'integration_id' => $integration->id,
+                'webhook_url' => $webhookUrl,
+            ]);
+        } catch (Exception $e) {
+            // Log warning but don't fail the entire integration creation
+            Log::warning('WuzAPI set webhook warning (non-critical)', [
+                'integration_id' => $integration->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continue anyway - webhook might be set later or user might not be ready yet
         }
 
         // Wait a bit for WuzAPI to process the user creation
@@ -467,93 +465,13 @@ class WhatsAppIntegrationManager
             ]);
         }
 
-        // If already logged in, logout first to allow new QR code generation
+        // If already logged in, we shouldn't log out. The frontend will catch this exception and stop polling.
         if ($isLoggedIn) {
-            Log::info('WhatsApp session is logged in, performing logout to generate new QR code', [
+            Log::info('WhatsApp session is already logged in during QR code fetch, aborting to prevent disconnection', [
                 'integration_id' => $integration->id,
             ]);
             
-            try {
-                // First disconnect if connected
-                if ($isConnected) {
-                    try {
-                        $this->wuzApiService->disconnect($token);
-                        sleep(1);
-                    } catch (Exception $disconnectException) {
-                        Log::debug('Disconnect before logout failed, continuing', [
-                            'integration_id' => $integration->id,
-                            'error' => $disconnectException->getMessage(),
-                        ]);
-                    }
-                }
-                
-                // Now logout
-                $this->wuzApiService->logout($token);
-                
-                // Wait for logout to complete and client to be removed from memory
-                // The WuzAPI kills the client in a goroutine, so we need to wait
-                sleep(3);
-                
-                // Verify logout was successful by checking status multiple times
-                $maxVerificationAttempts = 5;
-                $stillLoggedIn = true;
-                
-                for ($verifyAttempt = 0; $verifyAttempt < $maxVerificationAttempts; $verifyAttempt++) {
-                    try {
-                        $statusAfterLogout = $this->wuzApiService->getSessionStatus($token);
-                        $stillLoggedIn = !empty(data_get($statusAfterLogout, 'data.jid', ''));
-                        
-                        if (!$stillLoggedIn) {
-                            Log::info('Logout verified successfully', [
-                                'integration_id' => $integration->id,
-                                'attempt' => $verifyAttempt + 1,
-                            ]);
-                            break;
-                        }
-                        
-                        Log::debug('Still logged in after logout, waiting more', [
-                            'integration_id' => $integration->id,
-                            'attempt' => $verifyAttempt + 1,
-                        ]);
-                        sleep(1);
-                    } catch (Exception $statusException) {
-                        // Status check failed - might mean session was cleared or client removed
-                        Log::debug('Status check after logout failed, assuming logout successful', [
-                            'integration_id' => $integration->id,
-                            'attempt' => $verifyAttempt + 1,
-                            'error' => $statusException->getMessage(),
-                        ]);
-                        $stillLoggedIn = false;
-                        break;
-                    }
-                }
-                
-                if ($stillLoggedIn) {
-                    Log::warning('Session still appears logged in after logout attempts', [
-                        'integration_id' => $integration->id,
-                    ]);
-                    // Throw exception to force user to manually disconnect
-                    throw new Exception('Não foi possível desconectar a sessão automaticamente. Por favor, clique no botão "Desconectar" primeiro e tente novamente.');
-                }
-                
-                // Update integration status
-                $integration->status = WhatsAppIntegration::STATUS_PENDING;
-                $integration->disconnected_at = now();
-                $integration->connected_at = null;
-                $integration->save();
-                
-                Log::info('Logout completed, proceeding with QR code generation', [
-                    'integration_id' => $integration->id,
-                ]);
-            } catch (Exception $logoutException) {
-                // If logout fails, throw exception with clear message
-                Log::error('Failed to logout before generating QR code', [
-                    'integration_id' => $integration->id,
-                    'error' => $logoutException->getMessage(),
-                ]);
-                
-                throw new Exception('WhatsApp já está conectado. Por favor, clique no botão "Desconectar" primeiro e depois tente gerar o QR Code novamente.');
-            }
+            throw new Exception('WhatsApp já está conectado. Por favor, feche este modal ou atualize a página.');
         }
 
         // If not connected, connect first
@@ -848,38 +766,23 @@ class WhatsAppIntegrationManager
     {
         $state = $this->extractSessionState($payload);
         
-        // Se existe um JID pareado, consideramos conectado
-        if ($this->isWhatsAppJid($state['jid'])) {
-            return WhatsAppIntegration::STATUS_CONNECTED;
-        }
+        $isLoggedIn = $state['logged_in'] || 
+            (str_contains($state['raw_state'], 'connected') && !str_contains($state['raw_state'], 'disconnected'));
+            
+        $isConnecting = $state['connected'] || !empty($state['qrcode']) || 
+            str_contains($state['raw_state'], 'qr') ||
+            str_contains($state['raw_state'], 'connecting') ||
+            str_contains($state['raw_state'], 'starting');
 
-        // Se está explicitly logged in and connected
-        if ($state['logged_in'] && $state['connected']) {
+        if ($this->isWhatsAppJid($state['jid']) || $isLoggedIn) {
             return WhatsAppIntegration::STATUS_CONNECTED;
         }
         
-        // Se tem QR code na resposta ou state pending
-        if (!empty($state['qrcode']) || 
-            str_contains($state['raw_state'], 'qr') ||
-            str_contains($state['raw_state'], 'pending') ||
-            str_contains($state['raw_state'], 'connecting') ||
-            str_contains($state['raw_state'], 'loading')) {
+        if ($isConnecting) {
             return WhatsAppIntegration::STATUS_PENDING;
         }
 
-        // Se state explicitamente diz connected/open
-        if (str_contains($state['raw_state'], 'connected') || str_contains($state['raw_state'], 'open') || str_contains($state['raw_state'], 'loggedin')) {
-            return WhatsAppIntegration::STATUS_PENDING; // Could be connected but not fully logged in
-        }
-        
-        if (str_contains($state['raw_state'], 'disconnected') || 
-            str_contains($state['raw_state'], 'close') || 
-            str_contains($state['raw_state'], 'loggedout')) {
-            return WhatsAppIntegration::STATUS_DISCONNECTED;
-        }
-        
-        // Padrão
-        return WhatsAppIntegration::STATUS_PENDING;
+        return WhatsAppIntegration::STATUS_DISCONNECTED;
     }
 
     /**
@@ -896,27 +799,41 @@ class WhatsAppIntegrationManager
     public function startSessionInWuzapi(WhatsAppIntegration $integration, string $sessionName): bool
     {
         try {
-            $baseUrl = config('app.url');
-
-            // Se em Docker, usar host.docker.internal
-            if (str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '127.0.0.1')) {
-                $port = parse_url($baseUrl, PHP_URL_PORT) ?? 80;
-                $webhookUrl = "http://host.docker.internal:{$port}/api/webhooks/whatsapp";
-            } else {
-                $webhookUrl = $baseUrl . '/api/webhooks/whatsapp';
+            $token = $integration->getUserToken();
+            if (!$token) {
+                Log::debug('startSessionInWuzapi failed: token is null', ['integration_id' => $integration->id]);
+                return false;
             }
 
-            // Usar WuzApiService::createUser() para criar sessão
-            $result = $this->wuzApiService->createUser(
-                $sessionName,
-                $sessionName, // token = sessionName
-                $webhookUrl,
-                ['Message', 'Connected', 'Disconnected', 'ReadReceipt']
-            );
+            // Iniciar conexão com o WhatsApp
+            try {
+                $result = $this->wuzApiService->connectSession(
+                    $token,
+                    ['Message', 'Connected', 'Disconnected', 'ReadReceipt']
+                );
+            } catch (Exception $e) {
+                // Se retornar 401 Unauthorized, significa que o usuário não existe no WuzAPI.
+                // Vamos tentar provisionar novamente.
+                if (str_contains($e->getMessage(), '401') || str_contains(strtolower($e->getMessage()), 'unauthorized')) {
+                    Log::warning('WuzAPI user not found (401), reprovisioning', [
+                        'integration_id' => $integration->id
+                    ]);
+                    $this->provisionIntegration($integration, $token);
+                    
+                    // Tentar conectar novamente
+                    $result = $this->wuzApiService->connectSession(
+                        $token,
+                        ['Message', 'Connected', 'Disconnected', 'ReadReceipt']
+                    );
+                } else {
+                    throw $e;
+                }
+            }
 
             if (!($result['success'] ?? false)) {
-                Log::warning('WuzAPI session creation failed', [
+                Log::warning('WuzAPI session connection failed', [
                     'error' => $result['error'] ?? 'Unknown error',
+                    'result' => $result
                 ]);
                 return false;
             }
@@ -926,6 +843,7 @@ class WhatsAppIntegrationManager
         } catch (Exception $e) {
             Log::error('Error starting WuzAPI session', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
@@ -937,28 +855,15 @@ class WhatsAppIntegrationManager
     public function getStatus(WhatsAppIntegration $integration): string
     {
         try {
-            if (!$integration->session_name) {
+            $token = $integration->getUserToken();
+            if (!$token) {
                 return 'DISCONNECTED';
             }
 
-            $response = $this->wuzApiService->getSessionStatus($integration->session_name);
+            $response = $this->wuzApiService->getSessionStatus($token);
 
-            // Extrair dados da resposta
-            $data = $response['data'] ?? [];
-            $isConnected = $data['Connected'] ?? false;
-            $isLoggedIn = $data['LoggedIn'] ?? false;
-
-            // Se está conectado ou logado, retorna CONNECTED
-            if ($isConnected || $isLoggedIn) {
-                return 'CONNECTED';
-            }
-
-            // Se não está conectado, verifica se há QR code
-            if (!empty($data['QRCode'])) {
-                return 'QRCODE';
-            }
-
-            return 'DISCONNECTED';
+            // Match Conextbot logic exactly
+            return $this->determineStatus($response);
 
         } catch (Exception $e) {
             Log::warning('Error checking WuzAPI status', [

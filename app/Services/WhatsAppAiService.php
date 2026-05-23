@@ -7,6 +7,7 @@ use App\Models\Proposal;
 use App\Models\Shipment;
 use App\Models\Tenant;
 use App\Models\WhatsAppIntegration;
+use App\Models\WhatsAppConversationContext;
 use App\Models\CrmDeal;
 use App\Models\CrmInteraction;
 use Illuminate\Support\Carbon;
@@ -17,7 +18,10 @@ use Exception;
 class WhatsAppAiService
 {
     protected WuzApiService $wuzApiService;
-    protected string $model = 'gpt-4-turbo'; // Upgrade to GPT-4 Turbo for reliable function calling
+    protected string $model = 'gpt-4o'; // GPT-4o: best for function calling + context
+
+    // Session timeout: clear context after 4 hours of inactivity
+    protected int $sessionTimeoutMinutes = 240;
 
     public function __construct(WuzApiService $wuzApiService)
     {
@@ -44,18 +48,22 @@ class WhatsAppAiService
                 return;
             }
 
-            // Get client context if exists
+            // Find or create client
             $client = $this->findClientByPhone($phone, $integration->tenant_id);
 
-            // If no client exists, create an incomplete Lead Client
             if (!$client) {
-                $defaultUser = \App\Models\User::where('tenant_id', $integration->tenant_id)->role(['Admin Tenant', 'Comercial'])->first();
+                $defaultUser = \App\Models\User::where('tenant_id', $integration->tenant_id)
+                    ->whereHas('roles', function ($q) {
+                        $q->whereIn('name', ['Admin Tenant', 'Comercial']);
+                    })->first();
                 $client = \App\Models\Client::create([
                     'tenant_id' => $integration->tenant_id,
-                    'name' => 'Lead WhatsApp - ' . $phone,
-                    'phone' => $phone,
-                    'is_active' => false, // Will be set to true when confirmed by human
-                    'salesperson_id' => $defaultUser && current($defaultUser->salespeople) ? $defaultUser->salespeople->first()->id : null
+                    'name'      => 'Lead WhatsApp - ' . $phone,
+                    'phone'     => $phone,
+                    'is_active' => false,
+                    'salesperson_id' => $defaultUser && $defaultUser->salespeople->isNotEmpty()
+                        ? $defaultUser->salespeople->first()->id
+                        : null,
                 ]);
             }
 
@@ -63,51 +71,61 @@ class WhatsAppAiService
             $deal = $this->getOrCreateCrmDeal($client, $phone, $integration->tenant_id);
             if ($deal) {
                 CrmInteraction::create([
-                    'tenant_id' => $integration->tenant_id,
+                    'tenant_id'   => $integration->tenant_id,
                     'crm_deal_id' => $deal->id,
-                    'type' => 'whatsapp',
-                    'content' => $message,
+                    'type'        => 'whatsapp',
+                    'content'     => $message,
                     'sender_type' => 'client',
                 ]);
             }
 
-            // Get AI response (using Function Calling)
+            // Get AI response (with persistent context)
             $aiResponse = $this->generateAiResponseWithTools($message, $phone, $integration, $client, $deal);
 
             if ($aiResponse && ($token = $integration->getUserToken())) {
                 $this->wuzApiService->sendTextMessage($token, $phone, $aiResponse);
-                
-                // Log AI response in CRM
+
                 if ($deal) {
                     CrmInteraction::create([
-                        'tenant_id' => $integration->tenant_id,
+                        'tenant_id'   => $integration->tenant_id,
                         'crm_deal_id' => $deal->id,
-                        'type' => 'whatsapp',
-                        'content' => $aiResponse,
+                        'type'        => 'whatsapp',
+                        'content'     => $aiResponse,
                         'sender_type' => 'ai',
                     ]);
                 }
             }
         } catch (Exception $e) {
-            Log::error('WhatsApp AI processing error: ' . $e->getMessage());
+            Log::error('WhatsApp AI processing error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
     /**
-     * Finds client by phone
+     * Finds client by phone.
+     * Handles WuzAPI LID variants: '8766162493551@lid' and '8766162493551:7@lid'
+     * by extracting the numeric root and doing a LIKE match.
      */
     protected function findClientByPhone(string $phone, int $tenantId): ?Client
     {
         $normalizedPhone = $this->normalizePhone($phone);
+        // Extract LID numeric root: strips ':7@lid', '@lid' etc.
+        $lidRoot = preg_replace('/[:\d]*@.*$/', '', $phone);
+
         return Client::where('tenant_id', $tenantId)
-            ->where(function ($query) use ($normalizedPhone) {
-                $query->where('phone', $normalizedPhone)
-                    ->orWhere('phone', '+' . $normalizedPhone);
+            ->where(function ($query) use ($phone, $normalizedPhone, $lidRoot) {
+                $query->where('phone', $phone)                        // exact raw match
+                    ->orWhere('phone', 'like', $lidRoot . '%')        // any LID variant of same number
+                    ->orWhere('phone', $normalizedPhone)              // digits only
+                    ->orWhere('phone', '+' . $normalizedPhone);       // with + prefix
             })->first();
     }
 
     /**
-     * Creates or gets active CRM Deal for this phone/client
+     * Creates or gets active CRM Deal for this phone/client.
+     * Deduplication: always search by raw phone string in custom_data first,
+     * then by client_id — prevents duplicate deals per conversation.
      */
     protected function getOrCreateCrmDeal(?Client $client, string $phone, int $tenantId): ?CrmDeal
     {
@@ -117,30 +135,50 @@ class WhatsAppAiService
         $firstStage = $pipeline->stages()->orderBy('order_index')->first();
         if (!$firstStage) return null;
 
-        $query = CrmDeal::where('tenant_id', $tenantId)
-            ->where('status', 'open');
+        // LID root to match both '8766162493551@lid' and '8766162493551:7@lid'
+        $lidRoot = preg_replace('/[:\d]*@.*$/', '', $phone);
 
-        if ($client) {
-            $query->where('client_id', $client->id);
-        } else {
-            // For unknown leads, try finding by title/custom data with phone
-            $query->whereJsonContains('custom_data->phone', $phone);
+        // Search by phone variants in custom_data (most reliable deduplication)
+        $deal = CrmDeal::where('tenant_id', $tenantId)
+            ->where('status', 'open')
+            ->where(function ($q) use ($phone, $lidRoot) {
+                $q->whereJsonContains('custom_data->phone', $phone)          // exact match
+                    ->orWhereRaw("custom_data->>'phone' LIKE ?", [$lidRoot . '%']); // LID root match
+            })
+            ->first();
+
+        // Fallback: search by client_id
+        if (!$deal && $client) {
+            $deal = CrmDeal::where('tenant_id', $tenantId)
+                ->where('status', 'open')
+                ->where('client_id', $client->id)
+                ->first();
+
+            // Sync phone into custom_data if missing
+            if ($deal && empty($deal->custom_data['phone'])) {
+                $deal->update(['custom_data' => array_merge($deal->custom_data ?? [], ['phone' => $phone])]);
+            }
         }
 
-        $deal = $query->first();
-
         if (!$deal) {
-            // Pick a default user/salesperson to assign to the deal (e.g. the first admin or commercial user)
-            $defaultUser = \App\Models\User::where('tenant_id', $tenantId)->role(['Admin Tenant', 'Comercial'])->first();
+            $defaultUser = \App\Models\User::where('tenant_id', $tenantId)
+                ->whereHas('roles', function ($q) {
+                    $q->whereIn('name', ['Admin Tenant', 'Comercial']);
+                })->first();
 
+            $clientName = $client ? $client->name : 'Novo Lead';
             $deal = CrmDeal::create([
-                'tenant_id' => $tenantId,
-                'client_id' => $client ? $client->id : null,
-                'user_id' => $defaultUser ? $defaultUser->id : null,
-                'crm_stage_id' => $firstStage->id,
-                'title' => $client ? "Negociação - " . $client->name : "Novo Lead - " . $phone,
+                'tenant_id'       => $tenantId,
+                'client_id'       => $client ? $client->id : null,
+                'user_id'         => $defaultUser ? $defaultUser->id : null,
+                'crm_stage_id'    => $firstStage->id,
+                'title'           => "WhatsApp: {$clientName}",
                 'contact_channel' => 'whatsapp',
-                'custom_data' => ['phone' => $phone]
+                'custom_data'     => [
+                    'phone'          => $phone,
+                    'source'         => 'whatsapp_ai',
+                    'first_contact'  => now()->toDateTimeString(),
+                ],
             ]);
         }
 
@@ -148,313 +186,433 @@ class WhatsAppAiService
     }
 
     /**
-     * Generate AI response using OpenAI Function Calling
+     * Generate AI response using OpenAI Function Calling + persistent context
      */
-    protected function generateAiResponseWithTools(string $userMessage, string $phone, WhatsAppIntegration $integration, ?Client $client, ?CrmDeal $deal): ?string
-    {
+    protected function generateAiResponseWithTools(
+        string $userMessage,
+        string $phone,
+        WhatsAppIntegration $integration,
+        ?Client $client,
+        ?CrmDeal $deal
+    ): ?string {
         try {
             $apiKey = $integration->tenant->resolveOpenAiApiKey();
             if (empty($apiKey)) {
-                Log::warning('OpenAI API key not configured for tenant', ['tenant_id' => $integration->tenant_id]);
+                Log::warning('OpenAI API key not configured', ['tenant_id' => $integration->tenant_id]);
                 return "A inteligência artificial não está configurada no momento.";
             }
 
-            $messages = [
-                ['role' => 'system', 'content' => $this->buildSystemPrompt($client, $deal)],
-                ['role' => 'user', 'content' => $userMessage]
-            ];
+            // Normalize phone to consistent LID root for context key
+            // e.g. "8766162493551:7@lid" -> "8766162493551@lid" (same as plain LID)
+            $contextPhone = preg_replace('/:(\d+)(@.*)$/', '$2', $phone);
+            $contextPhone = ltrim($contextPhone, '@') === $contextPhone ? $contextPhone : $phone;
+
+            // Load or create conversation context
+            $context = WhatsAppConversationContext::getOrNew($integration->tenant_id, $contextPhone);
+
+            // Reset session only if there IS a last_activity_at AND it's older than timeout
+            // (null means brand new context — don't clear it)
+            if (
+                $context->last_activity_at !== null &&
+                $context->last_activity_at->diffInMinutes(now()) > $this->sessionTimeoutMinutes
+            ) {
+                $context->messages = [];
+            }
+
+            // Build system prompt (always fresh, not stored in history)
+            $systemPrompt = $this->buildSystemPrompt($client, $deal);
+
+            // Build messages array: system + history + new user message
+            $messages = array_merge(
+                [['role' => 'system', 'content' => $systemPrompt]],
+                $context->messages ?? [],
+                [['role' => 'user', 'content' => $userMessage]]
+            );
 
             $tools = $this->getAvailableTools();
 
-            $response = Http::withHeaders([
+            $response = Http::timeout(45)->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
-                'Content-Type' => 'application/json',
+                'Content-Type'  => 'application/json',
             ])->post('https://api.openai.com/v1/chat/completions', [
-                'model' => $this->model,
-                'messages' => $messages,
-                'tools' => $tools,
+                'model'       => $this->model,
+                'messages'    => $messages,
+                'tools'       => $tools,
                 'tool_choice' => 'auto',
-                'temperature' => 0.5,
+                'temperature' => 0.4,
+                'max_tokens'  => 1024,
             ]);
 
             if (!$response->successful()) {
                 Log::error('OpenAI Error: ' . $response->body());
-                return "Desculpe, estou com instabilidade no momento.";
+                return "Desculpe, estou com instabilidade no momento. Tente novamente em instantes.";
             }
 
             $responseData = $response->json();
-            $choice = $responseData['choices'][0];
+            $choice       = $responseData['choices'][0];
+            $assistantMsg = $choice['message'];
 
-            // If AI decides to call a function
+            // Append user message and assistant response (with tool calls) to history
+            $context->addMessage(['role' => 'user', 'content' => $userMessage]);
+            $context->addMessage($assistantMsg);
+
+            // Handle tool calls
             if ($choice['finish_reason'] === 'tool_calls') {
-                $toolCalls = $choice['message']['tool_calls'];
-                $messages[] = $choice['message']; // Append assistant message with tool calls
+                $toolCalls   = $assistantMsg['tool_calls'];
+                $toolMessages = [];
 
                 foreach ($toolCalls as $toolCall) {
                     $functionName = $toolCall['function']['name'];
-                    $functionArgs = json_decode($toolCall['function']['arguments'], true);
+                    $functionArgs = json_decode($toolCall['function']['arguments'], true) ?? [];
 
-                    // Execute PHP function
-                    $functionResult = $this->executeTool($functionName, $functionArgs, $integration, $client, $deal, $phone);
+                    $functionResult = $this->executeTool(
+                        $functionName,
+                        $functionArgs,
+                        $integration,
+                        $client,
+                        $deal,
+                        $phone
+                    );
 
-                    // Append tool result to context
-                    $messages[] = [
+                    $toolMsg = [
                         'tool_call_id' => $toolCall['id'],
-                        'role' => 'tool',
-                        'name' => $functionName,
-                        'content' => json_encode($functionResult),
+                        'role'         => 'tool',
+                        'name'         => $functionName,
+                        'content'      => json_encode($functionResult),
                     ];
+
+                    $toolMessages[]    = $toolMsg;
+                    $context->addMessage($toolMsg);
                 }
 
-                // Second call to get final text response
-                $secondResponse = Http::withHeaders([
+                // Second call with full context including tool results
+                $messagesWithTools = array_merge($messages, [$assistantMsg], $toolMessages);
+
+                $secondResponse = Http::timeout(45)->withHeaders([
                     'Authorization' => 'Bearer ' . $apiKey,
-                    'Content-Type' => 'application/json',
+                    'Content-Type'  => 'application/json',
                 ])->post('https://api.openai.com/v1/chat/completions', [
-                    'model' => $this->model,
-                    'messages' => $messages,
+                    'model'       => $this->model,
+                    'messages'    => $messagesWithTools,
+                    'temperature' => 0.4,
+                    'max_tokens'  => 1024,
                 ]);
 
-                return $secondResponse->json()['choices'][0]['message']['content'] ?? null;
+                $finalContent = $secondResponse->json()['choices'][0]['message']['content'] ?? null;
+
+                if ($finalContent) {
+                    $context->addMessage(['role' => 'assistant', 'content' => $finalContent]);
+                }
+
+                $context->save();
+                return $finalContent;
             }
 
-            return $choice['message']['content'] ?? null;
+            $finalContent = $assistantMsg['content'] ?? null;
+            $context->save();
+            return $finalContent;
         } catch (Exception $e) {
-            Log::error('OpenAI Tools API error: ' . $e->getMessage());
-            return "Desculpe, não consegui processar a solicitação agora.";
+            Log::error('OpenAI Tools API error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return "Desculpe, não consegui processar a solicitação agora. Tente novamente.";
         }
     }
 
     /**
-     * Define Tools for OpenAI
+     * Define Tools for OpenAI — all calculation options included
      */
     protected function getAvailableTools(): array
     {
         return [
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'get_shipments_status',
-                    'description' => 'Busca o status atual das cargas e rastreios do cliente',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'get_shipments_status',
+                    'description' => 'Busca o status atual das cargas e rastreios do cliente.',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
                             'tracking_number' => [
-                                'type' => 'string',
-                                'description' => 'Opcional. Se o cliente informar um código de rastreio, insira aqui.'
-                            ]
-                        ]
-                    ]
-                ]
+                                'type'        => 'string',
+                                'description' => 'Opcional. Código de rastreio ou número do CT-e informado pelo cliente.',
+                            ],
+                        ],
+                    ],
+                ],
             ],
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'calculate_freight_quote',
-                    'description' => 'Realiza a cotação de frete para uma origem e destino',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'calculate_freight_quote',
+                    'description' => 'Realiza a cotação de frete completa. Sempre tente coletar o máximo de informações antes de chamar. Se o cliente não souber o valor da NF, use 0. Dimensões são opcionais mas melhoram a precisão do peso cubado.',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
-                            'origin' => ['type' => 'string', 'description' => 'Cidade ou CEP de Origem'],
+                            'origin'      => ['type' => 'string', 'description' => 'Cidade ou CEP de Origem'],
                             'destination' => ['type' => 'string', 'description' => 'Cidade ou CEP de Destino'],
-                            'weight' => ['type' => 'number', 'description' => 'Peso em Kg'],
-                            'invoice_value' => ['type' => 'number', 'description' => 'Valor da mercadoria em Reais (BRL)']
+                            'weight'      => ['type' => 'number', 'description' => 'Peso real em Kg'],
+                            'invoice_value' => ['type' => 'number', 'description' => 'Valor da mercadoria (NF) em Reais. Use 0 se desconhecido.'],
+                            // Dimensões para peso cubado
+                            'length_cm'   => ['type' => 'number', 'description' => 'Comprimento da mercadoria em centímetros (opcional)'],
+                            'width_cm'    => ['type' => 'number', 'description' => 'Largura da mercadoria em centímetros (opcional)'],
+                            'height_cm'   => ['type' => 'number', 'description' => 'Altura da mercadoria em centímetros (opcional)'],
+                            'quantity'    => ['type' => 'integer', 'description' => 'Quantidade de volumes/caixas (opcional, default 1)'],
+                            // Serviços adicionais
+                            'pallets'     => ['type' => 'integer', 'description' => 'Número de pallets (se a carga for paletizada)'],
+                            'tde_markets' => ['type' => 'boolean', 'description' => 'Entrega em mercado/varejo (TDE Mercados)'],
+                            'tde_supermarkets_cd' => ['type' => 'boolean', 'description' => 'Entrega em CD de supermercado (TDE CD)'],
+                            'unloading'   => ['type' => 'boolean', 'description' => 'Requer taxa de descarga na entrega'],
+                            'is_weekend_or_holiday' => ['type' => 'boolean', 'description' => 'Coleta ou entrega em fim de semana ou feriado'],
+                            'is_redelivery' => ['type' => 'boolean', 'description' => 'É uma reentrega (tentativa anterior falhou)'],
+                            'is_return'   => ['type' => 'boolean', 'description' => 'É uma devolução ao remetente'],
                         ],
-                        'required' => ['origin', 'destination', 'weight', 'invoice_value']
-                    ]
-                ]
+                        'required'   => ['origin', 'destination', 'weight', 'invoice_value'],
+                    ],
+                ],
             ],
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'create_commercial_proposal',
-                    'description' => 'Gera uma proposta oficial se o cliente aprovar o orçamento',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'create_commercial_proposal',
+                    'description' => 'Gera uma proposta comercial oficial quando o cliente aprova o orçamento de frete.',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
-                            'origin' => ['type' => 'string'],
+                            'origin'      => ['type' => 'string'],
                             'destination' => ['type' => 'string'],
-                            'total_value' => ['type' => 'number']
+                            'total_value' => ['type' => 'number'],
                         ],
-                        'required' => ['origin', 'destination', 'total_value']
-                    ]
-                ]
+                        'required'   => ['origin', 'destination', 'total_value'],
+                    ],
+                ],
             ],
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'get_open_invoices',
-                    'description' => 'Busca faturas e boletos em aberto do cliente',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'get_open_invoices',
+                    'description' => 'Busca faturas e boletos em aberto do cliente.',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
-                            'status' => ['type' => 'string', 'enum' => ['pending', 'overdue'], 'description' => 'Tipo de fatura']
-                        ]
-                    ]
-                ]
-            ],
-            [
-                'type' => 'function',
-                'function' => [
-                    'name' => 'request_human_transfer',
-                    'description' => 'Solicita a transferência para um vendedor humano. Use quando o cliente pedir desconto ou reclamar.',
-                    'parameters' => [
-                        'type' => 'object',
-                        'properties' => [
-                            'reason' => ['type' => 'string', 'description' => 'Motivo da transferência']
+                            'status' => [
+                                'type'        => 'string',
+                                'enum'        => ['pending', 'overdue'],
+                                'description' => 'Filtrar por tipo de fatura',
+                            ],
                         ],
-                        'required' => ['reason']
-                    ]
-                ]
+                    ],
+                ],
             ],
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'add_route_expense',
-                    'description' => 'Adiciona uma despesa/custo operacional a uma rota. Use quando um operador logístico informar gastos com pedágio, combustível, chapa, etc.',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'request_human_transfer',
+                    'description' => 'Solicita transferência para atendente humano. Use quando: cliente pedir desconto, reclamar de forma insistente, ou quando você não souber responder.',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
-                            'route_id' => ['type' => 'integer', 'description' => 'O ID da rota (se não souber, pergunte ao usuário)'],
-                            'cost_type' => ['type' => 'string', 'enum' => ['combustivel', 'pedagio', 'diaria_motorista', 'chapa', 'outros'], 'description' => 'Tipo da despesa'],
-                            'amount' => ['type' => 'number', 'description' => 'O valor gasto em Reais (BRL)']
+                            'reason' => ['type' => 'string', 'description' => 'Motivo detalhado da transferência'],
                         ],
-                        'required' => ['route_id', 'cost_type', 'amount']
-                    ]
-                ]
+                        'required'   => ['reason'],
+                    ],
+                ],
             ],
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'add_cte_expense',
-                    'description' => 'Adiciona uma despesa/custo individual a um CT-e ou Carga. Use quando um operador logístico informar gastos específicos com uma nota ou carga.',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'add_route_expense',
+                    'description' => 'Adiciona despesa operacional a uma rota (pedágio, combustível, chapa, diária de motorista, etc.). Use quando operador/motorista informar gastos de viagem.',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
-                            'tracking_number' => ['type' => 'string', 'description' => 'O código de rastreio ou número do CT-e'],
-                            'cost_type' => ['type' => 'string', 'enum' => ['coleta', 'transferencia', 'redespacho', 'taxa_dificuldade', 'outros'], 'description' => 'Tipo da despesa do CTe'],
-                            'amount' => ['type' => 'number', 'description' => 'O valor gasto em Reais (BRL)']
+                            'route_id'  => ['type' => 'integer', 'description' => 'ID da rota. Se não souber, pergunte ao usuário.'],
+                            'cost_type' => [
+                                'type' => 'string',
+                                'enum' => ['combustivel', 'pedagio', 'diaria_motorista', 'chapa', 'outros'],
+                                'description' => 'Tipo da despesa',
+                            ],
+                            'amount'    => ['type' => 'number', 'description' => 'Valor em Reais (BRL)'],
                         ],
-                        'required' => ['tracking_number', 'cost_type', 'amount']
-                    ]
-                ]
+                        'required'   => ['route_id', 'cost_type', 'amount'],
+                    ],
+                ],
             ],
             [
-                'type' => 'function',
+                'type'     => 'function',
                 'function' => [
-                    'name' => 'update_client_profile',
-                    'description' => 'Atualiza o cadastro do cliente com os dados fornecidos na conversa (nome, email, cnpj).',
-                    'parameters' => [
-                        'type' => 'object',
+                    'name'        => 'add_cte_expense',
+                    'description' => 'Adiciona despesa a um CT-e ou Carga específica (coleta, redespacho, taxa de dificuldade, etc.).',
+                    'parameters'  => [
+                        'type'       => 'object',
                         'properties' => [
-                            'name' => ['type' => 'string', 'description' => 'Nome do cliente ou empresa'],
+                            'tracking_number' => ['type' => 'string', 'description' => 'Código de rastreio ou número do CT-e'],
+                            'cost_type'       => [
+                                'type' => 'string',
+                                'enum' => ['coleta', 'transferencia', 'redespacho', 'taxa_dificuldade', 'outros'],
+                                'description' => 'Tipo da despesa',
+                            ],
+                            'amount' => ['type' => 'number', 'description' => 'Valor em Reais (BRL)'],
+                        ],
+                        'required'   => ['tracking_number', 'cost_type', 'amount'],
+                    ],
+                ],
+            ],
+            [
+                'type'     => 'function',
+                'function' => [
+                    'name'        => 'update_client_profile',
+                    'description' => 'Atualiza o cadastro do cliente com dados fornecidos na conversa (nome, email, CNPJ/CPF).',
+                    'parameters'  => [
+                        'type'       => 'object',
+                        'properties' => [
+                            'name'  => ['type' => 'string', 'description' => 'Nome do cliente ou empresa'],
                             'email' => ['type' => 'string', 'description' => 'Email do cliente'],
-                            'cnpj' => ['type' => 'string', 'description' => 'CNPJ ou CPF do cliente']
-                        ]
-                    ]
-                ]
-            ]
+                            'cnpj'  => ['type' => 'string', 'description' => 'CNPJ ou CPF do cliente'],
+                        ],
+                    ],
+                ],
+            ],
         ];
     }
 
     /**
      * Executes the requested tool
      */
-    protected function executeTool(string $name, array $args, WhatsAppIntegration $integration, ?Client $client, ?CrmDeal $deal, string $phone): array
-    {
+    protected function executeTool(
+        string $name,
+        array $args,
+        WhatsAppIntegration $integration,
+        ?Client $client,
+        ?CrmDeal $deal,
+        string $phone
+    ): array {
         switch ($name) {
             case 'update_client_profile':
                 if (!$client) return ['error' => 'Cliente não encontrado no contexto.'];
-                $updateData = [];
-                if (!empty($args['name'])) $updateData['name'] = $args['name'];
-                if (!empty($args['email'])) $updateData['email'] = $args['email'];
-                if (!empty($args['cnpj'])) $updateData['cnpj'] = $args['cnpj'];
-                
+                $updateData = array_filter([
+                    'name'  => $args['name'] ?? null,
+                    'email' => $args['email'] ?? null,
+                    'cnpj'  => $args['cnpj'] ?? null,
+                ]);
                 if (!empty($updateData)) {
                     $client->update($updateData);
-                    return ['success' => true, 'message' => 'Perfil do cliente atualizado com os novos dados fornecidos.'];
+                    return ['success' => true, 'message' => 'Perfil do cliente atualizado com sucesso.'];
                 }
                 return ['success' => false, 'error' => 'Nenhum dado fornecido para atualização.'];
+
             case 'add_cte_expense':
                 $shipment = Shipment::where('tenant_id', $integration->tenant_id)
-                    ->where(function($q) use ($args) {
+                    ->where(function ($q) use ($args) {
                         $q->where('tracking_number', $args['tracking_number'])
-                          ->orWhere('cte_number', $args['tracking_number']);
+                            ->orWhere('cte_number', $args['tracking_number']);
                     })->first();
-                    
+
                 if (!$shipment) return ['error' => 'Carga/CT-e não encontrado com esse número.'];
-                
+
                 \App\Models\ShipmentExpense::create([
-                    'tenant_id' => $integration->tenant_id,
+                    'tenant_id'   => $integration->tenant_id,
                     'shipment_id' => $shipment->id,
-                    'cost_type' => $args['cost_type'],
-                    'amount' => $args['amount'],
-                    'description' => 'Adicionado via IA WhatsApp'
+                    'cost_type'   => $args['cost_type'],
+                    'amount'      => $args['amount'],
+                    'description' => 'Adicionado via IA WhatsApp',
                 ]);
                 return ['success' => true, 'message' => "Custo de R$ {$args['amount']} ({$args['cost_type']}) adicionado com sucesso ao CT-e {$args['tracking_number']}."];
 
             case 'add_route_expense':
                 $route = \App\Models\Route::where('tenant_id', $integration->tenant_id)->find($args['route_id']);
-                if (!$route) return ['error' => 'Rota não encontrada.'];
-                
+                if (!$route) return ['error' => 'Rota não encontrada. Verifique o número da rota informado.'];
+
                 \App\Models\RouteExpense::create([
-                    'tenant_id' => $integration->tenant_id,
-                    'route_id' => $route->id,
-                    'cost_type' => $args['cost_type'],
-                    'amount' => $args['amount'],
-                    'description' => 'Adicionado via IA WhatsApp',
-                    'allocation_method' => 'equal'
+                    'tenant_id'         => $integration->tenant_id,
+                    'route_id'          => $route->id,
+                    'cost_type'         => $args['cost_type'],
+                    'amount'            => $args['amount'],
+                    'description'       => 'Adicionado via IA WhatsApp',
+                    'allocation_method' => 'equal',
                 ]);
                 return ['success' => true, 'message' => "Custo de R$ {$args['amount']} ({$args['cost_type']}) adicionado com sucesso na rota {$route->id}."];
 
             case 'get_shipments_status':
                 if (isset($args['tracking_number'])) {
-                    $shipment = Shipment::where('tracking_number', $args['tracking_number'])->where('tenant_id', $integration->tenant_id)->first();
-                    return $shipment ? ['found' => true, 'status' => $shipment->status, 'delivery_date' => $shipment->delivery_date] : ['found' => false];
+                    $shipment = Shipment::where('tracking_number', $args['tracking_number'])
+                        ->where('tenant_id', $integration->tenant_id)->first();
+                    return $shipment
+                        ? ['found' => true, 'status' => $shipment->status, 'delivery_date' => $shipment->delivery_date]
+                        : ['found' => false, 'message' => 'Nenhuma carga encontrada com esse número.'];
                 }
-                
+
                 if ($client) {
-                    $shipments = $client->shipments()->whereNotIn('status', ['delivered', 'cancelled'])->get(['tracking_number', 'status', 'delivery_date']);
+                    $shipments = $client->shipments()
+                        ->whereNotIn('status', ['delivered', 'cancelled'])
+                        ->get(['tracking_number', 'status', 'delivery_date']);
                     return ['found' => $shipments->count() > 0, 'shipments' => $shipments];
                 }
 
-                return ['error' => 'Cliente não identificado e rastreio não fornecido.'];
+                return ['error' => 'Cliente não identificado e código de rastreio não fornecido.'];
 
             case 'calculate_freight_quote':
                 $freightService = app(\App\Services\FreightCalculationService::class);
                 $tenant = Tenant::find($integration->tenant_id);
+
+                // Calculate cubage from dimensions if provided
+                $cubage = 0.0;
+                if (!empty($args['length_cm']) && !empty($args['width_cm']) && !empty($args['height_cm'])) {
+                    $quantity = (int) ($args['quantity'] ?? 1);
+                    // Convert cm³ to m³
+                    $cubage = ($args['length_cm'] / 100) * ($args['width_cm'] / 100) * ($args['height_cm'] / 100) * $quantity;
+                }
+
+                // Build options array with all supported services
+                $options = [
+                    'client_id'             => $client ? $client->id : null,
+                    'tde_markets'           => !empty($args['tde_markets']),
+                    'tde_supermarkets_cd'   => !empty($args['tde_supermarkets_cd']),
+                    'pallets'               => (int) ($args['pallets'] ?? 0),
+                    'unloading'             => !empty($args['unloading']),
+                    'is_weekend_or_holiday' => !empty($args['is_weekend_or_holiday']),
+                    'is_redelivery'         => !empty($args['is_redelivery']),
+                    'is_return'             => !empty($args['is_return']),
+                ];
+
                 try {
-                    // Try using a default or client specific freight table
                     $result = $freightService->calculate(
                         $tenant,
                         $args['destination'],
-                        $args['weight'],
-                        0, // volume
-                        $args['invoice_value'],
-                        ['client_id' => $client ? $client->id : null]
+                        (float) $args['weight'],
+                        $cubage,
+                        (float) $args['invoice_value'],
+                        $options
                     );
-                    
+
                     if ($deal) {
                         $deal->update(['lead_value' => $result['total']]);
                     }
-                    return ['success' => true, 'total_value' => $result['total']];
+
+                    // Return ONLY total value — breakdown is internal, not for the customer
+                    return [
+                        'success'          => true,
+                        'total_value'      => $result['total'],
+                        'destination_zone' => $result['freight_table']['destination'] ?? $args['destination'],
+                        'minimum_applied'  => $result['breakdown']['minimum_applied'] ?? false,
+                    ];
                 } catch (Exception $e) {
-                    return ['success' => false, 'error' => 'Não encontrou tabela de frete para este destino.'];
+                    return ['success' => false, 'error' => 'Não encontrei tabela de frete para este destino. Verifique se o destino está correto ou entre em contato com nossa equipe comercial.'];
                 }
 
             case 'create_commercial_proposal':
-                // Move deal to "Cotação Enviada"
                 if ($deal) {
-                    $stage = \App\Models\CrmStage::where('tenant_id', $integration->tenant_id)->where('name', 'Cotação Enviada')->first();
+                    $stage = \App\Models\CrmStage::where('tenant_id', $integration->tenant_id)
+                        ->where('name', 'Cotação Enviada')->first();
                     if ($stage) {
                         $deal->update(['crm_stage_id' => $stage->id]);
                     }
                 }
-                return ['success' => true, 'message' => 'Proposta gerada internamente para aprovação da equipe.'];
+                return ['success' => true, 'message' => 'Proposta registrada internamente para aprovação da equipe comercial.'];
 
             case 'get_open_invoices':
                 if (!$client) {
-                    return ['error' => 'Por segurança, só posso enviar faturas para números cadastrados.'];
+                    return ['error' => 'Por segurança, só posso consultar faturas para números cadastrados no sistema.'];
                 }
                 $invoices = \App\Models\Invoice::where('client_id', $client->id)
                     ->whereIn('status', ['pending', 'overdue'])
@@ -463,10 +621,8 @@ class WhatsAppAiService
 
             case 'request_human_transfer':
                 if ($deal) {
-                    // Flag as urgent (Amarelo/Vermelho by setting next_action_date to today)
                     $deal->update(['next_action_date' => now()]);
-                    
-                    // Determine which user to notify
+
                     $userToNotify = null;
                     if ($deal->user_id) {
                         $userToNotify = \App\Models\User::find($deal->user_id);
@@ -476,67 +632,130 @@ class WhatsAppAiService
                     }
 
                     if (!$userToNotify) {
-                        $userToNotify = \App\Models\User::where('tenant_id', $integration->tenant_id)->role(['Admin Tenant', 'Comercial'])->first();
+                        $userToNotify = \App\Models\User::where('tenant_id', $integration->tenant_id)
+                            ->whereHas('roles', function ($q) {
+                                $q->whereIn('name', ['Admin Tenant', 'Comercial']);
+                            })->first();
                     }
 
-                    // Log interaction as a system alert
-                    \App\Models\CrmInteraction::create([
-                        'tenant_id' => $integration->tenant_id,
+                    CrmInteraction::create([
+                        'tenant_id'   => $integration->tenant_id,
                         'crm_deal_id' => $deal->id,
-                        'type' => 'system',
-                        'content' => "ALERTA: O cliente solicitou atendimento humano. Motivo: " . ($args['reason'] ?? 'Desconhecido') . ". Vendedor notificado: " . ($userToNotify ? $userToNotify->name : 'Nenhum'),
+                        'type'        => 'system',
+                        'content'     => "ALERTA: Cliente solicitou atendimento humano. Motivo: " . ($args['reason'] ?? 'Não informado') . ". Vendedor notificado: " . ($userToNotify ? $userToNotify->name : 'Nenhum'),
                         'sender_type' => 'system',
                     ]);
+
+                    // Clear AI context so human can take over clean
+                    $context = WhatsAppConversationContext::where('tenant_id', $integration->tenant_id)
+                        ->where('phone', $phone)->first();
+                    if ($context) $context->clearContext();
                 }
-                return ['success' => true, 'message' => 'Transferência solicitada. O humano assumirá a conversa e as notificações foram disparadas.'];
+                return ['success' => true, 'message' => 'Transferência solicitada. Um atendente humano assumirá a conversa em breve.'];
 
             default:
-                return ['error' => 'Function not recognized.'];
+                return ['error' => 'Função não reconhecida pelo sistema.'];
         }
     }
 
     /**
-     * Normalize phone number for database search
+     * Normalize phone number for database search.
+     * Strips @lid suffix (WuzAPI LID format) and non-digit characters.
      */
     protected function normalizePhone(string $phone): string
     {
+        // Strip WuzAPI LID suffix (e.g. "5511999887766@lid" → "5511999887766")
+        $phone = preg_replace('/@.*$/', '', $phone);
+        // Strip all non-digit characters
         $phone = preg_replace('/\D/', '', $phone);
-        if (strlen($phone) === 11 && substr($phone, 0, 2) === '11') {
+        // Add Brazil country code if 11-digit number starting with area code
+        if (strlen($phone) === 11) {
             $phone = '55' . $phone;
         }
         return $phone;
     }
 
     /**
-     * Build system prompt for AI
+     * Build system prompt — step-by-step conversational flow with onboarding
      */
     protected function buildSystemPrompt(?Client $client, ?CrmDeal $deal): string
     {
-        $prompt = "Você é a inteligência artificial de pré-vendas, atendimento E operações da transportadora. ";
-        $prompt .= "Sua função principal é captar leads, cotar fretes, passar status E auxiliar motoristas/operadores a lançarem despesas de rota. ";
-        $prompt .= "Seja extremamente prestativo, claro e direto. ";
-        
-        if ($client) {
-            $prompt .= "\nVocê está falando com o cliente cadastrado: {$client->name}. ";
-        } else {
-            $prompt .= "\nVocê está falando com um usuário não cadastrado no sistema comercial. Pode ser um operador ou motorista. ";
-        }
+        $isNewLead = !$client || str_starts_with($client->name ?? '', 'Lead WhatsApp');
+        $hasName   = $client && !str_starts_with($client->name, 'Lead WhatsApp');
+        $hasEmail  = $client && !empty($client->email);
 
-        $prompt .= "\nDIRETRIZES:
-1. Para cotação, você DEVE usar a ferramenta 'calculate_freight_quote' e pedir os dados que faltarem.
-2. Se o cliente pedir DESCONTO ou reclamar de preço, USE IMEDIATAMENTE a ferramenta 'request_human_transfer'.
-3. Se o cliente quiser rastrear, use 'get_shipments_status'.
-4. Se o cliente pedir boleto/fatura, use 'get_open_invoices'.
-5. Se um operador/motorista informar custos/gastos com uma viagem (ex: 'gastei 50 de pedágio na rota 10'), use a ferramenta 'add_route_expense'. Se não souber a rota ou o tipo de gasto (combustível, pedágio, etc), pergunte.";
+        $prompt  = "Você é a assistente inteligente de uma transportadora brasileira. Seja simpática, clara e profissional.\n\n";
+        $prompt .= "REGRA FUNDAMENTAL — PERGUNTE UM ITEM POR VEZ:\n";
+        $prompt .= "Nunca faça mais de UMA pergunta por mensagem. Aguarde a resposta do usuário antes de fazer a próxima pergunta. ";
+        $prompt .= "Após cada resposta, confirme o que foi dito e parta para a próxima informação necessária.\n\n";
+
+        // Tell AI what we already know about the client
+        $prompt .= "DADOS JÁ COLETADOS DO CLIENTE:\n";
+        if ($hasName)  $prompt .= "- Nome/Empresa: {$client->name}\n";
+        if ($hasEmail) $prompt .= "- Email: {$client->email}\n";
+        if ($client && !empty($client->cnpj)) $prompt .= "- CNPJ/CPF: {$client->cnpj}\n";
+        if (!$hasName && !$hasEmail) $prompt .= "- (Nenhum dado coletado ainda)\n";
+        $prompt .= "\n";
+
+        $prompt .= "FLUXO OBRIGATÓRIO DE ATENDIMENTO:\n\n";
+
+        $prompt .= "ETAPA 1 — BOAS-VINDAS E CADASTRO (se dados não coletados):\n";
+        $prompt .= "Se ainda não souber o nome do cliente, comece com uma saudação calorosa e pergunte SOMENTE o nome.\n";
+        $prompt .= "Depois de ter o nome, pergunte se é pessoa física ou empresa.\n";
+        $prompt .= "Se for empresa, pergunte o nome da empresa.\n";
+        $prompt .= "Depois pergunte o email para envio de proposta.\n";
+        $prompt .= "Sempre use 'update_client_profile' para salvar os dados assim que forem informados.\n\n";
+
+        $prompt .= "ETAPA 2 — IDENTIFICAR A NECESSIDADE:\n";
+        $prompt .= "Após o cadastro, pergunte como pode ajudar (cotação de frete, rastreamento, financeiro, etc.).\n\n";
+
+        $prompt .= "ETAPA 3 — COTAÇÃO DE FRETE (colete UM dado por vez, nesta ordem):\n";
+        $prompt .= "  3a. Cidade ou CEP de ORIGEM\n";
+        $prompt .= "  3b. Cidade ou CEP de DESTINO\n";
+        $prompt .= "  3c. Peso total em kg\n";
+        $prompt .= "  3d. Valor da mercadoria em reais (diga que pode ser aproximado, ou 0 se não souber)\n";
+        $prompt .= "  3e. Dimensões: pergunte se tem (comprimento x largura x altura em cm) — opcional, mas ajuda\n";
+        $prompt .= "  3f. Serviços especiais: paletização, entrega em mercado/CD, descarga, fim de semana? — opcional\n";
+        $prompt .= "Depois de ter origem + destino + peso + valor NF, execute 'calculate_freight_quote'.\n\n";
+
+        $prompt .= "ETAPA 4 — APRESENTAR O RESULTADO:\n";
+        $prompt .= "Informe APENAS o valor total do frete, de forma simples e direta.\n";
+        $prompt .= "Exemplo: 'O frete de [origem] para [destino] ficou R\$ [valor]. Deseja formalizar a proposta?'\n";
+        $prompt .= "NÃO liste Ad Valorem, GRIS, pedágio, frete peso ou qualquer outro item do breakdown. Apenas o total.\n\n";
+
+        $prompt .= "OUTRAS CAPACIDADES (use quando o cliente pedir):\n";
+        $prompt .= "- Rastreamento de cargas: use 'get_shipments_status'\n";
+        $prompt .= "- Faturas em aberto: use 'get_open_invoices'\n";
+        $prompt .= "- Lançar despesas de rota/CT-e: use 'add_route_expense' ou 'add_cte_expense'\n";
+        $prompt .= "- Transferir para humano: use 'request_human_transfer' se cliente pedir desconto ou reclamar\n\n";
+
+        $prompt .= "REGRAS ADICIONAIS:\n";
+        $prompt .= "- Nunca mencione erros técnicos. Diga apenas que está verificando.\n";
+        $prompt .= "- Não repita perguntas já respondidas.\n";
+        $prompt .= "- Mantenha as mensagens curtas — máximo 3 linhas por resposta.";
 
         return $prompt;
     }
 
-    // Methods from previous structure (sendShipmentUpdate, sendOrderSummaryMessage, etc) remain below...
-    
-    public function sendShipmentUpdate(Shipment $shipment, string $status): void { /* unchanged */ }
-    public function sendOrderSummaryMessage(Tenant $tenant, Client $customer, Proposal $proposal, Shipment $shipment, array $context = []): void { /* unchanged */ }
-    public function resolveIntegrationForTenant(int $tenantId): ?WhatsAppIntegration {
+    // ─── Legacy methods ────────────────────────────────────────────────────────
+
+    public function sendShipmentUpdate(Shipment $shipment, string $status): void
+    {
+        // Implementation unchanged
+    }
+
+    public function sendOrderSummaryMessage(
+        Tenant $tenant,
+        Client $customer,
+        Proposal $proposal,
+        Shipment $shipment,
+        array $context = []
+    ): void {
+        // Implementation unchanged
+    }
+
+    public function resolveIntegrationForTenant(int $tenantId): ?WhatsAppIntegration
+    {
         return WhatsAppIntegration::query()
             ->where('tenant_id', $tenantId)
             ->where('status', WhatsAppIntegration::STATUS_CONNECTED)
