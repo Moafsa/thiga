@@ -52,24 +52,25 @@
       display: flex;
       flex-direction: column;
       z-index: 100;
-      overflow-y: auto;
+      overflow-y: scroll; /* Force vertical scrollbar always */
       scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      scrollbar-color: rgba(255, 255, 255, 0.35) rgba(15, 23, 42, 0.8);
     }
 
     /* Custom scrollbar styling for sidebar */
     .sidebar::-webkit-scrollbar {
-      width: 6px;
+      width: 8px;
     }
     .sidebar::-webkit-scrollbar-track {
-      background: transparent;
+      background: rgba(15, 23, 42, 0.8);
     }
     .sidebar::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.3);
       border-radius: 99px;
+      border: 2px solid var(--sidebar-bg);
     }
     .sidebar::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.5);
     }
 
     .sidebar-logo {
@@ -1202,8 +1203,8 @@
       <div class="step-header" onclick="toggleStep(this)">
         <div class="step-num" id="num-2">2</div>
         <div class="step-meta">
-          <div class="step-name">Configurar WuzAPI (WhatsApp)</div>
-          <div class="step-hint">Integração para emissão de CT-e, MDF-e e atendimento WhatsApp com IA</div>
+          <div class="step-name">Conectar WhatsApp (WuzAPI)</div>
+          <div class="step-hint">Vinculação instantânea do seu número para atendimento e envio de notificações</div>
         </div>
         <div class="step-tags">
           <span class="tag tag-required">Obrigatório</span>
@@ -1212,44 +1213,44 @@
       </div>
       <div class="step-body">
         <div class="step-why">
-          <strong>O que é WuzAPI?</strong> É um serviço externo que conecta o Thiga com o WhatsApp e com a Sefaz para emissão de documentos fiscais. Pense nele como a "ponte" entre o sistema e o governo.
+          <strong>Por que conectar o WhatsApp?</strong> A plataforma possui um agente com Inteligência Artificial para realizar cotações automáticas aos clientes e notificar seus motoristas sobre coletas e rotas de forma direta no WhatsApp.
         </div>
 
-        <p style="font-size:.875rem; font-weight:600; margin-top:16px;">Passo a passo para criar conta WuzAPI:</p>
+        <p style="font-size:.875rem; font-weight:600; margin-top:16px;">Passo a passo para conectar o WhatsApp:</p>
         <div class="mini-flow mt-1">
           <div class="mini-flow-item">
             <span class="mini-flow-num">1</span>
-            <span style="font-size:.875rem">Acesse <strong>wuzapi.com.br</strong> e clique em "Criar Conta"</span>
+            <span style="font-size:.875rem">No dashboard Thiga, acesse o menu <strong>Configurações → Integrações → WhatsApp</strong></span>
           </div>
           <div class="mini-flow-item">
             <span class="mini-flow-num">2</span>
-            <span style="font-size:.875rem">Preencha: Razão Social, CNPJ, Email, Telefone</span>
+            <span style="font-size:.875rem">Clique no botão <strong>Criar Integração</strong> no canto superior direito</span>
           </div>
           <div class="mini-flow-item">
             <span class="mini-flow-num">3</span>
-            <span style="font-size:.875rem">Aguarde aprovação <em>(geralmente 1-2 horas)</em></span>
+            <span style="font-size:.875rem">Defina um nome para a integração (ex: *WhatsApp Comercial*) e clique em <strong>Salvar</strong></span>
           </div>
           <div class="mini-flow-item">
             <span class="mini-flow-num">4</span>
-            <span style="font-size:.875rem">Você receberá por email a <strong>API Key</strong> e o <strong>API Secret</strong></span>
+            <span style="font-size:.875rem">Na listagem de integrações, clique no botão <strong>Conectar</strong> correspondente à integração criada. Um QR Code será gerado na tela.</span>
           </div>
           <div class="mini-flow-item">
             <span class="mini-flow-num">5</span>
-            <span style="font-size:.875rem">No Thiga: <code>Configurações → Integrações → WuzAPI</code> → Cole as credenciais → Salvar</span>
+            <span style="font-size:.875rem">Abra o WhatsApp no seu smartphone, vá em <strong>Aparelhos Conectados → Conectar um aparelho</strong> e escaneie o QR Code exibido.</span>
           </div>
         </div>
 
         <div class="where-box">
           <span>📍</span>
           <span class="arrow">›</span>
-          <span>Configurações → Integrações → WuzAPI</span>
+          <span>Configurações → Integrações → WhatsApp</span>
         </div>
 
         <div class="callout warn">
           <div class="callout-icon">⚠️</div>
           <div class="callout-text">
-            <strong>Segurança</strong>
-            Nunca compartilhe sua API Key ou API Secret. Guarde em local seguro.
+            <strong>Expiração do QR Code</strong>
+            O código gerado expira em alguns minutos por razões de segurança. Se expirar, basta fechar o modal e clicar em "Conectar" novamente para gerar um novo código.
           </div>
         </div>
 
@@ -1257,7 +1258,7 @@
           <div class="callout-icon">✅</div>
           <div class="callout-text">
             <strong>Como saber que funcionou</strong>
-            Clique em "Testar conexão" — deve aparecer "Conectado com sucesso! ✅"
+            Após escanear, a tela atualizará sozinha e exibirá o status como <strong>Conectado</strong> com uma bolinha verde (🟢).
           </div>
         </div>
 
@@ -1827,16 +1828,16 @@
     <div class="trouble-card" id="t4">
       <div class="trouble-header" onclick="toggleTrouble('t4')">
         <div class="trouble-icon orange">🔌</div>
-        <div class="trouble-q">WuzAPI não conecta / erro de autenticação</div>
+        <div class="trouble-q">WhatsApp não conecta / QR Code não aparece</div>
         <div class="trouble-chevron">▼</div>
       </div>
       <div class="trouble-body">
         <ol class="trouble-steps mt-2">
-          <li data-n="1">Acesse Configurações → Integrações → WuzAPI</li>
-          <li data-n="2">Verifique se a API Key está correta (sem espaços extras)</li>
-          <li data-n="3">Confirme se o ambiente está correto (Sandbox = testes, Produção = real)</li>
-          <li data-n="4">Salve e clique em "Testar conexão" novamente</li>
-          <li data-n="5">Se persistir, acesse wuzapi.com.br e verifique se sua conta está ativa</li>
+          <li data-n="1">Acesse Configurações → Integrações → WhatsApp</li>
+          <li data-n="2">Clique em "Desconectar" ou "Logout" se a sessão anterior estiver travada</li>
+          <li data-n="3">Aguarde 5 segundos e clique em "Conectar" novamente</li>
+          <li data-n="4">Certifique-se de que o aparelho celular está com conexão ativa de internet</li>
+          <li data-n="5">Se o QR Code demorar para carregar, recarregue a página (F5) e repita o processo</li>
         </ol>
       </div>
     </div>
@@ -1889,10 +1890,10 @@
   const checklistItems = [
     { label: 'Conta criada no Thiga e acesso ao dashboard', group: 'Conta' },
     { label: 'Senha alterada no primeiro acesso', group: 'Conta' },
-    { label: 'Conta WuzAPI criada em wuzapi.com.br', group: 'WuzAPI' },
-    { label: 'API Key e API Secret recebidos por email', group: 'WuzAPI' },
-    { label: 'Credenciais WuzAPI inseridas no Thiga', group: 'WuzAPI' },
-    { label: 'Teste de conexão WuzAPI: "Conectado com sucesso!" ✅', group: 'WuzAPI' },
+    { label: 'Integração de WhatsApp criada no painel', group: 'WuzAPI' },
+    { label: 'QR Code de conexão gerado com sucesso', group: 'WuzAPI' },
+    { label: 'Aparelho celular pareado (QR Code escaneado)', group: 'WuzAPI' },
+    { label: 'Status da integração atualizado para Conectado 🟢', group: 'WuzAPI' },
     { label: 'Pelo menos 1 motorista cadastrado com CNH válida', group: 'Motoristas' },
     { label: 'Pelo menos 1 veículo cadastrado com RENAVAM', group: 'Veículos' },
     { label: 'Motorista associado ao veículo', group: 'Veículos' },
