@@ -75,6 +75,21 @@
     .sidebar-logo {
       padding: 28px 24px 20px;
       border-bottom: 1px solid rgba(255,255,255,.08);
+      position: relative;
+    }
+
+    .close-sidebar-btn {
+      display: none;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.25rem;
+      cursor: pointer;
+      position: absolute;
+      right: 18px;
+      top: 24px;
+      padding: 4px;
+      line-height: 1;
     }
 
     .sidebar-logo .wordmark {
@@ -175,6 +190,7 @@
       margin-left: 260px;
       flex: 1;
       min-height: 100vh;
+      min-width: 0;
     }
 
     /* Hero */
@@ -660,6 +676,7 @@
       justify-content: center;
       gap: 12px;
       width: 100%;
+      flex-wrap: wrap;
     }
 
     .dep-node {
@@ -893,16 +910,64 @@
       font-size: .8rem;
     }
 
+    /* Mobile Header styling */
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: var(--sidebar-bg);
+      color: white;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 90;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .menu-btn {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
     /* ─── RESPONSIVE ─────────────────────────────── */
     @media (max-width: 900px) {
-      .sidebar { transform: translateX(-100%); }
-      .main { margin-left: 0; }
+      .mobile-header {
+        display: flex;
+      }
+      .close-sidebar-btn {
+        display: block;
+      }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        height: 100vh;
+      }
+      .sidebar.open-sidebar {
+        transform: translateX(0);
+      }
+      .main {
+        margin-left: 0;
+        padding-top: 56px;
+      }
       .hero, .overview-section, .steps-section, .dep-section,
       .checklist-section, .trouble-section, .support-section {
         padding-left: 20px;
         padding-right: 20px;
       }
       .hero h1 { font-size: 1.8rem; }
+      
+      /* Make fields and support columns full width on tiny screens */
+      .fields-grid, .support-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Smooth scroll */
@@ -919,11 +984,19 @@
 </head>
 <body>
 
+<!-- Mobile Top Bar Header -->
+<header class="mobile-header">
+  <button class="menu-btn" onclick="toggleSidebar()" aria-label="Abrir menu">☰</button>
+  <span style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px;">🚛 Thiga TMS</span>
+  <span style="width: 28px;"></span> <!-- Spacer for alignment symmetry -->
+</header>
+
 <!-- ═══════════════ SIDEBAR ══════════════════════ -->
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="wordmark">🚛 Thiga TMS</div>
     <div class="subtitle">Guia de Início</div>
+    <button class="close-sidebar-btn" onclick="toggleSidebar()" aria-label="Fechar menu">✕</button>
   </div>
 
   <div class="sidebar-progress">
@@ -1536,43 +1609,45 @@
         </div>
 
         <p style="font-size:.875rem; font-weight:600; margin-top:20px;">Status possíveis:</p>
-        <table class="status-table">
-          <tr>
-            <th>Status</th>
-            <th>Significa</th>
-            <th>O que fazer</th>
-          </tr>
-          <tr>
-            <td><span class="badge badge-yellow">🟡 Pendente</span></td>
-            <td>Aguardando envio</td>
-            <td>Aguarde, o sistema está processando</td>
-          </tr>
-          <tr>
-            <td><span class="badge badge-blue">🔵 Validando</span></td>
-            <td>Checando dados</td>
-            <td>Aguarde alguns segundos</td>
-          </tr>
-          <tr>
-            <td><span class="badge badge-purple">🟣 Processando</span></td>
-            <td>Enviado à Sefaz</td>
-            <td>Aguarde 5-10 minutos</td>
-          </tr>
-          <tr>
-            <td><span class="badge badge-green">🟢 Autorizado</span></td>
-            <td>✅ Aprovado e válido</td>
-            <td>Pode transportar! Baixe o PDF/XML</td>
-          </tr>
-          <tr>
-            <td><span class="badge badge-red">🔴 Rejeitado</span></td>
-            <td>Sefaz recusou</td>
-            <td>Veja o motivo, corrija e reenvie</td>
-          </tr>
-          <tr>
-            <td><span class="badge badge-gray">⚪ Cancelado</span></td>
-            <td>Cancelado após aprovação</td>
-            <td>Gere novo CT-e se necessário</td>
-          </tr>
-        </table>
+        <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin: 16px 0;">
+          <table class="status-table" style="margin: 0; min-width: 500px;">
+            <tr>
+              <th>Status</th>
+              <th>Significa</th>
+              <th>O que fazer</th>
+            </tr>
+            <tr>
+              <td><span class="badge badge-yellow">🟡 Pendente</span></td>
+              <td>Aguardando envio</td>
+              <td>Aguarde, o sistema está processando</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-blue">🔵 Validando</span></td>
+              <td>Checando dados</td>
+              <td>Aguarde alguns segundos</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-purple">🟣 Processando</span></td>
+              <td>Enviado à Sefaz</td>
+              <td>Aguarde 5-10 minutos</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-green">🟢 Autorizado</span></td>
+              <td>✅ Aprovado e válido</td>
+              <td>Pode transportar! Baixe o PDF/XML</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-red">🔴 Rejeitado</span></td>
+              <td>Sefaz recusou</td>
+              <td>Veja o motivo, corrija e reenvie</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-gray">⚪ Cancelado</span></td>
+              <td>Cancelado após aprovação</td>
+              <td>Gere novo CT-e se necessário</td>
+            </tr>
+          </table>
+        </div>
 
         <div class="where-box">
           <span>📍</span>
@@ -1917,7 +1992,28 @@
   function setActive(el) {
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
+
+    // Fechar menu lateral no mobile após clicar
+    if (window.innerWidth <= 900) {
+      document.querySelector('.sidebar').classList.remove('open-sidebar');
+    }
   }
+
+  // ─── TOGGLE SIDEBAR MOBILE ──────────────────────
+  function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open-sidebar');
+  }
+
+  // Fechar ao clicar fora no mobile
+  document.addEventListener('click', (e) => {
+    const sidebar = document.querySelector('.sidebar');
+    const menuBtn = document.querySelector('.menu-btn');
+    if (window.innerWidth <= 900 && sidebar && sidebar.classList.contains('open-sidebar')) {
+      if (!sidebar.contains(e.target) && (!menuBtn || !menuBtn.contains(e.target))) {
+        sidebar.classList.remove('open-sidebar');
+      }
+    }
+  });
 
   // ─── INIT ────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
