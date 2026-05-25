@@ -27,7 +27,6 @@ class Kernel extends ConsoleKernel
         $schedule->job(new \App\Jobs\AlertOverdueShipmentsJob())
             ->dailyAt('07:00')
             ->withoutOverlapping()
-            ->runInBackground()
             ->name('alert-overdue-shipments');
 
         // Check for missing route costs twice a day

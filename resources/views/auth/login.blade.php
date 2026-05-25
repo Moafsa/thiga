@@ -1,30 +1,25 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - TMS SaaS</title>
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚛%3C/text%3E%3C/svg%3E">
-
+    <title>Login - Thiga TMS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* Variáveis de cores */
         :root {
-            --cor-principal: #245a49;
-            --cor-secundaria: #1a3d33;
-            --cor-acento: #FF6B35;
-            --cor-texto-claro: #F5F5F5;
-            --cor-texto-escuro: #333;
+            --bg-primary: #0d1b2a;
+            --bg-secondary: #162840;
+            --accent: #FF6B35;
+            --accent-dark: #E55A2B;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --border: #2a3f52;
         }
 
-        /* Estilos globais */
         * {
             margin: 0;
             padding: 0;
@@ -33,166 +28,229 @@
 
         body {
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--cor-principal) 0%, var(--cor-secundaria) 100%);
-            color: var(--cor-texto-claro);
-            line-height: 1.6;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
         .login-container {
-            background-color: var(--cor-secundaria);
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 50px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 600ms ease-out;
+        }
+
+        .login-header {
             text-align: center;
+            margin-bottom: 40px;
         }
 
         .logo {
-            font-size: 32px;
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .logo-text {
+            font-size: 28px;
             font-weight: 700;
-            color: var(--cor-acento);
-            margin-bottom: 30px;
+            color: var(--accent);
+            margin-bottom: 10px;
         }
 
-        .logo i {
-            margin-right: 10px;
-        }
-
-        h1 {
-            color: var(--cor-texto-claro);
-            font-size: 24px;
-            margin-bottom: 30px;
-            font-weight: 600;
+        .login-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .form-group {
-            margin-bottom: 20px;
-            text-align: left;
+            margin-bottom: 25px;
         }
 
-        .form-group label {
+        label {
             display: block;
             margin-bottom: 8px;
-            color: var(--cor-texto-claro);
             font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
         }
 
-        .form-group input {
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        input[type="tel"],
+        select {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #444;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            background-color: var(--cor-principal);
-            color: var(--cor-texto-claro);
-            font-size: 16px;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            transition: all 200ms ease;
         }
 
-        .form-group input:focus {
+        input:focus,
+        select:focus {
             outline: none;
-            border-color: var(--cor-acento);
-            box-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+            border-color: var(--accent);
+            background: rgba(255, 107, 53, 0.1);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
-        .form-group input::placeholder {
-            color: #999;
+        input::placeholder {
+            color: var(--text-secondary);
         }
 
         .btn-login {
             width: 100%;
-            background-color: var(--cor-acento);
-            color: var(--cor-principal);
-            padding: 15px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
             border: none;
             border-radius: 8px;
-            font-weight: 700;
+            font-weight: 600;
             font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-bottom: 20px;
+            transition: all 200ms ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            margin-bottom: 15px;
         }
 
         .btn-login:hover {
-            background-color: #FF885A;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.4);
         }
 
-        .btn-login:disabled {
-            background-color: #666;
-            cursor: not-allowed;
+        .btn-login:active {
+            transform: translateY(0);
         }
 
-        .links {
-            margin-top: 20px;
+        .register-link {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
         }
 
-        .links a {
-            color: var(--cor-acento);
+        .register-link a {
+            color: var(--accent);
             text-decoration: none;
             font-weight: 600;
-            transition: color 0.3s ease;
+            transition: color 200ms ease;
         }
 
-        .links a:hover {
-            color: var(--cor-texto-claro);
+        .register-link a:hover {
+            color: var(--accent-dark);
+        }
+
+        .phone-login {
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        .phone-login-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        .phone-login-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-phone {
+            padding: 10px 16px;
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 200ms ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .btn-phone:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(255, 107, 53, 0.1);
         }
 
         .error-message {
-            background-color: #dc3545;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 12px 16px;
+            border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
         }
 
         .back-link {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: var(--cor-acento);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent);
             text-decoration: none;
             font-weight: 600;
-            transition: color 0.3s ease;
+            margin-bottom: 20px;
+            transition: color 200ms ease;
         }
 
         .back-link:hover {
-            color: var(--cor-texto-claro);
+            color: var(--accent);
         }
 
-        .back-link i {
-            margin-right: 5px;
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 480px) {
             .login-container {
-                margin: 20px;
                 padding: 30px 20px;
+            }
+
+            .logo-text {
+                font-size: 24px;
             }
         }
     </style>
 </head>
-
 <body>
-    <a href="/" class="back-link">
-        <i class="fas fa-arrow-left"></i> Voltar ao Início
-    </a>
-
     <div class="login-container">
-        <div class="logo">
-            <i class="fas fa-truck"></i> TMS SaaS
-        </div>
+        <a href="{{ '/' }}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Voltar ao inicio
+        </a>
 
-        <h1>Entrar na Plataforma</h1>
+        <div class="login-header">
+            <div class="logo">📦</div>
+            <div class="logo-text">TMS SaaS</div>
+            <p class="login-subtitle">Entrar na Plataforma</p>
+        </div>
 
         @if ($errors->any())
             <div class="error-message">
                 @foreach ($errors->all() as $error)
-                    {{ $error }}
+                    <div>{{ $error }}</div>
                 @endforeach
             </div>
         @endif
@@ -202,73 +260,50 @@
 
             <div class="form-group">
                 <label for="email">Email ou Telefone</label>
-                <input type="text" id="email" name="email" value="{{ old('email') }}" required autofocus
-                    placeholder="seu@email.com ou (11) 99999-9999">
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="seu@email.com ou (11) 99999-9999"
+                    value="{{ old('email') }}"
+                    required
+                >
             </div>
 
             <div class="form-group">
                 <label for="password">Senha</label>
-                <input type="password" id="password" name="password" required placeholder="Sua senha">
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Sua senha"
+                    required
+                >
             </div>
 
             <button type="submit" class="btn-login">
                 <i class="fas fa-sign-in-alt"></i> Entrar
             </button>
-        </form>
 
-        <div class="links">
-            <p>Não tem uma conta? <a href="{{ route('register') }}">Cadastre-se aqui</a></p>
+            <div class="register-link">
+                Não tem uma conta? <a href="{{ route('register') }}">Cadastre-se aqui</a>
+            </div>
 
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="margin-bottom: 10px; color: rgba(245, 245, 245, 0.7); font-size: 14px;">Entrar por telefone:
-                </p>
-
-                <p style="margin-top: 10px;">
-                    <a href="{{ route('client.login.phone') }}"
-                        style="display: inline-flex; align-items: center; gap: 8px;">
+            <div class="phone-login">
+                <div class="phone-login-title">Entrar por telefone:</div>
+                <div class="phone-login-options">
+                    <a href="{{ route('client.login.phone') }}" class="btn-phone">
                         <i class="fas fa-user"></i> Sou cliente - Entrar por telefone
                     </a>
-                </p>
-
-                <p style="margin-top: 10px;">
-                    <a href="{{ route('salesperson.login.phone') }}"
-                        style="display: inline-flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-handshake"></i> Sou vendedor - Entrar por telefone
+                    <a href="{{ route('salesperson.login.phone') }}" class="btn-phone">
+                        <i class="fas fa-store"></i> Sou vendedor - Entrar por telefone
                     </a>
-                </p>
-
-                <p style="margin-top: 10px;">
-                    <a href="{{ route('driver.login.phone') }}"
-                        style="display: inline-flex; align-items: center; gap: 8px;">
+                    <a href="{{ route('driver.login.phone') }}" class="btn-phone">
                         <i class="fas fa-truck"></i> Sou motorista - Entrar por telefone
                     </a>
-                </p>
+                </div>
             </div>
-        </div>
+        </form>
     </div>
-
-    <script>
-        // Basic service worker registration to enable PWA install prompt on login screen
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.getRegistrations().then(function (registrations) {
-                    // Unregister all service workers to force update
-                    for (let registration of registrations) {
-                        registration.unregister();
-                    }
-                    // Clear all caches
-                    caches.keys().then(function (names) {
-                        for (let name of names) {
-                            caches.delete(name);
-                        }
-                    });
-                    navigator.serviceWorker.register('/sw.js?v=' + Date.now()).catch((error) => {
-                        console.error('Service worker registration failed on login page', error);
-                    });
-                });
-            });
-        }
-    </script>
 </body>
-
 </html>

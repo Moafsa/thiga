@@ -42,6 +42,11 @@
     <!-- Bootstrap CSS (needed for financial and report views) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
+    <!-- Global Design System CSS -->
+    <link rel="stylesheet" href="{{ asset('css/design-system.css') }}">
+
+    <!-- Include Theme Variables Component -->
+    @include('shared.theme-variables')
 
     <style>
         /* Variables */

@@ -9,52 +9,68 @@
     .welcome-section {
         text-align: center;
         margin-bottom: 50px;
+        animation: slideUp var(--transition-slow) var(--easing-ease-out);
     }
 
     .welcome-section h1 {
         font-size: 2.5em;
         margin-bottom: 20px;
         color: var(--cor-acento);
+        font-weight: var(--font-weight-bold);
     }
 
     .welcome-section p {
         font-size: 1.2em;
         color: var(--cor-texto-claro);
+        opacity: 0.9;
     }
 
+    /* STATS GRID - Responsive Design System */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-bottom: 40px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-2xl);
     }
 
     .stat-card {
-        background-color: var(--cor-secundaria);
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.1) 100%);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-md);
         display: flex;
         align-items: center;
-        gap: 20px;
-        transition: transform 0.3s ease;
+        gap: var(--spacing-lg);
+        transition: all var(--transition-base) var(--easing-ease-in-out);
         cursor: pointer;
+        border: 1px solid rgba(255, 107, 53, 0.15);
+        animation: slideUp var(--transition-slow) var(--easing-ease-out);
+        text-decoration: none;
+        color: inherit;
     }
 
     .stat-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--cor-acento);
+    }
+
+    .stat-card:active {
+        transform: translateY(-2px);
     }
 
     .stat-icon {
-        width: 60px;
-        height: 60px;
+        width: 65px;
+        height: 65px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: var(--cor-acento);
-        border-radius: 12px;
-        font-size: 24px;
-        color: var(--cor-principal);
+        background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(255, 107, 53, 0.8) 100%);
+        border-radius: var(--radius-lg);
+        font-size: 28px;
+        color: white;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-md);
     }
 
     .stat-content {
@@ -62,112 +78,192 @@
     }
 
     .stat-content h3 {
-        font-size: 2em;
+        font-size: 1.8em;
         color: var(--cor-acento);
         margin-bottom: 5px;
+        font-weight: var(--font-weight-bold);
     }
 
     .stat-content p {
         color: var(--cor-texto-claro);
-        font-size: 0.9em;
-        opacity: 0.8;
+        font-size: 0.95em;
+        opacity: 0.85;
+        font-weight: var(--font-weight-medium);
     }
 
     .stat-trend {
-        font-size: 0.85em;
-        margin-top: 5px;
+        font-size: 0.8em;
+        margin-top: 8px;
+        opacity: 0.8;
+        color: var(--cor-texto-claro);
     }
 
     .stat-trend.positive {
-        color: #4caf50;
+        color: var(--color-success);
+        font-weight: var(--font-weight-semibold);
     }
 
     .stat-trend.negative {
-        color: #f44336;
+        color: var(--color-error);
+        font-weight: var(--font-weight-semibold);
     }
 
+    /* CHARTS SECTION */
     .charts-section {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: 20px;
-        margin-bottom: 40px;
+        grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-2xl);
     }
 
     .chart-card {
-        background-color: var(--cor-secundaria);
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.05) 100%);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(255, 107, 53, 0.1);
+        animation: slideUp var(--transition-slow) var(--easing-ease-out) 100ms both;
+        transition: all var(--transition-base) var(--easing-ease-in-out);
+    }
+
+    .chart-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
     }
 
     .chart-card h3 {
         color: var(--cor-acento);
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-lg);
+        font-size: 1.2em;
+        font-weight: var(--font-weight-semibold);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
     }
 
+    /* QUICK ACTIONS */
     .quick-actions {
-        background-color: var(--cor-secundaria);
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 40px;
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.05) 100%);
+        padding: var(--spacing-2xl);
+        border-radius: var(--radius-xl);
+        margin-bottom: var(--spacing-2xl);
+        border: 1px solid rgba(255, 107, 53, 0.1);
+        box-shadow: var(--shadow-md);
+        animation: slideUp var(--transition-slow) var(--easing-ease-out);
     }
 
     .quick-actions h2 {
         color: var(--cor-acento);
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-lg);
         font-size: 1.5em;
+        font-weight: var(--font-weight-bold);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
     }
 
     .actions-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: var(--spacing-lg);
     }
 
     .action-btn {
-        background-color: var(--cor-principal);
-        padding: 15px 20px;
-        border-radius: 10px;
+        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(36, 90, 73, 0.8) 100%);
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-radius: var(--radius-lg);
         text-decoration: none;
         color: var(--cor-texto-claro);
         display: flex;
         align-items: center;
-        gap: 10px;
-        transition: all 0.3s ease;
+        justify-content: center;
+        gap: var(--spacing-sm);
+        transition: all var(--transition-base) var(--easing-ease-in-out);
         border: 2px solid transparent;
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        animation: slideInLeft var(--transition-base) var(--easing-ease-out);
     }
 
     .action-btn:hover {
-        background-color: var(--cor-acento);
-        color: var(--cor-principal);
-        border-color: var(--cor-acento);
-        transform: translateX(5px);
+        background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(255, 107, 53, 0.9) 100%);
+        color: white;
+        transform: translateX(4px);
+        box-shadow: var(--shadow-md);
     }
 
+    .action-btn:active {
+        transform: translateX(2px);
+    }
+
+    /* RECENT SECTION */
     .recent-section {
-        background-color: var(--cor-secundaria);
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 30px;
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.05) 100%);
+        padding: var(--spacing-2xl);
+        border-radius: var(--radius-xl);
+        margin-bottom: var(--spacing-lg);
+        border: 1px solid rgba(255, 107, 53, 0.1);
+        box-shadow: var(--shadow-md);
+        animation: slideUp var(--transition-slow) var(--easing-ease-out);
     }
 
     .recent-section h3 {
         color: var(--cor-acento);
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-lg);
+        font-size: 1.3em;
+        font-weight: var(--font-weight-bold);
     }
 
     .recent-item {
-        background-color: var(--cor-principal);
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
+        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(36, 90, 73, 0.8) 100%);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-sm);
         display: flex;
         justify-content: space-between;
         align-items: center;
+        transition: all var(--transition-base) var(--easing-ease-in-out);
+        border-left: 4px solid transparent;
+        animation: slideInLeft var(--transition-base) var(--easing-ease-out);
     }
 
     .recent-item:hover {
-        background-color: rgba(255, 107, 53, 0.1);
+        background: rgba(255, 107, 53, 0.15);
+        border-left-color: var(--cor-acento);
+        transform: translateX(4px);
+    }
+
+    /* Filter Section Enhancement */
+    .dashboard-filter-section {
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.05) 100%);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-xl);
+        margin-bottom: var(--spacing-xl);
+        border: 1px solid rgba(255, 107, 53, 0.1);
+        box-shadow: var(--shadow-sm);
+        animation: slideDown var(--transition-slow) var(--easing-ease-out);
+    }
+
+    @media (max-width: 768px) {
+        .charts-section {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .actions-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .welcome-section h1 {
+            font-size: 1.8em;
+        }
+
+        .welcome-section p {
+            font-size: 1em;
+        }
     }
 </style>
 @endpush
@@ -179,21 +275,21 @@
 </div>
 
 <!-- Filters Section -->
-<div style="background-color: var(--cor-secundaria); padding: 25px; border-radius: 15px; margin-bottom: 30px;">
+<div class="dashboard-filter-section">
     <form method="GET" action="{{ route('dashboard') }}" id="dashboard-filters" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
         <div>
-            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em;">Data Inicial</label>
-            <input type="date" name="date_from" value="{{ $filters['date_from'] }}" 
-                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background-color: var(--cor-principal); color: var(--cor-texto-claro);">
+            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Data Inicial</label>
+            <input type="date" name="date_from" value="{{ $filters['date_from'] }}"
+                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
         </div>
         <div>
-            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em;">Data Final</label>
-            <input type="date" name="date_to" value="{{ $filters['date_to'] }}" 
-                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background-color: var(--cor-principal); color: var(--cor-texto-claro);">
+            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Data Final</label>
+            <input type="date" name="date_to" value="{{ $filters['date_to'] }}"
+                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
         </div>
         <div>
-            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em;">Status</label>
-            <select name="status" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background-color: var(--cor-principal); color: var(--cor-texto-claro);">
+            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Status</label>
+            <select name="status" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
                 <option value="">Todos os Status</option>
                 <option value="pending" {{ $filters['status'] === 'pending' ? 'selected' : '' }}>Pendente</option>
                 <option value="scheduled" {{ $filters['status'] === 'scheduled' ? 'selected' : '' }}>Agendado</option>
@@ -204,8 +300,8 @@
             </select>
         </div>
         <div>
-            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em;">Cliente</label>
-            <select name="client_id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background-color: var(--cor-principal); color: var(--cor-texto-claro);">
+            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Cliente</label>
+            <select name="client_id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
                 <option value="">Todos os Clientes</option>
                 @foreach($clients as $client)
                     <option value="{{ $client->id }}" {{ $filters['client_id'] == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
@@ -223,6 +319,7 @@
     </form>
 </div>
 
+<!-- Stats Grid -->
 <div class="stats-grid">
     <a href="{{ route('shipments.index') }}" class="stat-card" style="text-decoration: none;">
         <div class="stat-icon">
