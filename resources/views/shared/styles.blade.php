@@ -264,6 +264,39 @@
             opacity: 1;
         }
     }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        color: var(--cor-texto-claro) !important;
+        opacity: 0.7;
+        transition: opacity 0.2s ease, color 0.2s ease;
+        text-decoration: none !important;
+        font-size: 1.1em;
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .action-btn:hover {
+        opacity: 1;
+        color: var(--cor-acento) !important;
+    }
+
+    .action-btn.delete-btn {
+        color: #f44336 !important;
+    }
+
+    .action-btn.delete-btn:hover {
+        color: #d32f2f !important;
+    }
 </style>
 
 

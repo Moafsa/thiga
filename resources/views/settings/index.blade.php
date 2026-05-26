@@ -96,6 +96,14 @@
         <h3>🤖 Agente IA WhatsApp</h3>
         <p>Configure o Agente Autônomo para responder clientes e gerar insights no CRM</p>
     </a>
+
+    <a href="{{ route('settings.integrations.sefaz.index') }}" class="settings-card" style="border: 2px solid #2ecc71;">
+        <div class="settings-card-icon" style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);">
+            <i class="fas fa-file-invoice"></i>
+        </div>
+        <h3>🏢 SEFAZ & Certificado A1</h3>
+        <p>Configure seu Certificado Digital A1 (.pfx) e credenciais de emissão de CT-e/MDF-e</p>
+    </a>
 </div>
 @endsection
 

@@ -184,6 +184,23 @@
     </div>
 </div>
 
+@if(empty(auth()->user()->tenant->metadata['sefaz']['certificate_path']))
+    <div class="alert-info-premium" style="background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 140, 90, 0.05) 100%); border: 1px solid rgba(255, 107, 53, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 107, 53, 0.2); display: flex; align-items: center; justify-content: center; color: var(--cor-acento); flex-shrink: 0; font-size: 1.2em;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <strong style="color: var(--cor-texto-claro); display: block; margin-bottom: 3px;">Certificado Digital A1 Não Configurado</strong>
+                <span style="color: var(--cor-texto-claro); opacity: 0.8; font-size: 0.88em;">Você ainda não configurou seu certificado digital e credenciais da SEFAZ para emissão integrada de CT-e e MDF-e.</span>
+            </div>
+        </div>
+        <a href="{{ route('settings.integrations.sefaz.index') }}" class="btn-primary" style="white-space: nowrap; font-size: 0.9em; padding: 10px 18px; text-decoration: none;">
+            <i class="fas fa-cog"></i> Configurar Agora
+        </a>
+    </div>
+@endif
+
 <!-- Filters -->
 <div class="filters-card">
     <form method="GET" action="{{ route('fiscal.mdfes.index') }}" id="filter-form">

@@ -28,6 +28,7 @@ class Kernel extends ConsoleKernel
             ->dailyAt('07:00')
             ->withoutOverlapping()
             ->name('alert-overdue-shipments');
+            // Note: runInBackground() cannot be used with jobs (closures) - commands only
 
         // Check for missing route costs twice a day
         $schedule->command('route:check-costs')

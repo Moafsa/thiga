@@ -672,11 +672,21 @@ class UXAuditor:
             self.issues.append(f"[Accessibility] {filename}: Missing img alt text")
 
     def audit_directory(self, directory: str) -> None:
-        extensions = {'.tsx', '.jsx', '.html', '.vue', '.svelte', '.css'}
+        extensions = {'.tsx', '.jsx', '.html', '.vue', '.svelte', '.css', '.php'}
+        target_path = Path(directory).resolve()
         for root, dirs, files in os.walk(directory):
-            dirs[:] = [d for d in dirs if d not in {'node_modules', '.git', 'dist', 'build', '.next'}]
+            dirs[:] = [d for d in dirs if d not in {'node_modules', '.git', 'dist', 'build', '.next', 'vendor', 'storage', 'bootstrap', 'docker', 'public'}]
+            
+            # Skip files directly in the root directory (scratch files, presentation index.html)
+            current_path = Path(root).resolve()
+            if current_path == target_path:
+                continue
+
             for file in files:
                 if Path(file).suffix in extensions:
+                    # For .php, only audit if it is a blade file
+                    if Path(file).suffix == '.php' and not file.endswith('.blade.php'):
+                        continue
                     self.audit_file(os.path.join(root, file))
 
     def get_report(self):

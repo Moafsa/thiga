@@ -11,10 +11,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --cor-principal: #245a49;
-            --cor-secundaria: #1a3d33;
-            --cor-acento: #FF6B35;
-            --cor-texto-claro: #F5F5F5;
+            --bg-primary: #0d1b2a;
+            --bg-secondary: #162840;
+            --accent: #FF6B35;
+            --accent-dark: #E55A2B;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --border: #2a3f52;
         }
 
         * {
@@ -25,8 +28,8 @@
 
         body {
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #102527, #0c1a18);
-            color: var(--cor-texto-claro);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -42,143 +45,186 @@
         }
 
         .login-container {
-            background-color: rgba(29, 60, 54, 0.95);
-            border-radius: 20px;
-            padding: 40px 32px;
-            max-width: 420px;
-            width: min(420px, 95%);
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 50px 40px;
+            max-width: 450px;
+            width: min(450px, 95%);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
             position: relative;
+            animation: slideUp 600ms ease-out;
         }
 
         .logo {
-            font-size: 30px;
+            font-size: 32px;
             font-weight: 700;
-            color: var(--cor-acento);
+            color: var(--accent);
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
 
         h1 {
-            color: var(--cor-texto-claro);
+            color: var(--text-primary);
             font-size: 26px;
             text-align: center;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            font-weight: 700;
         }
 
         .subtitle {
             text-align: center;
             font-size: 14px;
-            color: rgba(245, 245, 245, 0.75);
-            margin-bottom: 24px;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            line-height: 1.5;
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 25px;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.85);
+            color: var(--text-primary);
+            font-size: 14px;
         }
 
         .form-group input,
         .form-group select {
             width: 100%;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 12px 14px;
-            font-size: 16px;
-            background-color: rgba(20, 57, 52, 0.8);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            font-size: 14px;
+            background-color: rgba(255, 255, 255, 0.05);
             color: #fff;
-            transition: border 0.3s ease, box-shadow 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            transition: all 200ms ease;
         }
 
         .form-group input:focus,
         .form-group select:focus {
-            border-color: var(--cor-acento);
-            box-shadow: 0 0 12px rgba(255, 107, 53, 0.5);
+            border-color: var(--accent);
+            background: rgba(255, 107, 53, 0.1);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
             outline: none;
         }
 
         .info-box {
-            background: rgba(37, 211, 102, 0.15);
-            border: 1px solid rgba(37, 211, 102, 0.4);
-            border-radius: 10px;
-            padding: 12px 14px;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.25);
+            border-radius: 8px;
+            padding: 12px 16px;
             display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 16px;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 25px;
             font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-secondary);
         }
 
         .info-box i {
-            color: #25D366;
+            margin-top: 3px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .info-box i.fa-whatsapp {
+            color: #25d366;
         }
 
         .btn-login {
             width: 100%;
             border: none;
-            border-radius: 14px;
-            padding: 14px;
-            background: linear-gradient(120deg, #ff7a4a, #ff945f);
+            border-radius: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
             color: #fff;
-            font-weight: 700;
+            font-weight: 600;
             font-size: 16px;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: all 200ms ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
         .btn-login:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 12px 25px rgba(255, 122, 74, 0.45);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
         }
 
         .links {
-            margin-top: 18px;
+            margin-top: 20px;
             text-align: center;
             font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .links a {
-            color: var(--cor-acento);
+            color: var(--accent);
             text-decoration: none;
             font-weight: 600;
+            transition: color 200ms ease;
+        }
+
+        .links a:hover {
+            color: var(--accent-dark);
         }
 
         .back-link {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.85);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 25px;
+            transition: color 200ms ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent-dark);
         }
 
         .message-card {
-            padding: 10px 14px;
-            border-radius: 10px;
-            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             font-size: 14px;
+            line-height: 1.5;
         }
 
         .error-card {
-            background: rgba(208, 2, 27, 0.15);
-            border: 1px solid rgba(208, 2, 27, 0.6);
-            color: #fff;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
         }
 
         .success-card {
-            background: rgba(23, 139, 93, 0.2);
-            border: 1px solid rgba(23, 139, 93, 0.6);
-            color: #fff;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            color: #a7f3d0;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 480px) {
             .login-container {
-                padding: 32px 22px;
+                padding: 30px 20px;
             }
 
             .logo {
@@ -195,7 +241,7 @@
             </a>
 
             <div class="logo">
-                <i class="fas fa-truck"></i> TMS SaaS
+                🚛 TMS SaaS
             </div>
 
             <h1>Login Motorista</h1>
@@ -240,7 +286,7 @@
 
             <div class="info-box">
                 <i class="fab fa-whatsapp"></i>
-                Enviaremos um código de 6 dígitos através do WhatsApp.
+                <span>Enviaremos um código de 6 dígitos através do WhatsApp.</span>
             </div>
 
             <form method="POST" action="{{ route('driver.login.request-code') }}">
@@ -258,7 +304,7 @@
                         autofocus
                         pattern="[0-9]{10,11}"
                     >
-                    <small style="display:block; margin-top:4px; color: rgba(255,255,255,0.6); font-size:12px;">
+                    <small style="display:block; margin-top:6px; color: var(--text-secondary); font-size:12px;">
                         Digite apenas números com DDD (ex: 11999998888)
                     </small>
                 </div>

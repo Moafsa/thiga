@@ -51,15 +51,6 @@
     <style>
         /* Variables */
         :root {
-            --cor-principal:
-                {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->primary_color ?? '#245a49') : '#245a49' }}
-            ;
-            --cor-secundaria:
-                {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->secondary_color ?? '#1a3d33') : '#1a3d33' }}
-            ;
-            --cor-acento:
-                {{ Auth::check() && Auth::user()->tenant ? (Auth::user()->tenant->accent_color ?? '#FF6B35') : '#FF6B35' }}
-            ;
             --cor-texto-claro: #F5F5F5;
             --cor-texto-escuro: #333;
             --sidebar-width: 70px;
@@ -330,7 +321,7 @@
     @stack('styles')
 </head>
 
-<body x-data="{ sidebarOpen: false }">
+<body x-data="{ sidebarOpen: localStorage.getItem('sidebar-state') !== 'collapsed' }">
     <!-- Sidebar -->
     <aside class="sidebar" :class="{ 'expanded': sidebarOpen }">
         <div class="sidebar-logo">
@@ -396,6 +387,13 @@
                 <a href="{{ route('fiscal.ctes.index') }}"
                     class="sidebar-link {{ request()->routeIs('fiscal.ctes.*') ? 'active' : '' }}" title="CT-es">
                     <i class="fas fa-file-invoice"></i> <span>Notas e CT-es</span>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('settings.integrations.sefaz.index') }}"
+                    class="sidebar-link {{ request()->routeIs('settings.integrations.sefaz.index') ? 'active' : '' }}" title="Certificado A1 & SEFAZ">
+                    <i class="fas fa-key text-success"></i> <span>Certificado A1 & SEFAZ</span>
                 </a>
             </div>
 
@@ -532,7 +530,7 @@
     <div class="main-wrapper" :class="{ 'sidebar-expanded-wrapper': sidebarOpen }">
         <header class="top-header">
             <div class="header-left">
-                <button type="button" class="toggle-sidebar-btn" x-on:click="sidebarOpen = !sidebarOpen">
+                <button type="button" class="toggle-sidebar-btn" x-on:click="sidebarOpen = !sidebarOpen; localStorage.setItem('sidebar-state', sidebarOpen ? 'expanded' : 'collapsed')">
                     <i class="fas fa-bars"></i>
                 </button>
                 <h1 class="page-title">@yield('page-title', 'TMS SaaS')</h1>

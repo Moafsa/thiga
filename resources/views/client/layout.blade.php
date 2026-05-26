@@ -20,9 +20,6 @@
 
     <style>
         :root {
-            --cor-principal: #245a49;
-            --cor-secundaria: #1a3d33;
-            --cor-acento: #FF6B35;
             --cor-texto-claro: #F5F5F5;
             --bottom-nav-height: 70px;
         }
@@ -94,7 +91,7 @@
             width: 40px;
             height: 40px;
             border-radius: var(--radius-lg);
-            background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(36, 90, 73, 0.8) 100%);
+            background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(var(--cor-principal-rgb), 0.8) 100%);
             border: none;
             color: var(--cor-texto-claro);
             display: flex;
@@ -106,7 +103,7 @@
         }
 
         .header-btn:hover {
-            background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(255, 107, 53, 0.9) 100%);
+            background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(var(--cor-acento-rgb), 0.9) 100%);
             transform: scale(1.08);
             box-shadow: var(--shadow-md);
         }

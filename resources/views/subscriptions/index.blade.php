@@ -47,37 +47,64 @@
     </div>
 
     <!-- Available Plans (Upgrade) -->
-    <h4 class="mb-4 mt-4">Opções de Upgrade</h4>
+    <h4 class="mb-4 mt-4" style="color: var(--cor-texto-claro); font-weight: 700;">Opções de Upgrade</h4>
     <div class="row">
+        @php
+            $featureLabels = [
+                'basic_tracking' => 'Rastreamento Básico',
+                'email_support' => 'Suporte por E-mail',
+                'basic_reports' => 'Relatórios Básicos',
+                'user_management' => 'Gestão de Usuários',
+                'advanced_tracking' => 'Rastreamento Avançado',
+                'whatsapp_ai' => 'Assistente IA no WhatsApp',
+                'fiscal_integration' => 'Integração Fiscal',
+                'api_access' => 'Acesso via API',
+                'advanced_reports' => 'Relatórios Avançados',
+                'route_optimization' => 'Otimização de Rotas',
+                'priority_support' => 'Suporte Prioritário',
+                'all_features' => 'Todas as Funcionalidades',
+                'custom_integrations' => 'Integrações Customizadas',
+                'white_label' => 'White Label / Personalizado',
+                'dedicated_support' => 'Gerente de Contas Dedicado',
+                'custom_reports' => 'Relatórios Customizados',
+                'advanced_analytics' => 'Analytics Avançado'
+            ];
+        @endphp
+
         @foreach($plans as $plan)
         <div class="col-lg-4 mb-4">
-            <div class="card shadow h-100 {{ $plan->is_popular ? 'border-primary' : '' }}">
+            <div class="card h-100 d-flex flex-column" style="background-color: var(--cor-secundaria); border: 1px solid {{ $plan->is_popular ? 'var(--cor-acento)' : 'rgba(255,255,255,0.1)' }}; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); position: relative; transition: transform 0.3s ease;">
                 @if($plan->is_popular)
-                    <div class="card-header bg-primary text-white text-center py-2">
-                        <strong>MAIS POPULAR</strong>
+                    <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--cor-acento); color: var(--cor-principal); padding: 4px 15px; border-radius: 20px; font-size: 0.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(255,107,53,0.3);">
+                        MAIS POPULAR
                     </div>
                 @endif
-                <div class="card-body text-center d-flex flex-column">
-                    <h2 class="card-title text-primary">{{ $plan->name }}</h2>
-                    <h3 class="card-subtitle mb-3 text-muted">
-                        R$ {{ number_format($plan->price, 0, ',', '.') }}<small>/mês</small>
+                <div class="text-center d-flex flex-column flex-grow-1" style="margin-top: {{ $plan->is_popular ? '15px' : '0' }};">
+                    <h2 style="color: var(--cor-acento); font-size: 24px; font-weight: 700; margin-bottom: 10px;">{{ $plan->name }}</h2>
+                    <h3 style="color: var(--cor-texto-claro); font-size: 28px; font-weight: 700; margin-bottom: 15px;">
+                        R$ {{ number_format($plan->price, 0, ',', '.') }}<small style="font-size: 0.5em; opacity: 0.7;">/mês</small>
                     </h3>
-                    <p class="card-text">{{ $plan->description }}</p>
-                    <hr>
-                    <ul class="list-unstyled text-start mb-4 flex-grow-1">
+                    <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em; margin-bottom: 20px; min-height: 40px;">{{ $plan->description }}</p>
+                    <hr style="border-color: rgba(255,255,255,0.1); margin-bottom: 20px;">
+                    <ul class="list-unstyled text-start mb-4 flex-grow-1" style="color: var(--cor-texto-claro); font-size: 0.95em; padding-left: 0;">
                         @foreach($plan->features as $feature)
-                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i> {{ ucfirst(str_replace('_', ' ', $feature)) }}</li>
+                            <li class="mb-2 d-flex align-items-center gap-2">
+                                <i class="fas fa-check" style="color: #4caf50; margin-right: 8px;"></i> 
+                                <span>{{ $featureLabels[$feature] ?? ucfirst(str_replace('_', ' ', $feature)) }}</span>
+                            </li>
                         @endforeach
                     </ul>
-                    @if(!Auth::user()->tenant || !Auth::user()->tenant->currentSubscription())
-                        <a href="{{ route('subscriptions.show', $plan) }}" class="btn btn-primary btn-block w-100 mt-auto">Assinar Agora</a>
-                    @else
-                        @if(Auth::user()->tenant->currentSubscription()->plan_id == $plan->id)
-                            <button class="btn btn-secondary btn-block w-100 mt-auto" disabled>Plano Atual</button>
+                    <div style="margin-top: auto;">
+                        @if(!Auth::user()->tenant || !Auth::user()->tenant->currentSubscription())
+                            <a href="{{ route('subscriptions.show', $plan) }}" class="btn-primary" style="width: 100%; text-align: center; justify-content: center; padding: 12px; display: inline-flex;">Assinar Agora</a>
                         @else
-                            <a href="{{ route('subscriptions.show', $plan) }}" class="btn btn-outline-primary btn-block w-100 mt-auto">Fazer Upgrade</a>
+                            @if(Auth::user()->tenant->currentSubscription()->plan_id == $plan->id)
+                                <button class="btn-secondary" style="width: 100%; text-align: center; justify-content: center; opacity: 0.5; cursor: not-allowed; display: inline-flex;" disabled>Plano Atual</button>
+                            @else
+                                <a href="{{ route('subscriptions.show', $plan) }}" class="btn-primary" style="width: 100%; text-align: center; justify-content: center; padding: 12px; display: inline-flex;">Fazer Upgrade</a>
+                            @endif
                         @endif
-                    @endif
+                    </div>
                 </div>
             </div>
         </div>

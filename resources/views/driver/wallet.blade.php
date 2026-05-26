@@ -5,7 +5,7 @@
 @push('styles')
 <style>
     .wallet-header-card {
-        background: linear-gradient(135deg, #1a3d33 0%, #245a49 100%);
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, var(--cor-principal) 100%);
         border-radius: 15px;
         padding: 25px;
         margin-bottom: 20px;
@@ -109,7 +109,7 @@
 
     .btn-add-expense:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+        box-shadow: 0 4px 12px rgba(var(--cor-acento-rgb), 0.4);
     }
 
     .expense-item {

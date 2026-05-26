@@ -5,12 +5,12 @@
 @push('styles')
 <style>
     .route-status-card {
-        background: linear-gradient(135deg, var(--cor-acento) 0%, #ff8c5a 100%);
+        background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(var(--cor-acento-rgb), 0.8) 100%);
         color: var(--cor-principal);
         padding: 20px;
         border-radius: 15px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        box-shadow: 0 4px 12px rgba(var(--cor-acento-rgb), 0.3);
     }
 
     .route-status-card h2 {
@@ -219,12 +219,12 @@
 
     .file-input-label:hover {
         border-color: var(--cor-acento);
-        background-color: rgba(255, 107, 53, 0.1);
+        background-color: rgba(var(--cor-acento-rgb), 0.1);
     }
 
     /* Wallet Card Styles */
     .wallet-card {
-        background: linear-gradient(135deg, #1a3d33 0%, #245a49 100%);
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, var(--cor-principal) 100%);
         border-radius: 15px;
         padding: 20px;
         margin-bottom: 20px;
@@ -437,7 +437,7 @@
     .route-option-btn {
         padding: 8px 16px;
         background: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 107, 53, 0.5);
+        border: 2px solid rgba(var(--cor-acento-rgb), 0.5);
         border-radius: 8px;
         color: var(--cor-texto-claro);
         cursor: pointer;
@@ -446,7 +446,7 @@
     }
 
     .route-option-btn:hover {
-        background: rgba(255, 107, 53, 0.2);
+        background: rgba(var(--cor-acento-rgb), 0.2);
         border-color: var(--cor-acento);
     }
 
@@ -718,8 +718,8 @@
     }
 
     .upcoming-route-card {
-        background: rgba(255, 107, 53, 0.1);
-        border: 2px solid rgba(255, 107, 53, 0.3);
+        background: rgba(var(--cor-acento-rgb), 0.1);
+        border: 2px solid rgba(var(--cor-acento-rgb), 0.3);
         border-radius: 12px;
         padding: 15px;
         margin-bottom: 12px;
@@ -727,7 +727,7 @@
     }
 
     .upcoming-route-card:hover {
-        background: rgba(255, 107, 53, 0.15);
+        background: rgba(var(--cor-acento-rgb), 0.15);
         border-color: var(--cor-acento);
         transform: translateX(5px);
     }
@@ -780,7 +780,7 @@
         top: 0;
         bottom: 0;
         width: 2px;
-        background: linear-gradient(to bottom, var(--cor-acento), rgba(255, 107, 53, 0.3));
+        background: linear-gradient(to bottom, var(--cor-acento), rgba(var(--cor-acento-rgb), 0.3));
     }
 
     .timeline-item {
@@ -953,9 +953,9 @@
     }
     
     .status-badge.pending-sync {
-        background-color: rgba(255, 107, 53, 0.2);
-        color: #FF6B35;
-        border: 2px solid #FF6B35;
+        background-color: rgba(var(--cor-acento-rgb), 0.2);
+        color: var(--cor-acento);
+        border: 2px solid var(--cor-acento);
         border-radius: 4px;
     }
 </style>
@@ -1035,12 +1035,12 @@
 </script>
 
 <!-- Offline Status Bar -->
-<div id="offline-sync-banner" style="display: none; background: linear-gradient(135deg, #FF6B35 0%, #dd5216 100%); color: #ffffff; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-weight: 600; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.25); align-items: center; justify-content: space-between; gap: 10px;">
+<div id="offline-sync-banner" style="display: none; background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(var(--cor-acento-rgb), 0.8) 100%); color: #ffffff; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-weight: 600; box-shadow: 0 4px 12px rgba(var(--cor-acento-rgb), 0.25); align-items: center; justify-content: space-between; gap: 10px;">
     <div style="display: flex; align-items: center; gap: 8px; font-size: 0.95em;">
         <i class="fas fa-wifi-slash" id="offline-banner-icon" style="color: #ffffff;"></i>
         <span id="offline-banner-text" style="color: #ffffff;">Você possui entregas aguardando sinal...</span>
     </div>
-    <button onclick="startManualSync()" id="offline-sync-btn" class="btn-primary" style="background: #111111; color: #FF6B35; padding: 6px 12px; font-size: 0.85em; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 700; transition: all 0.2s ease;">
+    <button onclick="startManualSync()" id="offline-sync-btn" class="btn-primary" style="background: #111111; color: var(--cor-acento); padding: 6px 12px; font-size: 0.85em; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 700; transition: all 0.2s ease;">
         <i class="fas fa-sync"></i> Sincronizar Agora
     </button>
 </div>
@@ -1967,7 +1967,7 @@
         const badge = card.querySelector('.status-badge');
         if (badge) {
             badge.className = 'status-badge pending-sync';
-            badge.style.cssText = 'background-color: rgba(255, 107, 53, 0.2); color: #FF6B35; border: 2px solid #FF6B35; border-radius: 4px;';
+            badge.style.cssText = 'background-color: rgba(var(--cor-acento-rgb), 0.2); color: var(--cor-acento); border: 2px solid var(--cor-acento); border-radius: 4px;';
             badge.innerHTML = '<i class="fas fa-clock fa-spin"></i> Sincronização Pendente';
         }
     }
@@ -2123,7 +2123,7 @@
             bottom: 90px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(36, 90, 73, 0.96);
+            background: rgba(var(--cor-secundaria-rgb), 0.96);
             color: #ffffff;
             padding: 12px 24px;
             border-radius: 4px;
@@ -3351,7 +3351,7 @@
             icon.className = 'fas fa-bell';
             text.textContent = 'Notificações Ativas';
         } else {
-            btn.style.background = 'rgba(255, 107, 53, 0.9)';
+            btn.style.background = 'rgba(var(--cor-acento-rgb), 0.9)';
             icon.className = 'fas fa-bell-slash';
             text.textContent = 'Ativar Notificações';
         }
@@ -3374,7 +3374,7 @@
         bottom: 80px;
         right: 20px;
         z-index: 1000;
-        background: rgba(255, 107, 53, 0.9);
+        background: rgba(var(--cor-acento-rgb), 0.9);
         color: #fff;
         border: none;
         border-radius: 50px;

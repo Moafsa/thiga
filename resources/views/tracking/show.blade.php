@@ -2,8 +2,73 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rastreamento - {{ $shipment->tracking_number }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- SEO Básico -->
+    <title>Rastreio de Carga #{{ $shipment->tracking_number }} | Thiga TMS</title>
+    <meta name="description" content="Acompanhe o status e a movimentação em tempo real da sua carga de número de rastreamento {{ $shipment->tracking_number }} no portal de rastreamento público do Thiga TMS.">
+    <meta name="keywords" content="rastreamento de carga, rastreio de encomenda, status da carga, thiga tms rastreio, {{ $shipment->tracking_number }}">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="{{ url()->current() }}">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="Rastreio de Carga #{{ $shipment->tracking_number }} | Thiga TMS">
+    <meta property="og:description" content="Acompanhe o status e a movimentação em tempo real da sua carga de número de rastreamento {{ $shipment->tracking_number }} no portal de rastreamento público.">
+    <meta property="og:image" content="{{ asset('LOGO.svg') }}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ url()->current() }}">
+    <meta property="twitter:title" content="Rastreio de Carga #{{ $shipment->tracking_number }} | Thiga TMS">
+    <meta property="twitter:description" content="Acompanhe o status e a movimentação em tempo real da sua carga de número de rastreamento {{ $shipment->tracking_number }} no portal de rastreamento público.">
+    <meta property="twitter:image" content="{{ asset('LOGO.svg') }}">
+
+    <!-- JSON-LD Schema (ParcelDelivery) -->
+    @php
+        $schemaStatusMap = [
+            'pending' => 'https://schema.org/ParcelOrderStatusReceived',
+            'scheduled' => 'https://schema.org/ParcelOrderStatusReceived',
+            'picked_up' => 'https://schema.org/ParcelOrderStatusPickUp',
+            'in_transit' => 'https://schema.org/ParcelInTransit',
+            'delivered' => 'https://schema.org/ParcelDelivered',
+            'returned' => 'https://schema.org/ParcelOrderStatusReturned',
+            'cancelled' => 'https://schema.org/ParcelOrderStatusCancelled',
+        ];
+        $schemaStatus = $schemaStatusMap[$shipment->status] ?? 'https://schema.org/ParcelOrderStatusReceived';
+    @endphp
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "ParcelDelivery",
+        "deliveryStatus": "{{ $schemaStatus }}",
+        "carrier": {
+            "@type": "Organization",
+            "name": "Thiga TMS",
+            "url": "{{ url('/') }}"
+        },
+        "itemShipped": {
+            "@type": "Product",
+            "name": "Encomenda #{{ $shipment->tracking_number }}"
+        },
+        "trackingNumber": "{{ $shipment->tracking_number }}",
+        "trackingUrl": "{{ url()->current() }}",
+        "originAddress": {
+            "@type": "PostalAddress",
+            "addressLocality": "{{ $shipment->pickup_city }}",
+            "addressRegion": "{{ $shipment->pickup_state }}",
+            "addressCountry": "BR"
+        },
+        "deliveryAddress": {
+            "@type": "PostalAddress",
+            "addressLocality": "{{ $shipment->delivery_city }}",
+            "addressRegion": "{{ $shipment->delivery_state }}",
+            "addressCountry": "BR"
+        }
+    }
+    </script>
+
     <style>
         * {
             margin: 0;

@@ -114,6 +114,56 @@
     </a>
 </div>
 
+<!-- Onboarding Rápido: Importar Clientes via CSV -->
+<div class="filters-section" x-data="{ open: false }" style="margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" x-on:click="open = !open">
+        <h3 style="color: var(--cor-acento); font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-file-import"></i> Onboarding Rápido: Importar Clientes via CSV
+        </h3>
+        <span style="color: var(--cor-acento);"><i class="fas" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i></span>
+    </div>
+    
+    <div x-show="open" x-transition style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+        <form method="POST" action="{{ route('clients.import') }}" enctype="multipart/form-data" style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; align-items: flex-start;">
+            @csrf
+            <div>
+                <label style="color: var(--cor-texto-claro); font-size: 0.9em; font-weight: 600; display: block; margin-bottom: 8px;">Selecione o arquivo CSV *</label>
+                <input type="file" name="csv_file" accept=".csv,.txt" required style="width: 100%; padding: 10px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.03); color: var(--cor-texto-claro);">
+                
+                <p style="font-size: 0.8em; opacity: 0.6; margin-top: 10px; line-height: 1.5; color: var(--cor-texto-claro);">
+                    💡 <strong>Colunas recomendadas no arquivo CSV:</strong><br>
+                    <code>name</code> (Nome do Cliente) *, <code>cnpj</code> (CNPJ/CPF), <code>email</code> *, <code>phone</code> *, <code>address</code>, <code>city</code>, <code>state</code> (UF com 2 letras), <code>zip_code</code>.<br>
+                    <span style="opacity: 0.8;">* Pelo menos <code>name</code> e um canal de contato (<code>email</code> ou <code>phone</code>) são estritamente necessários. O sistema gera automaticamente as credenciais de login do cliente baseadas no e-mail ou telefone fornecidos.</span>
+                </p>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; align-self: stretch; justify-content: space-between;">
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; font-size: 0.85em; opacity: 0.85; color: var(--cor-texto-claro);">
+                    <i class="fas fa-info-circle text-accent"></i> Separadores suportados: Vírgula (<code>,</code>) ou Ponto e Vírgula (<code>;</code>). O arquivo deve possuir cabeçalhos na primeira linha.
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 12px;">
+                    <i class="fas fa-upload"></i> Processar Importação
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if(session('import_errors'))
+<div class="card" style="margin-bottom: 25px; border: 1px solid rgba(244, 67, 54, 0.3); background-color: rgba(244, 67, 54, 0.03); padding: 20px; border-radius: 12px;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(244, 67, 54, 0.1); padding-bottom: 10px;">
+        <i class="fas fa-exclamation-circle" style="color: #ff4d4f; font-size: 1.2rem;"></i>
+        <h3 style="color: #ff4d4f; margin: 0; font-size: 1.1rem; font-weight: 600;">Detalhes dos Erros de Importação</h3>
+    </div>
+    <ul style="margin: 0; padding-left: 20px; color: #ff9f9f; line-height: 1.6; font-size: 0.9em;">
+        @foreach(session('import_errors') as $error)
+            <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
+
 @if(request('excluidos') === '1')
 <div class="filters-section" style="margin-bottom: 15px;">
     <p style="color: rgba(245, 245, 245, 0.85); margin: 0;">
@@ -324,6 +374,20 @@
     <div class="alert alert-success">
         <i class="fas fa-check mr-2"></i>
         {{ session('success') }}
+    </div>
+@endif
+
+@if(session('warning'))
+    <div class="alert" style="background-color: rgba(255, 152, 0, 0.9); color: white;">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        {{ session('warning') }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-error">
+        <i class="fas fa-times-circle mr-2"></i>
+        {{ session('error') }}
     </div>
 @endif
 

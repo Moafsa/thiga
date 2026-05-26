@@ -17,6 +17,7 @@
         padding: 24px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
         backdrop-filter: blur(8px);
+        color: var(--cor-texto-claro);
     }
 
     .card h2 {
@@ -34,6 +35,7 @@
     .form-group label {
         font-weight: 600;
         margin-bottom: 6px;
+        color: var(--cor-texto-claro);
     }
 
     .form-group input {
@@ -214,7 +216,7 @@
         <form method="POST" action="{{ route('settings.integrations.whatsapp.store') }}">
             @csrf
             <div class="form-group">
-                <label for="name">Nome da instância <span style="color:#f8d27a;">*</span></label>
+                <label for="name">Nome da instância <span style="color:var(--cor-acento);">*</span></label>
                 <input type="text" id="name" name="name" value="{{ old('name') }}" required>
                 @error('name')
                     <small style="color:#ff6b6b;">{{ $message }}</small>

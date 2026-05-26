@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Driver - TMS SaaS')
-@section('page-title', 'Edit Driver')
+@section('title', 'Editar Motorista - TMS SaaS')
+@section('page-title', 'Editar Motorista')
 
 @push('styles')
 @include('shared.styles')

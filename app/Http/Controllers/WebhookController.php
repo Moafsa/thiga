@@ -272,7 +272,7 @@ class WebhookController extends Controller
             // Find shipment by receiver phone
             $shipment = \App\Models\Shipment::whereHas('receiverClient', function ($query) use ($phone) {
                 $phoneClean = preg_replace('/[^0-9]/', '', $phone);
-                $query->whereRaw('REPLACE(REPLACE(REPLACE(phone, " ", ""), "-", ""), "(", "") = ?', [$phoneClean])
+                $query->whereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', '') = ?", [$phoneClean])
                       ->orWhere('phone', 'like', '%' . substr($phoneClean, -8) . '%');
             })
             ->where('status', 'delivered')

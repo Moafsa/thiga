@@ -3,8 +3,61 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotação de Frete - {{ $tenant->name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- SEO Básico -->
+    <title>Calculadora de Frete Online | {{ $tenant->name }} - Cotação Rápida</title>
+    <meta name="description" content="Use a calculadora de frete digital e inteligente da {{ $tenant->name }} para obter cotações de transporte instantâneas. Estime seus custos de envio de mercadorias online agora.">
+    <meta name="keywords" content="calculadora de frete, cotação de frete online, simular custo de frete, {{ $tenant->name }} fretes, transportadora cotação, valor frete roteirizado">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ url()->current() }}">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="Calculadora de Frete Online | {{ $tenant->name }} - Cotação Rápida">
+    <meta property="og:description" content="Use a calculadora de frete digital e inteligente da {{ $tenant->name }} para obter cotações de transporte instantâneas. Estime seus custos de envio online.">
+    <meta property="og:image" content="{{ asset('LOGO.svg') }}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ url()->current() }}">
+    <meta property="twitter:title" content="Calculadora de Frete Online | {{ $tenant->name }} - Cotação Rápida">
+    <meta property="twitter:description" content="Use a calculadora de frete digital e inteligente da {{ $tenant->name }} para obter cotações de transporte instantâneas.">
+    <meta property="twitter:image" content="{{ asset('LOGO.svg') }}">
+
+    <!-- JSON-LD Schema (Service & FAQPage) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Service",
+                "name": "Calculadora de Frete Online - {{ $tenant->name }}",
+                "description": "Calculadora digital inteligente para estimativa de valores de frete com base em peso, cubagem e rotas roteirizadas.",
+                "provider": {
+                    "@type": "LocalBusiness",
+                    "name": "{{ $tenant->name }}",
+                    "url": "{{ url('/') }}"
+                }
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {
+                        "@type": "Question",
+                        "name": "Como simular o valor do frete na {{ $tenant->name }}?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "Basta informar seu nome e número de WhatsApp, validar com o código de segurança enviado, e preencher o CEP de origem, CEP de destino, peso da carga e valor da nota fiscal para receber o valor estimado instantaneamente."
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

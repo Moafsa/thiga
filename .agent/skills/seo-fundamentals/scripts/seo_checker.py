@@ -34,7 +34,7 @@ except:
 SKIP_DIRS = {
     'node_modules', '.next', 'dist', 'build', '.git', '.github',
     '__pycache__', '.vscode', '.idea', 'coverage', 'test', 'tests',
-    '__tests__', 'spec', 'docs', 'documentation', 'examples'
+    '__tests__', 'spec', 'docs', 'documentation', 'examples', 'docker', 'public', 'vendor', 'storage'
 }
 
 # Files to skip (not pages)
@@ -68,8 +68,8 @@ def is_page_file(file_path: Path) -> bool:
     if any(p in stem for p in page_names):
         return True
     
-    # HTML files are usually pages
-    if file_path.suffix.lower() in ['.html', '.htm']:
+    # HTML and blade files are usually pages
+    if file_path.suffix.lower() in ['.html', '.htm', '.php']:
         return True
     
     return False
@@ -77,11 +77,18 @@ def is_page_file(file_path: Path) -> bool:
 
 def find_pages(project_path: Path) -> list:
     """Find page files to check."""
-    patterns = ['**/*.html', '**/*.htm', '**/*.jsx', '**/*.tsx']
+    patterns = ['**/*.html', '**/*.htm', '**/*.jsx', '**/*.tsx', 'resources/views/**/*.blade.php']
     
     files = []
     for pattern in patterns:
         for f in project_path.glob(pattern):
+            # Skip files directly in the root directory (scratch files, index.html)
+            try:
+                if len(f.relative_to(project_path).parts) == 1:
+                    continue
+            except ValueError:
+                pass
+
             # Skip excluded directories
             if any(skip in f.parts for skip in SKIP_DIRS):
                 continue

@@ -33,9 +33,6 @@
     <style>
         /* Variables */
         :root {
-            --cor-principal: #245a49;
-            --cor-secundaria: #1a3d33;
-            --cor-acento: #FF6B35;
             --cor-texto-claro: #F5F5F5;
             --cor-texto-escuro: #333;
             --bottom-nav-height: 70px;
@@ -126,7 +123,7 @@
         }
 
         .header-btn:hover {
-            background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(255, 107, 53, 0.9) 100%);
+            background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(var(--cor-acento-rgb), 0.9) 100%);
             transform: scale(1.08);
             box-shadow: var(--shadow-md);
         }
@@ -149,7 +146,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(180deg, var(--cor-secundaria) 0%, rgba(26, 61, 51, 0.95) 100%);
+            background: linear-gradient(180deg, var(--cor-secundaria) 0%, rgba(var(--cor-secundaria-rgb), 0.95) 100%);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
             display: flex;
             justify-content: space-around;
@@ -181,8 +178,8 @@
 
         .nav-item.active {
             color: var(--cor-acento);
-            background-color: rgba(255, 107, 53, 0.15);
-            box-shadow: 0 0 15px rgba(255, 107, 53, 0.2);
+            background-color: rgba(var(--cor-acento-rgb), 0.15);
+            box-shadow: 0 0 15px rgba(var(--cor-acento-rgb), 0.2);
         }
 
         .nav-item.active::before {
@@ -214,12 +211,12 @@
 
         /* Cards - Enhanced Premium Design */
         .driver-card {
-            background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.05) 100%);
+            background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(var(--cor-acento-rgb), 0.05) 100%);
             border-radius: var(--radius-lg);
             padding: var(--spacing-lg);
             margin-bottom: var(--spacing-lg);
             box-shadow: var(--shadow-md);
-            border: 1px solid rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(var(--cor-acento-rgb), 0.1);
             transition: all var(--transition-base) var(--easing-ease-in-out);
             animation: slideUp var(--transition-slow) var(--easing-ease-out);
         }
@@ -227,7 +224,7 @@
         .driver-card:hover {
             box-shadow: var(--shadow-lg);
             transform: translateY(-2px);
-            border-color: rgba(255, 107, 53, 0.2);
+            border-color: rgba(var(--cor-acento-rgb), 0.2);
         }
 
         .driver-card-header {
@@ -248,7 +245,7 @@
 
         /* Buttons - Enhanced Premium Style */
         .btn-primary {
-            background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(255, 107, 53, 0.9) 100%);
+            background: linear-gradient(135deg, var(--cor-acento) 0%, rgba(var(--cor-acento-rgb), 0.9) 100%);
             color: white;
             padding: var(--spacing-sm) var(--spacing-lg);
             border-radius: var(--radius-lg);
@@ -266,7 +263,7 @@
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.3);
+            box-shadow: 0 10px 20px rgba(var(--cor-acento-rgb), 0.3);
         }
 
         .btn-primary:active {
@@ -310,7 +307,7 @@
             font-weight: var(--font-weight-semibold);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            background-color: rgba(255, 107, 53, 0.15);
+            background-color: rgba(var(--cor-acento-rgb), 0.15);
             color: var(--cor-acento);
             animation: fadeIn var(--transition-base) var(--easing-ease-out);
         }
@@ -331,7 +328,7 @@
             height: 40px;
             animation: spin 1s linear infinite;
             margin: var(--spacing-lg) auto;
-            box-shadow: 0 0 10px rgba(255, 107, 53, 0.2);
+            box-shadow: 0 0 10px rgba(var(--cor-acento-rgb), 0.2);
         }
 
         @keyframes spin {

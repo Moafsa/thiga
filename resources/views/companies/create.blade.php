@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'New Company - TMS SaaS')
-@section('page-title', 'New Company')
+@section('title', 'Nova Empresa - TMS SaaS')
+@section('page-title', 'Nova Empresa')
 
 @push('styles')
 @include('shared.styles')
@@ -77,12 +77,12 @@
 @section('content')
 <div class="page-header">
     <div class="page-header-text">
-        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">New Company</h1>
-        <h2>Register a new company</h2>
+        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Nova Empresa</h1>
+        <h2>Cadastrar uma nova empresa</h2>
     </div>
     <a href="{{ route('companies.index') }}" class="btn-secondary">
         <i class="fas fa-arrow-left"></i>
-        Back
+        Voltar
     </a>
 </div>
 
@@ -90,10 +90,10 @@
     @csrf
 
     <div class="form-section">
-        <h3><i class="fas fa-building"></i> Basic Information</h3>
+        <h3><i class="fas fa-building"></i> Informações Básicas</h3>
         <div class="form-grid">
             <div class="form-group">
-                <label for="name">Name *</label>
+                <label for="name">Nome *</label>
                 <input type="text" name="name" id="name" value="{{ old('name') }}" required>
                 @error('name')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -101,7 +101,7 @@
             </div>
 
             <div class="form-group">
-                <label for="trade_name">Trade Name</label>
+                <label for="trade_name">Nome Fantasia</label>
                 <input type="text" name="trade_name" id="trade_name" value="{{ old('trade_name') }}">
                 @error('trade_name')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -134,7 +134,7 @@
             </div>
 
             <div class="form-group">
-                <label for="email">Email *</label>
+                <label for="email">E-mail *</label>
                 <input type="email" name="email" id="email" value="{{ old('email') }}" required>
                 @error('email')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -142,7 +142,7 @@
             </div>
 
             <div class="form-group">
-                <label for="phone">Phone *</label>
+                <label for="phone">Telefone *</label>
                 <input type="text" name="phone" id="phone" value="{{ old('phone') }}" 
                        placeholder="(00) 00000-0000" required>
                 @error('phone')
@@ -171,10 +171,10 @@
     </div>
 
     <div class="form-section">
-        <h3><i class="fas fa-map-marker-alt"></i> Address Information</h3>
+        <h3><i class="fas fa-map-marker-alt"></i> Informações de Endereço</h3>
         <div class="form-grid">
             <div class="form-group">
-                <label for="postal_code">Postal Code (CEP) *</label>
+                <label for="postal_code">CEP *</label>
                 <input type="text" name="postal_code" id="postal_code" value="{{ old('postal_code') }}" 
                        placeholder="00000-000" maxlength="10" required>
                 @error('postal_code')
@@ -183,7 +183,7 @@
             </div>
 
             <div class="form-group full-width">
-                <label for="address">Address *</label>
+                <label for="address">Endereço *</label>
                 <input type="text" name="address" id="address" value="{{ old('address') }}" required>
                 @error('address')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -191,7 +191,7 @@
             </div>
 
             <div class="form-group">
-                <label for="address_number">Number *</label>
+                <label for="address_number">Número *</label>
                 <input type="text" name="address_number" id="address_number" value="{{ old('address_number') }}" required>
                 @error('address_number')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -199,7 +199,7 @@
             </div>
 
             <div class="form-group">
-                <label for="complement">Complement</label>
+                <label for="complement">Complemento</label>
                 <input type="text" name="complement" id="complement" value="{{ old('complement') }}">
                 @error('complement')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -207,7 +207,7 @@
             </div>
 
             <div class="form-group">
-                <label for="neighborhood">Neighborhood *</label>
+                <label for="neighborhood">Bairro *</label>
                 <input type="text" name="neighborhood" id="neighborhood" value="{{ old('neighborhood') }}" required>
                 @error('neighborhood')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -215,7 +215,7 @@
             </div>
 
             <div class="form-group">
-                <label for="city">City *</label>
+                <label for="city">Cidade *</label>
                 <input type="text" name="city" id="city" value="{{ old('city') }}" required>
                 @error('city')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -223,9 +223,9 @@
             </div>
 
             <div class="form-group">
-                <label for="state">State *</label>
+                <label for="state">Estado *</label>
                 <select name="state" id="state" required>
-                    <option value="">Select state</option>
+                    <option value="">Selecione o estado</option>
                     @foreach($states as $state)
                         <option value="{{ $state }}" {{ old('state') === $state ? 'selected' : '' }}>{{ $state }}</option>
                     @endforeach
@@ -238,12 +238,12 @@
     </div>
 
     <div class="form-section">
-        <h3><i class="fas fa-file-invoice"></i> Fiscal Information</h3>
+        <h3><i class="fas fa-file-invoice"></i> Informações Fiscais</h3>
         <div class="form-grid">
             <div class="form-group">
                 <label for="crt">CRT (Código de Regime Tributário) *</label>
                 <select name="crt" id="crt" required>
-                    <option value="">Select CRT</option>
+                    <option value="">Selecione o CRT</option>
                     <option value="1" {{ old('crt') == '1' ? 'selected' : '' }}>1 - Simples Nacional</option>
                     <option value="2" {{ old('crt') == '2' ? 'selected' : '' }}>2 - Simples Nacional - Excesso de sublimite de receita bruta</option>
                     <option value="3" {{ old('crt') == '3' ? 'selected' : '' }}>3 - Regime Normal</option>
@@ -267,11 +267,11 @@
     <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 30px;">
         <a href="{{ route('companies.index') }}" class="btn-secondary">
             <i class="fas fa-times"></i>
-            Cancel
+            Cancelar
         </a>
         <button type="submit" class="btn-primary">
             <i class="fas fa-save"></i>
-            Save Company
+            Salvar Empresa
         </button>
     </div>
 </form>

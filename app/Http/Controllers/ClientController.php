@@ -404,6 +404,44 @@ class ClientController extends Controller
     }
 
     /**
+     * Import clients from CSV.
+     */
+    public function import(Request $request, \App\Services\CsvImportService $importService)
+    {
+        $tenant = Auth::user()->tenant;
+        if (!$tenant) {
+            abort(403, 'Tenant not found.');
+        }
+
+        $request->validate([
+            'csv_file' => 'required|file|max:5120',
+        ], [
+            'csv_file.required' => 'O arquivo CSV é obrigatório.',
+            'csv_file.max' => 'O tamanho máximo do arquivo é de 5MB.',
+        ]);
+
+        try {
+            $file = $request->file('csv_file');
+            $rows = $importService->parseCsv($file->getRealPath());
+
+            if (empty($rows)) {
+                return back()->with('error', 'O arquivo CSV está vazio ou não possui cabeçalhos válidos.');
+            }
+
+            $result = $importService->importClients($tenant->id, $rows);
+
+            if ($result['error_count'] > 0) {
+                $msg = "Importação concluída. SUCESSO: {$result['success_count']} clientes. ERROS: {$result['error_count']}.";
+                return back()->with('warning', $msg)->with('import_errors', $result['errors']);
+            }
+
+            return back()->with('success', "{$result['success_count']} Clientes importados com sucesso!");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erro ao importar arquivo: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Authorize access to client
      */
     protected function authorizeAccess(Client $client)

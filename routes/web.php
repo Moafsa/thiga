@@ -8,7 +8,8 @@ use App\Http\Controllers\Settings\WhatsAppIntegrationController;
 use App\Http\Controllers\Webhook\WhatsAppWebhookController;
 
 Route::get('/', function () {
-    return view('welcome');
+    $plans = \App\Models\Plan::where('is_active', true)->orderBy('sort_order')->get();
+    return view('welcome', compact('plans'));
 });
 
 // Public tracking route
@@ -231,6 +232,7 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/', [App\Http\Controllers\ClientController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\ClientController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\ClientController::class, 'store'])->name('store');
+        Route::post('/import', [App\Http\Controllers\ClientController::class, 'import'])->name('import');
         Route::get('/{client}', [App\Http\Controllers\ClientController::class, 'show'])->name('show');
         Route::get('/{client}/edit', [App\Http\Controllers\ClientController::class, 'edit'])->name('edit');
         Route::put('/{client}', [App\Http\Controllers\ClientController::class, 'update'])->name('update');
@@ -248,6 +250,7 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/', [App\Http\Controllers\DriverController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\DriverController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\DriverController::class, 'store'])->name('store');
+        Route::post('/import', [App\Http\Controllers\DriverController::class, 'import'])->name('import');
         Route::get('/{driver}', [App\Http\Controllers\DriverController::class, 'show'])->name('show');
         Route::get('/{driver}/edit', [App\Http\Controllers\DriverController::class, 'edit'])->name('edit');
         Route::put('/{driver}', [App\Http\Controllers\DriverController::class, 'update'])->name('update');
@@ -446,6 +449,11 @@ Route::middleware(['web', 'auth'])->group(function () {
             // Asaas Settings
             Route::get('/asaas', [App\Http\Controllers\Settings\AsaasConfigController::class, 'index'])->name('asaas.index');
             Route::put('/asaas', [App\Http\Controllers\Settings\AsaasConfigController::class, 'update'])->name('asaas.update');
+
+            // Sefaz & Certificado A1 Settings
+            Route::get('/sefaz', [App\Http\Controllers\Settings\SefazIntegrationController::class, 'index'])->name('sefaz.index');
+            Route::post('/sefaz', [App\Http\Controllers\Settings\SefazIntegrationController::class, 'update'])->name('sefaz.update');
+            Route::delete('/sefaz/cert', [App\Http\Controllers\Settings\SefazIntegrationController::class, 'destroyCertificate'])->name('sefaz.destroy-cert');
         });
 
     });

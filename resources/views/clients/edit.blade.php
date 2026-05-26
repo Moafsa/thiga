@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Client - TMS SaaS')
-@section('page-title', 'Edit Client')
+@section('title', 'Editar Cliente - TMS SaaS')
+@section('page-title', 'Editar Cliente')
 
 @push('styles')
 @include('shared.styles')
@@ -80,12 +80,12 @@
 @section('content')
 <div class="page-header">
     <div class="page-header-text">
-        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Edit Client</h1>
+        <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">Editar Cliente</h1>
         <h2>{{ $client->name }}</h2>
     </div>
     <a href="{{ route('clients.show', $client) }}" class="btn-secondary">
         <i class="fas fa-arrow-left"></i>
-        Back
+        Voltar
     </a>
 </div>
 
@@ -94,10 +94,10 @@
     @method('PUT')
 
     <div class="form-section">
-        <h3><i class="fas fa-user"></i> Basic Information</h3>
+        <h3><i class="fas fa-user"></i> Informações Básicas</h3>
         <div class="form-grid">
             <div class="form-group full-width">
-                <label for="name">Name *</label>
+                <label for="name">Nome *</label>
                 <input type="text" name="name" id="name" value="{{ old('name', $client->name) }}" required>
                 @error('name')
                     <span style="color: #f44336; font-size: 0.9em; margin-top: 5px;">{{ $message }}</span>
@@ -134,9 +134,9 @@
             </div>
 
             <div class="form-group">
-                <label for="salesperson_id">Salesperson</label>
+                <label for="salesperson_id">Vendedor</label>
                 <select name="salesperson_id" id="salesperson_id">
-                    <option value="">Select a salesperson</option>
+                    <option value="">Selecione um vendedor</option>
                     @foreach($salespeople as $salesperson)
                         <option value="{{ $salesperson->id }}" {{ old('salesperson_id', $client->salesperson_id) == $salesperson->id ? 'selected' : '' }}>
                             {{ $salesperson->name }}
@@ -151,7 +151,7 @@
             <div class="form-group">
                 <label>
                     <input type="checkbox" name="is_active" value="1" {{ old('is_active', $client->is_active) ? 'checked' : '' }}>
-                    Active
+                    Ativo
                 </label>
             </div>
 
@@ -175,22 +175,22 @@
     </div>
 
     <div class="form-section">
-        <h3><i class="fas fa-map-marker-alt"></i> Main Address</h3>
+        <h3><i class="fas fa-map-marker-alt"></i> Endereço Principal</h3>
         <div class="form-grid">
             <div class="form-group full-width">
-                <label for="address">Address</label>
+                <label for="address">Endereço</label>
                 <input type="text" name="address" id="address" value="{{ old('address', $client->address) }}">
             </div>
 
             <div class="form-group">
-                <label for="city">City</label>
+                <label for="city">Cidade</label>
                 <input type="text" name="city" id="city" value="{{ old('city', $client->city) }}">
             </div>
 
             <div class="form-group">
-                <label for="state">State</label>
+                <label for="state">Estado</label>
                 <select name="state" id="state">
-                    <option value="">Select state</option>
+                    <option value="">Selecione o estado</option>
                     @foreach($states as $state)
                         <option value="{{ $state }}" {{ old('state', $client->state) === $state ? 'selected' : '' }}>{{ $state }}</option>
                     @endforeach
@@ -198,25 +198,23 @@
             </div>
 
             <div class="form-group">
-                <label for="zip_code">ZIP Code</label>
+                <label for="zip_code">CEP</label>
                 <input type="text" name="zip_code" id="zip_code" value="{{ old('zip_code', $client->zip_code) }}" 
                        placeholder="00000-000" maxlength="10">
             </div>
         </div>
-    </div>
-
-    <div class="form-section">
+    </div>    <div class="form-section">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin: 0;"><i class="fas fa-map"></i> Additional Addresses</h3>
+            <h3 style="margin: 0;"><i class="fas fa-map"></i> Endereços Adicionais</h3>
             <button type="button" id="add-address-btn" class="btn-secondary" style="padding: 8px 16px;">
-                <i class="fas fa-plus"></i> Add Address
+                <i class="fas fa-plus"></i> Adicionar Endereço
             </button>
         </div>
         <div id="addresses-container">
             @foreach($client->addresses as $index => $address)
                 <div class="address-item" data-index="{{ $index }}">
                     <div class="address-header">
-                        <h4 style="color: var(--cor-acento); margin: 0;">Address {{ $index + 1 }}</h4>
+                        <h4 style="color: var(--cor-acento); margin: 0;">Endereço {{ $index + 1 }}</h4>
                         <button type="button" class="btn-secondary remove-address" style="padding: 5px 10px;">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -224,55 +222,55 @@
                     <div class="form-grid">
                         <input type="hidden" name="addresses[{{ $index }}][id]" value="{{ $address->id }}">
                         <div class="form-group">
-                            <label>Type</label>
+                            <label>Tipo</label>
                             <select name="addresses[{{ $index }}][type]" required>
-                                <option value="pickup" {{ $address->type === 'pickup' ? 'selected' : '' }}>Pickup</option>
-                                <option value="delivery" {{ $address->type === 'delivery' ? 'selected' : '' }}>Delivery</option>
+                                <option value="pickup" {{ $address->type === 'pickup' ? 'selected' : '' }}>Coleta</option>
+                                <option value="delivery" {{ $address->type === 'delivery' ? 'selected' : '' }}>Entrega</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Name</label>
+                            <label>Nome</label>
                             <input type="text" name="addresses[{{ $index }}][name]" value="{{ $address->name }}" required>
                         </div>
                         <div class="form-group full-width">
-                            <label>Address</label>
+                            <label>Endereço</label>
                             <input type="text" name="addresses[{{ $index }}][address]" value="{{ $address->address }}" required>
                         </div>
                         <div class="form-group">
-                            <label>Number</label>
+                            <label>Número</label>
                             <input type="text" name="addresses[{{ $index }}][number]" value="{{ $address->number }}" required>
                         </div>
                         <div class="form-group">
-                            <label>Complement</label>
+                            <label>Complemento</label>
                             <input type="text" name="addresses[{{ $index }}][complement]" value="{{ $address->complement }}">
                         </div>
                         <div class="form-group">
-                            <label>Neighborhood</label>
+                            <label>Bairro</label>
                             <input type="text" name="addresses[{{ $index }}][neighborhood]" value="{{ $address->neighborhood }}" required>
                         </div>
                         <div class="form-group">
-                            <label>City</label>
+                            <label>Cidade</label>
                             <input type="text" name="addresses[{{ $index }}][city]" value="{{ $address->city }}" required>
                         </div>
                         <div class="form-group">
-                            <label>State</label>
+                            <label>Estado</label>
                             <select name="addresses[{{ $index }}][state]" required>
-                                <option value="">Select state</option>
+                                <option value="">Selecione o estado</option>
                                 @foreach($states as $state)
                                     <option value="{{ $state }}" {{ $address->state === $state ? 'selected' : '' }}>{{ $state }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>ZIP Code</label>
+                            <label>CEP</label>
                             <input type="text" name="addresses[{{ $index }}][zip_code]" value="{{ $address->zip_code }}" required maxlength="10">
                         </div>
                         <div class="form-group">
                             <label>
                                 <input type="checkbox" name="addresses[{{ $index }}][is_default]" value="1" {{ $address->is_default ? 'checked' : '' }}>
-                                Default Address
+                                Endereço Padrão
                             </label>
-                        </div>
+                        </div>iv>
                     </div>
                 </div>
             @endforeach
@@ -321,11 +319,11 @@
     <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 30px;">
         <a href="{{ route('clients.show', $client) }}" class="btn-secondary">
             <i class="fas fa-times"></i>
-            Cancel
+            Cancelar
         </a>
         <button type="submit" class="btn-primary">
             <i class="fas fa-save"></i>
-            Update Client
+            Atualizar Cliente
         </button>
     </div>
 </form>
@@ -339,60 +337,60 @@
         const addressHtml = `
             <div class="address-item" data-index="${addressIndex}">
                 <div class="address-header">
-                    <h4 style="color: var(--cor-acento); margin: 0;">Address ${addressIndex + 1}</h4>
+                    <h4 style="color: var(--cor-acento); margin: 0;">Endereço ${addressIndex + 1}</h4>
                     <button type="button" class="btn-secondary remove-address" style="padding: 5px 10px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Type</label>
+                        <label>Tipo</label>
                         <select name="addresses[${addressIndex}][type]" required>
-                            <option value="pickup">Pickup</option>
-                            <option value="delivery">Delivery</option>
+                            <option value="pickup">Coleta</option>
+                            <option value="delivery">Entrega</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Name</label>
+                        <label>Nome</label>
                         <input type="text" name="addresses[${addressIndex}][name]" required>
                     </div>
                     <div class="form-group full-width">
-                        <label>Address</label>
+                        <label>Endereço</label>
                         <input type="text" name="addresses[${addressIndex}][address]" required>
                     </div>
                     <div class="form-group">
-                        <label>Number</label>
+                        <label>Número</label>
                         <input type="text" name="addresses[${addressIndex}][number]" required>
                     </div>
                     <div class="form-group">
-                        <label>Complement</label>
+                        <label>Complemento</label>
                         <input type="text" name="addresses[${addressIndex}][complement]">
                     </div>
                     <div class="form-group">
-                        <label>Neighborhood</label>
+                        <label>Bairro</label>
                         <input type="text" name="addresses[${addressIndex}][neighborhood]" required>
                     </div>
                     <div class="form-group">
-                        <label>City</label>
+                        <label>Cidade</label>
                         <input type="text" name="addresses[${addressIndex}][city]" required>
                     </div>
                     <div class="form-group">
-                        <label>State</label>
+                        <label>Estado</label>
                         <select name="addresses[${addressIndex}][state]" required>
-                            <option value="">Select state</option>
+                            <option value="">Selecione o estado</option>
                             @foreach($states as $state)
                                 <option value="{{ $state }}">{{ $state }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>ZIP Code</label>
+                        <label>CEP</label>
                         <input type="text" name="addresses[${addressIndex}][zip_code]" required maxlength="10">
                     </div>
                     <div class="form-group">
                         <label>
                             <input type="checkbox" name="addresses[${addressIndex}][is_default]" value="1">
-                            Default Address
+                            Endereço Padrão
                         </label>
                     </div>
                 </div>

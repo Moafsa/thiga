@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Shipment Details - TMS SaaS')
-@section('page-title', 'Shipment Details')
+@section('title', 'Detalhes da Carga - TMS SaaS')
+@section('page-title', 'Detalhes da Carga')
 
 @push('styles')
 @include('shared.styles')
@@ -11,16 +11,16 @@
 <div class="page-header">
     <div class="page-header-text">
         <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">{{ $shipment->title }}</h1>
-        <h2>Tracking: {{ $shipment->tracking_number }}</h2>
+        <h2>Rastreio: {{ $shipment->tracking_number }}</h2>
     </div>
     <div style="display: flex; gap: 10px;">
         <a href="{{ route('shipments.edit', $shipment) }}" class="btn-primary">
             <i class="fas fa-edit"></i>
-            Edit
+            Editar
         </a>
         <a href="{{ route('shipments.index') }}" class="btn-secondary">
             <i class="fas fa-arrow-left"></i>
-            Back
+            Voltar
         </a>
         @if(!in_array($shipment->status, ['delivered', 'in_transit', 'picked_up']) && !$shipment->hasAuthorizedCte() && (!$shipment->route || ($shipment->route->status !== 'in_progress' && !$shipment->route->is_route_locked)))
         <form action="{{ route('shipments.destroy', $shipment) }}" method="POST" style="display: inline;" 

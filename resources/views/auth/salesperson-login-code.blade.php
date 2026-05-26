@@ -11,11 +11,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --surface: #0d2923;
-            --panel: #0f1f1a;
-            --accent: #ff7a4a;
-            --text: #f6fbfb;
-            --muted: rgba(255, 255, 255, 0.75);
+            --bg-primary: #0d1b2a;
+            --bg-secondary: #162840;
+            --accent: #FF6B35;
+            --accent-dark: #E55A2B;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --border: #2a3f52;
         }
 
         *, *::before, *::after {
@@ -25,8 +27,8 @@
         body {
             margin: 0;
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #071414, #0d2923);
-            color: var(--text);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -42,24 +44,29 @@
         }
 
         .login-container {
-            width: min(420px, 100%);
-            background: var(--panel);
-            border-radius: 24px;
-            padding: 40px 32px;
-            box-shadow: 0 35px 70px rgba(0, 0, 0, 0.6);
+            width: min(450px, 100%);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 50px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
             position: relative;
+            animation: slideUp 600ms ease-out;
         }
 
         .back-link {
-            position: absolute;
-            top: 18px;
-            left: 18px;
-            font-size: 14px;
-            color: #fff;
-            text-decoration: none;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 25px;
+            transition: color 200ms ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent-dark);
         }
 
         .logo {
@@ -70,53 +77,66 @@
             font-size: 28px;
             font-weight: 700;
             color: var(--accent);
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         h1 {
             font-size: 26px;
             text-align: center;
-            margin: 0;
+            margin: 0 0 8px;
+            color: var(--text-primary);
+            font-weight: 700;
         }
 
         .subtitle {
             text-align: center;
-            color: var(--muted);
+            color: var(--text-secondary);
             font-size: 14px;
-            margin: 6px 0 24px;
+            margin: 0 0 30px;
+            line-height: 1.5;
         }
 
         .message-card {
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 12px 16px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             font-size: 14px;
+            line-height: 1.5;
         }
 
         .message-card.error {
-            background: rgba(208, 2, 27, 0.2);
-            border: 1px solid rgba(208, 2, 27, 0.45);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
         }
 
         .message-card.success {
-            background: rgba(23, 139, 93, 0.2);
-            border: 1px solid rgba(23, 139, 93, 0.5);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            color: #a7f3d0;
         }
 
         .info-box {
-            background: rgba(37, 211, 102, 0.12);
-            border: 1px solid rgba(37, 211, 102, 0.4);
-            border-radius: 10px;
-            padding: 12px 14px;
-            margin-bottom: 20px;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.25);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 25px;
             display: flex;
-            align-items: center;
-            gap: 8px;
+            align-items: flex-start;
+            gap: 12px;
             font-size: 14px;
-            color: var(--muted);
+            line-height: 1.5;
+            color: var(--text-secondary);
         }
 
         .info-box i {
+            margin-top: 3px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .info-box i.fa-whatsapp {
             color: #25d366;
         }
 
@@ -126,35 +146,40 @@
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 25px;
             font-size: 14px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             font-weight: 600;
-            color: var(--muted);
+            color: var(--text-primary);
         }
 
         .form-group input {
             width: 100%;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 12px 14px;
-            font-size: 16px;
-            background: rgba(15, 45, 38, 0.8);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.05);
             color: #fff;
+            font-family: 'Poppins', sans-serif;
+            transition: all 200ms ease;
         }
 
         .form-group input:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 15px rgba(255, 122, 74, 0.35);
+            background: rgba(255, 107, 53, 0.1);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
         .form-group input[readonly] {
-            opacity: 0.9;
+            opacity: 0.7;
+            background: rgba(255, 255, 255, 0.02);
+            cursor: not-allowed;
         }
 
         .code-input {
@@ -162,46 +187,62 @@
             text-align: center;
             font-size: 24px;
             font-weight: 700;
+            padding-left: 24px !important;
         }
 
         .btn-login {
             width: 100%;
             border: none;
-            border-radius: 14px;
-            padding: 14px;
-            background: linear-gradient(120deg, #ff7a4a, #ff945f);
+            border-radius: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
             color: #fff;
             font-size: 16px;
-            font-weight: 700;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: all 200ms ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
         .btn-login:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 12px 26px rgba(255, 122, 74, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
         }
 
         .links {
-            margin-top: 18px;
+            margin-top: 20px;
             text-align: center;
             font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .links a {
             color: var(--accent);
             text-decoration: none;
             font-weight: 600;
+            transition: color 200ms ease;
+        }
+
+        .links a:hover {
+            color: var(--accent-dark);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 520px) {
             .login-container {
                 padding: 30px 20px;
-            }
-
-            .back-link {
-                position: static;
-                margin-bottom: 10px;
             }
         }
     </style>
@@ -214,7 +255,7 @@
             </a>
 
             <div class="logo">
-                <i class="fas fa-lock"></i> Verificação
+                💼 TMS SaaS
             </div>
 
             <h1>Digite o código</h1>
@@ -242,7 +283,7 @@
 
             <div class="info-box">
                 <i class="fab fa-whatsapp"></i>
-                Confira a conversa do WhatsApp e insira o código de 6 dígitos.
+                <span>Confira a conversa do WhatsApp e insira o código de 6 dígitos.</span>
             </div>
 
             <form method="POST" action="{{ route('salesperson.login.verify-code') }}">

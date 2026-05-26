@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Driver Details - TMS SaaS')
-@section('page-title', 'Driver Details')
+@section('title', 'Detalhes do Motorista - TMS SaaS')
+@section('page-title', 'Detalhes do Motorista')
 
 @push('styles')
 @include('shared.styles')
@@ -52,10 +52,10 @@
 @endif
 
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px;">
-    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Driver Information</h3>
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Informações do Motorista</h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div>
-            <span style="color: rgba(245, 245, 245, 0.7);">Name:</span>
+            <span style="color: rgba(245, 245, 245, 0.7);">Nome:</span>
             <span style="color: var(--cor-texto-claro); font-weight: 600;">{{ $driver->name }}</span>
         </div>
         @if($driver->email)
@@ -67,7 +67,7 @@
         <div>
             <span style="color: rgba(245, 245, 245, 0.7);">Status:</span>
             <span class="status-badge" style="background-color: {{ $driver->is_active ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $driver->is_active ? '#4caf50' : '#f44336' }};">
-                {{ $driver->is_active ? 'Active' : 'Inactive' }}
+                {{ $driver->is_active ? 'Ativo' : 'Inativo' }}
             </span>
         </div>
     </div>
@@ -75,7 +75,7 @@
 
 @if($driver->vehicles->count() > 0)
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-top: 20px;">
-    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Assigned Vehicles</h3>
+    <h3 style="color: var(--cor-acento); margin-bottom: 20px;">Veículos Vinculados</h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
         @foreach($driver->vehicles as $vehicle)
             <div style="background-color: var(--cor-principal); padding: 20px; border-radius: 10px;">

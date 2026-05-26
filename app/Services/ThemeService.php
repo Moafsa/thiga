@@ -80,13 +80,17 @@ class ThemeService
         $cacheKey = "theme.colors.tenant.{$tenant->id}";
 
         return $this->cache->remember($cacheKey, 3600, function () use ($tenant) {
+            $primary = $tenant->primary_color ?? self::DEFAULT_COLORS['primary'];
+            $accent = $tenant->accent_color ?? self::DEFAULT_COLORS['secondary']; // Accent is secondary/highlight in design system
+            $secondary = $tenant->secondary_color ?? self::DEFAULT_COLORS['primary_dark']; // Secondary color is primary dark/sidebar bg in database
+
             return [
-                'primary' => $tenant->primary_color ?? self::DEFAULT_COLORS['primary'],
-                'primary_light' => $tenant->primary_color_light ?? self::DEFAULT_COLORS['primary_light'],
-                'primary_dark' => $tenant->primary_color_dark ?? self::DEFAULT_COLORS['primary_dark'],
-                'secondary' => $tenant->secondary_color ?? self::DEFAULT_COLORS['secondary'],
-                'secondary_light' => $tenant->secondary_color_light ?? self::DEFAULT_COLORS['secondary_light'],
-                'secondary_dark' => $tenant->secondary_color_dark ?? self::DEFAULT_COLORS['secondary_dark'],
+                'primary' => $primary,
+                'primary_light' => $this->lightenColor($primary, 15),
+                'primary_dark' => $secondary,
+                'secondary' => $accent,
+                'secondary_light' => $this->lightenColor($accent, 15),
+                'secondary_dark' => $this->darkenColor($accent, 10),
             ];
         });
     }
@@ -176,6 +180,11 @@ class ThemeService
         $css .= "  --color-secondary: {$colors['secondary']};\n";
         $css .= "  --color-secondary-light: {$colors['secondary_light']};\n";
         $css .= "  --color-secondary-dark: {$colors['secondary_dark']};\n";
+        $css .= "  --color-primary-rgb: " . $this->hex2rgb($colors['primary']) . ";\n";
+        $css .= "  --color-secondary-rgb: " . $this->hex2rgb($colors['secondary']) . ";\n";
+        $css .= "  --cor-principal: {$colors['primary']};\n";
+        $css .= "  --cor-secundaria: {$colors['primary_dark']};\n";
+        $css .= "  --cor-acento: {$colors['secondary']};\n";
         $css .= "}\n";
 
         return $css;
@@ -288,5 +297,26 @@ class ThemeService
 
         // Return black text for light backgrounds, white text for dark backgrounds
         return $luminance > 0.5 ? '#000000' : '#FFFFFF';
+    }
+
+    /**
+     * Convert a hex color string to an RGB string ("r, g, b")
+     *
+     * @param string $hex
+     * @return string
+     */
+    public function hex2rgb(string $hex): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $r = hexdec(substr($hex, 0, 1) . substr($hex, 0, 1));
+            $g = hexdec(substr($hex, 1, 1) . substr($hex, 1, 1));
+            $b = hexdec(substr($hex, 2, 1) . substr($hex, 2, 1));
+        } else {
+            $r = hexdec(substr($hex, 0, 2));
+            $g = hexdec(substr($hex, 2, 2));
+            $b = hexdec(substr($hex, 4, 2));
+        }
+        return "$r, $g, $b";
     }
 }

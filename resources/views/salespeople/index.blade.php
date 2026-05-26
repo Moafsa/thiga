@@ -29,6 +29,7 @@
         align-items: center;
         justify-content: space-between;
         margin-bottom: 20px;
+        gap: 15px;
     }
 
     .salesperson-avatar {
@@ -41,22 +42,35 @@
         justify-content: center;
         color: var(--cor-principal);
         font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .salesperson-info {
+        min-width: 0;
+        flex: 1;
     }
 
     .salesperson-info h3 {
         color: var(--cor-texto-claro);
         font-size: 1.2em;
         margin-bottom: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .salesperson-info p {
         color: rgba(245, 245, 245, 0.7);
         font-size: 0.9em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .salesperson-actions {
         display: flex;
         gap: 10px;
+        flex-shrink: 0;
     }
 
     .salesperson-detail {
@@ -99,7 +113,7 @@
     @forelse($salespeople as $salesperson)
         <div class="salesperson-card">
             <div class="salesperson-header">
-                <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px; min-width: 0; flex: 1;">
                     <div class="salesperson-avatar">
                         <i class="fas fa-user"></i>
                     </div>

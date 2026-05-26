@@ -110,7 +110,7 @@ class WhatsAppAiService
     {
         $normalizedPhone = $this->normalizePhone($phone);
         // Extract LID numeric root: strips ':7@lid', '@lid' etc.
-        $lidRoot = preg_replace('/[:\d]*@.*$/', '', $phone);
+        $lidRoot = preg_replace('/(:\d+)?@.*$/', '', $phone);
 
         return Client::where('tenant_id', $tenantId)
             ->where(function ($query) use ($phone, $normalizedPhone, $lidRoot) {
@@ -135,7 +135,7 @@ class WhatsAppAiService
         if (!$firstStage) return null;
 
         // LID root to match both '8766162493551@lid' and '8766162493551:7@lid'
-        $lidRoot = preg_replace('/[:\d]*@.*$/', '', $phone);
+        $lidRoot = preg_replace('/(:\d+)?@.*$/', '', $phone);
 
         // Search by phone variants in custom_data (most reliable deduplication)
         $deal = CrmDeal::where('tenant_id', $tenantId)
@@ -826,6 +826,8 @@ class WhatsAppAiService
      */
     protected function normalizePhone(string $phone): string
     {
+        // Strip device part if present (e.g. "5511999887766:7@lid" → "5511999887766@lid")
+        $phone = preg_replace('/:(\d+)(@|$)/', '$2', $phone);
         // Strip WuzAPI LID suffix (e.g. "5511999887766@lid" → "5511999887766")
         $phone = preg_replace('/@.*$/', '', $phone);
         // Strip all non-digit characters

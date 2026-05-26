@@ -69,17 +69,82 @@
     </a>
 </div>
 
+<!-- Onboarding Rápido: Importar Motoristas via CSV -->
+<div class="filters-section" x-data="{ open: false }" style="margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" x-on:click="open = !open">
+        <h3 style="color: var(--cor-acento); font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-file-import"></i> Onboarding Rápido: Importar Motoristas via CSV
+        </h3>
+        <span style="color: var(--cor-acento);"><i class="fas" :class="open ? 'fa-chevron-up' : 'fa-chevron-down'"></i></span>
+    </div>
+    
+    <div x-show="open" x-transition style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+        <form method="POST" action="{{ route('drivers.import') }}" enctype="multipart/form-data" style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; align-items: flex-start;">
+            @csrf
+            <div>
+                <label style="color: var(--cor-texto-claro); font-size: 0.9em; font-weight: 600; display: block; margin-bottom: 8px;">Selecione o arquivo CSV *</label>
+                <input type="file" name="csv_file" accept=".csv,.txt" required style="width: 100%; padding: 10px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.03); color: var(--cor-texto-claro);">
+                
+                <p style="font-size: 0.8em; opacity: 0.6; margin-top: 10px; line-height: 1.5; color: var(--cor-texto-claro);">
+                    💡 <strong>Colunas recomendadas no arquivo CSV:</strong><br>
+                    <code>name</code> (Nome do Motorista) *, <code>phone</code> (Telefone) *, <code>email</code>, <code>document</code> (CPF), <code>cnh_number</code> (Nº CNH), <code>cnh_category</code> (Categoria), <code>cnh_expiry_date</code> (Validade CNH), <code>vehicle_plate</code> (Placa), <code>vehicle_model</code> (Modelo), <code>vehicle_color</code> (Cor).<br>
+                    <span style="opacity: 0.8;">* Os campos <code>name</code> and <code>phone</code> são obrigatórios. O sistema criará a conta de login e atribuições automaticamente.</span>
+                </p>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; align-self: stretch; justify-content: space-between;">
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; font-size: 0.85em; opacity: 0.85; color: var(--cor-texto-claro);">
+                    <i class="fas fa-info-circle text-accent"></i> Separadores suportados: Vírgula (<code>,</code>) ou Ponto e Vírgula (<code>;</code>). O arquivo deve possuir cabeçalhos na primeira linha.
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 12px;">
+                    <i class="fas fa-upload"></i> Processar Importação
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if(session('import_errors'))
+<div class="card" style="margin-bottom: 25px; border: 1px solid rgba(244, 67, 54, 0.3); background-color: rgba(244, 67, 54, 0.03); padding: 20px; border-radius: 12px;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(244, 67, 54, 0.1); padding-bottom: 10px;">
+        <i class="fas fa-exclamation-circle" style="color: #ff4d4f; font-size: 1.2rem;"></i>
+        <h3 style="color: #ff4d4f; margin: 0; font-size: 1.1rem; font-weight: 600;">Detalhes dos Erros de Importação</h3>
+    </div>
+    <ul style="margin: 0; padding-left: 20px; color: #ff9f9f; line-height: 1.6; font-size: 0.9em;">
+        @foreach(session('import_errors') as $error)
+            <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
+
 @if(session('success'))
-    <div class="alert alert-success" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(76, 175, 80, 0.3);">
-        <i class="fas fa-check-circle mr-2"></i>
+    <div class="alert alert-success">
+        <i class="fas fa-check mr-2"></i>
         {{ session('success') }}
     </div>
 @endif
 
+@if(session('warning'))
+    <div class="alert" style="background-color: rgba(255, 152, 0, 0.9); color: white;">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        {{ session('warning') }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-error">
+        <i class="fas fa-times-circle mr-2"></i>
+        {{ session('error') }}
+    </div>
+@endif
+
 @if($errors->any())
-    <div class="alert alert-error" style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(244, 67, 54, 0.3);">
+    <div class="alert alert-error">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
         @foreach($errors->all() as $error)
-            <div><i class="fas fa-exclamation-circle mr-2"></i>{{ $error }}</div>
+            <div>{{ $error }}</div>
         @endforeach
     </div>
 @endif
@@ -132,6 +197,15 @@
 <div style="margin-top: 30px;">
     {{ $drivers->links() }}
 </div>
+
+@push('scripts')
+<script>
+    setTimeout(() => {
+        const messages = document.querySelectorAll('.alert');
+        messages.forEach(msg => msg.remove());
+    }, 5000);
+</script>
+@endpush
 @endsection
 
 

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Client Details - TMS SaaS')
-@section('page-title', 'Client Details')
+@section('title', 'Detalhes do Cliente - TMS SaaS')
+@section('page-title', 'Detalhes do Cliente')
 
 @push('styles')
 @include('shared.styles')
@@ -85,7 +85,7 @@
 <div class="page-header">
     <div class="page-header-text">
         <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">{{ $client->name }}</h1>
-        <h2>Client Details</h2>
+        <h2>Detalhes do Cliente</h2>
     </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <a href="{{ route('clients.edit', $client) }}" class="btn-primary">
@@ -120,27 +120,27 @@
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-value">{{ $client->shipments->count() }}</div>
-        <div class="stat-label">Shipments</div>
+        <div class="stat-label">Cargas</div>
     </div>
     <div class="stat-card">
         <div class="stat-value">{{ $client->proposals->count() }}</div>
-        <div class="stat-label">Proposals</div>
+        <div class="stat-label">Propostas</div>
     </div>
     <div class="stat-card">
         <div class="stat-value">{{ $client->invoices->count() }}</div>
-        <div class="stat-label">Invoices</div>
+        <div class="stat-label">Faturas</div>
     </div>
     <div class="stat-card">
         <div class="stat-value">{{ $client->addresses->count() }}</div>
-        <div class="stat-label">Addresses</div>
+        <div class="stat-label">Endereços</div>
     </div>
 </div>
 
 <div class="detail-section">
-    <h3><i class="fas fa-user"></i> Basic Information</h3>
+    <h3><i class="fas fa-user"></i> Informações Básicas</h3>
     <div class="detail-grid">
         <div class="detail-item">
-            <span class="detail-label">Name</span>
+            <span class="detail-label">Nome</span>
             <span class="detail-value">{{ $client->name }}</span>
         </div>
         @if($client->cnpj)
@@ -157,20 +157,20 @@
         @endif
         @if($client->phone)
         <div class="detail-item">
-            <span class="detail-label">Phone</span>
+            <span class="detail-label">Telefone</span>
             <span class="detail-value">{{ $client->phone }}</span>
         </div>
         @endif
         @if($client->salesperson)
         <div class="detail-item">
-            <span class="detail-label">Salesperson</span>
+            <span class="detail-label">Vendedor</span>
             <span class="detail-value">{{ $client->salesperson->name }}</span>
         </div>
         @endif
         <div class="detail-item">
             <span class="detail-label">Status</span>
             <span class="status-badge" style="background-color: {{ $client->is_active ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)' }}; color: {{ $client->is_active ? '#4caf50' : '#f44336' }};">
-                {{ $client->is_active ? 'Active' : 'Inactive' }}
+                {{ $client->is_active ? 'Ativo' : 'Inativo' }}
             </span>
         </div>
         <div class="detail-item">
@@ -184,23 +184,23 @@
 
 @if($client->address || $client->city)
 <div class="detail-section">
-    <h3><i class="fas fa-map-marker-alt"></i> Main Address</h3>
+    <h3><i class="fas fa-map-marker-alt"></i> Endereço Principal</h3>
     <div class="detail-grid">
         @if($client->address)
         <div class="detail-item">
-            <span class="detail-label">Address</span>
+            <span class="detail-label">Endereço</span>
             <span class="detail-value">{{ $client->address }}</span>
         </div>
         @endif
         @if($client->city)
         <div class="detail-item">
-            <span class="detail-label">City/State</span>
+            <span class="detail-label">Cidade/Estado</span>
             <span class="detail-value">{{ $client->city }}/{{ $client->state }}</span>
         </div>
         @endif
         @if($client->zip_code)
         <div class="detail-item">
-            <span class="detail-label">ZIP Code</span>
+            <span class="detail-label">CEP</span>
             <span class="detail-value">{{ $client->zip_code }}</span>
         </div>
         @endif
@@ -210,28 +210,28 @@
 
 @if($client->addresses->count() > 0)
 <div class="detail-section">
-    <h3><i class="fas fa-map"></i> Additional Addresses</h3>
+    <h3><i class="fas fa-map"></i> Endereços Adicionais</h3>
     @foreach($client->addresses as $address)
         <div class="address-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h4 style="color: var(--cor-acento); margin: 0;">
-                    {{ ucfirst($address->type) }} Address
+                    Endereço {{ ucfirst($address->type) }}
                     @if($address->is_default)
-                        <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50; margin-left: 10px; font-size: 0.8em;">Default</span>
+                        <span class="status-badge" style="background-color: rgba(76, 175, 80, 0.2); color: #4caf50; margin-left: 10px; font-size: 0.8em;">Padrão</span>
                     @endif
                 </h4>
             </div>
             <div class="detail-grid">
                 <div class="detail-item">
-                    <span class="detail-label">Name</span>
+                    <span class="detail-label">Nome</span>
                     <span class="detail-value">{{ $address->name }}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Address</span>
+                    <span class="detail-label">Endereço</span>
                     <span class="detail-value">{{ $address->formatted_address }}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">ZIP Code</span>
+                    <span class="detail-label">CEP</span>
                     <span class="detail-value">{{ $address->zip_code }}</span>
                 </div>
             </div>

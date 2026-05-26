@@ -230,7 +230,7 @@ a {
 
 a:hover {
   color: var(--color-primary-light);
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 a:active {

@@ -28,6 +28,8 @@ class MittService
     public function issueCte(array $cteData): array
     {
         try {
+            $cteData = $this->injectSefazCredentials($cteData);
+            
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type' => 'application/json',
@@ -72,6 +74,8 @@ class MittService
     public function issueMdfe(array $mdfeData): array
     {
         try {
+            $mdfeData = $this->injectSefazCredentials($mdfeData);
+            
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type' => 'application/json',
@@ -548,6 +552,57 @@ class MittService
     {
         $expectedSignature = hash_hmac('sha256', $payload, $this->webhookToken);
         return hash_equals($expectedSignature, $signature);
+    }
+
+    /**
+     * Inject SEFAZ credentials and digital certificate from the tenant into the payload.
+     *
+     * @param array $payload
+     * @return array
+     */
+    protected function injectSefazCredentials(array $payload): array
+    {
+        if (empty($payload['tenant_id'])) {
+            return $payload;
+        }
+
+        try {
+            $tenant = \App\Models\Tenant::find($payload['tenant_id']);
+            if ($tenant && !empty($tenant->metadata['sefaz'])) {
+                $sefaz = $tenant->metadata['sefaz'];
+                if (!empty($sefaz['certificate_path']) && !empty($sefaz['certificate_password_encrypted'])) {
+                    $fullPath = storage_path('app/' . $sefaz['certificate_path']);
+                    if (file_exists($fullPath)) {
+                        $password = \Illuminate\Support\Facades\Crypt::decryptString($sefaz['certificate_password_encrypted']);
+                        $certificateBase64 = base64_encode(file_get_contents($fullPath));
+
+                        $payload['sefaz_config'] = [
+                            'certificate' => $certificateBase64,
+                            'password' => $password,
+                            'environment' => $sefaz['environment'] ?? 'homologacao',
+                            'uf' => $sefaz['uf'] ?? 'SP',
+                            'cnpj' => $sefaz['cnpj'] ?? $tenant->cnpj
+                        ];
+
+                        Log::info('Certificado A1 e credenciais SEFAZ injetados com sucesso no payload da Mitt', [
+                            'tenant_id' => $tenant->id
+                        ]);
+                    } else {
+                        Log::warning('Arquivo de certificado digital A1 do tenant não encontrado no disco local', [
+                            'tenant_id' => $tenant->id,
+                            'path' => $sefaz['certificate_path']
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro ao injetar credenciais SEFAZ do tenant no payload', [
+                'tenant_id' => $payload['tenant_id'] ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return $payload;
     }
 
     /**

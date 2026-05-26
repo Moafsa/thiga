@@ -169,7 +169,7 @@
     }
 
     .action-btn {
-        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(36, 90, 73, 0.8) 100%);
+        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(var(--cor-principal-rgb), 0.8) 100%);
         padding: var(--spacing-md) var(--spacing-lg);
         border-radius: var(--radius-lg);
         text-decoration: none;
@@ -215,7 +215,7 @@
     }
 
     .recent-item {
-        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(36, 90, 73, 0.8) 100%);
+        background: linear-gradient(135deg, var(--cor-principal) 0%, rgba(var(--cor-principal-rgb), 0.8) 100%);
         padding: var(--spacing-md);
         border-radius: var(--radius-md);
         margin-bottom: var(--spacing-sm);
@@ -280,16 +280,16 @@
         <div>
             <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Data Inicial</label>
             <input type="date" name="date_from" value="{{ $filters['date_from'] }}"
-                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
+                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(var(--cor-principal-rgb), 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
         </div>
         <div>
             <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Data Final</label>
             <input type="date" name="date_to" value="{{ $filters['date_to'] }}"
-                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
+                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(var(--cor-principal-rgb), 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
         </div>
         <div>
             <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Status</label>
-            <select name="status" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
+            <select name="status" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(var(--cor-principal-rgb), 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
                 <option value="">Todos os Status</option>
                 <option value="pending" {{ $filters['status'] === 'pending' ? 'selected' : '' }}>Pendente</option>
                 <option value="scheduled" {{ $filters['status'] === 'scheduled' ? 'selected' : '' }}>Agendado</option>
@@ -301,7 +301,7 @@
         </div>
         <div>
             <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Cliente</label>
-            <select name="client_id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(36, 90, 73, 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
+            <select name="client_id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(var(--cor-principal-rgb), 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
                 <option value="">Todos os Clientes</option>
                 @foreach($clients as $client)
                     <option value="{{ $client->id }}" {{ $filters['client_id'] == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>

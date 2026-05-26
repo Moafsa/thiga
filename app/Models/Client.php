@@ -294,6 +294,9 @@ class Client extends Model
             return null;
         }
 
+        // First strip device part if present (e.g. "5511999887766:7@lid" -> "5511999887766@lid")
+        $phone = preg_replace('/:(\d+)(@|$)/', '$2', $phone);
+
         $digits = preg_replace('/\D/', '', $phone);
 
         if (!$digits) {
