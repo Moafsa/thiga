@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Faturamento - Thiga TMS')
+@section('title', 'Faturamento - TMS LOG')
 @section('page-title', 'Faturamento')
 
 @push('styles')

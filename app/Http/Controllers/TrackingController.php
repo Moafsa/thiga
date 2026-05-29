@@ -22,7 +22,7 @@ class TrackingController extends Controller
     {
         $shipment = Shipment::where('tracking_number', $trackingNumber)
             ->orWhere('tracking_code', $trackingNumber)
-            ->with(['senderClient', 'receiverClient', 'timeline'])
+            ->with(['senderClient', 'receiverClient', 'timeline', 'tenant', 'driver', 'route.driver', 'route.vehicle'])
             ->first();
 
         if (!$shipment) {

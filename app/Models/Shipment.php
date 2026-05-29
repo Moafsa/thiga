@@ -236,5 +236,14 @@ class Shipment extends Model
     {
         return $this->hasMany(ShipmentExpense::class);
     }
+
+    /**
+     * Get the co-loading space booking associated with this shipment.
+     */
+    public function spaceBooking(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(RouteSpaceBooking::class, 'shipment_id');
+    }
 }
+
 

@@ -142,6 +142,94 @@
     .quick-action h3 {
         margin-bottom: 15px;
     }
+
+    .tenant-card {
+        background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 107, 53, 0.03) 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 107, 53, 0.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tenant-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 10px;
+    }
+
+    .tenant-badge {
+        font-size: 0.75em;
+        font-weight: 700;
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        padding: 4px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+    }
+
+    .tenant-item {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .tenant-item:hover {
+        border-color: rgba(255, 107, 53, 0.2);
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .tenant-item.active-login {
+        border-color: rgba(16, 185, 129, 0.3);
+        background-color: rgba(16, 185, 129, 0.02);
+    }
+
+    .tenant-meta {
+        font-size: 0.82em;
+        color: rgba(245, 245, 245, 0.6);
+        margin: 8px 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px;
+    }
+
+    .tenant-stats-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-top: 10px;
+    }
+
+    .tenant-stat-badge {
+        font-size: 0.75em;
+        background-color: rgba(255, 255, 255, 0.04);
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(245, 245, 245, 0.85);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tenant-stat-badge.amount {
+        background-color: rgba(255, 107, 53, 0.1);
+        border-color: rgba(255, 107, 53, 0.2);
+        color: var(--cor-acento);
+        font-weight: 600;
+    }
 </style>
 @endpush
 
@@ -152,6 +240,79 @@
     <a href="{{ route('client.request-proposal') }}" class="btn-primary">
         <i class="fas fa-file-invoice"></i> Solicitar Proposta
     </a>
+</div>
+
+<div class="tenant-card">
+    <div class="tenant-header">
+        <h2 class="section-title" style="margin-bottom: 0;">
+            <i class="fas fa-network-wired"></i> Conexões & Histórico
+        </h2>
+        @if($loginTenant)
+            <span class="tenant-badge">
+                <i class="fas fa-circle" style="font-size: 8px;"></i>
+                Acesso Atual: {{ $loginTenant->name }}
+            </span>
+        @endif
+    </div>
+    
+    <p style="font-size: 0.88em; color: rgba(245, 245, 245, 0.7); margin-bottom: 15px;">
+        Você possui perfis de cliente cadastrados e ativos nas seguintes transportadoras da rede **TMS LOG**:
+    </p>
+
+    @if(count($tenantInteractions) > 0)
+        @foreach($tenantInteractions as $interaction)
+            <div class="tenant-item {{ $interaction['is_current_login'] ? 'active-login' : '' }}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h4 style="color: var(--cor-acento); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-building" style="color: rgba(255,255,255,0.4);"></i>
+                        {{ $interaction['tenant_name'] }}
+                    </h4>
+                    @if($interaction['is_current_login'])
+                        <span class="status-badge delivered" style="font-size: 0.7em; padding: 2px 8px;">Conectado</span>
+                    @endif
+                </div>
+
+                <div class="tenant-meta">
+                    <div><i class="far fa-user"></i> <strong>Nome:</strong> {{ $interaction['client_name'] }}</div>
+                    @if($interaction['client_cnpj'])
+                        <div><i class="far fa-id-card"></i> <strong>CNPJ/CPF:</strong> {{ $interaction['client_cnpj'] }}</div>
+                    @endif
+                    @if($interaction['client_email'])
+                        <div><i class="far fa-envelope"></i> <strong>Email:</strong> {{ $interaction['client_email'] }}</div>
+                    @endif
+                    @if($interaction['client_phone'])
+                        <div><i class="fas fa-phone-alt"></i> <strong>Telefone:</strong> {{ $interaction['client_phone'] }}</div>
+                    @endif
+                </div>
+
+                <div class="tenant-stats-row">
+                    <span class="tenant-stat-badge" title="CT-es / Cargas registradas nesta transportadora">
+                        <i class="fas fa-truck"></i> {{ $interaction['shipment_count'] }} Cargas (CT-es)
+                    </span>
+                    <span class="tenant-stat-badge" title="Propostas comerciais recebidas">
+                        <i class="fas fa-file-invoice"></i> {{ $interaction['proposal_count'] }} Propostas
+                    </span>
+                    <span class="tenant-stat-badge" title="Faturas emitidas">
+                        <i class="fas fa-receipt"></i> {{ $interaction['invoice_count'] }} Faturas
+                    </span>
+                    @if($interaction['pending_invoice_amount'] > 0)
+                        <span class="tenant-stat-badge amount" title="Valor total de faturas pendentes de pagamento">
+                            <i class="fas fa-wallet"></i> R$ {{ number_format($interaction['pending_invoice_amount'], 2, ',', '.') }} Pendente
+                        </span>
+                    @else
+                        <span class="tenant-stat-badge" style="color: #10b981; border-color: rgba(16,185,129,0.15);" title="Sem pendências financeiras nesta transportadora">
+                            <i class="fas fa-check-circle"></i> Em dia
+                        </span>
+                    @endif
+                </div>
+            </div>
+        @endforeach
+    @else
+        <div class="empty-state">
+            <i class="fas fa-network-wired"></i>
+            <p>Você não possui vínculos ativos com transportadoras cadastrados.</p>
+        </div>
+    @endif
 </div>
 
 <div class="stats-grid">

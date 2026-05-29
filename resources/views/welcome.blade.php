@@ -5,26 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <!-- SEO Básico -->
-    <title>Thiga TMS | Sistema de Gestão de Transportes e Logística Inteligente</title>
-    <meta name="description" content="O Thiga TMS é o software SaaS definitivo para gestão de transportes e logística. Otimize rotas com Mapbox, automatize cotações de fretes, acompanhe motoristas em tempo real e emita CT-e de forma simples e rápida. Reduza seus custos operacionais hoje!">
-    <meta name="keywords" content="tms, gestão de transportes, sistema logistico, controle de cargas, cotação de fretes online, roteirizador inteligente, monitoramento de motoristas, emissores de cte, mdfe, thiga tms, saas logistica">
+    <title>TMS LOG | Sistema de Gestão de Transportes e Logística Inteligente</title>
+    <meta name="description" content="O TMS LOG é o software SaaS definitivo para gestão de transportes e logística. Otimize rotas com Mapbox, automatize cotações de fretes, acompanhe motoristas em tempo real e emita CT-e de forma simples e rápida. Reduza seus custos operacionais hoje!">
+    <meta name="keywords" content="tms, gestão de transportes, sistema logistico, controle de cargas, cotação de fretes online, roteirizador inteligente, monitoramento de motoristas, emissores de cte, mdfe, tms log, saas logistica">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="{{ url()->current() }}">
     
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:title" content="Thiga TMS | Sistema de Gestão de Transportes e Logística Inteligente">
-    <meta property="og:description" content="O Thiga TMS é o software SaaS definitivo para gestão de transportes e logística. Otimize rotas, automatize cotações de fretes, acompanhe motoristas em tempo real e emita CT-e de forma simples e rápida.">
+    <meta property="og:title" content="TMS LOG | Sistema de Gestão de Transportes e Logística Inteligente">
+    <meta property="og:description" content="O TMS LOG é o software SaaS definitivo para gestão de transportes e logística. Otimize rotas, automatize cotações de fretes, acompanhe motoristas em tempo real e emita CT-e de forma simples e rápida.">
     <meta property="og:image" content="{{ asset('LOGO.svg') }}">
     <meta property="og:locale" content="pt_BR">
-    <meta property="og:site_name" content="Thiga TMS">
+    <meta property="og:site_name" content="TMS LOG">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="{{ url()->current() }}">
-    <meta property="twitter:title" content="Thiga TMS | Sistema de Gestão de Transportes e Logística Inteligente">
-    <meta property="twitter:description" content="O Thiga TMS é o software SaaS definitivo para gestão de transportes e logística. Otimize rotas, automatize cotações de fretes, acompanhe motoristas em tempo real e emita CT-e de forma simples e rápida.">
+    <meta property="twitter:title" content="TMS LOG | Sistema de Gestão de Transportes e Logística Inteligente">
+    <meta property="twitter:description" content="O TMS LOG é o software SaaS definitivo para gestão de transportes e logística. Otimize rotas, automatize cotações de fretes, acompanhe motoristas em tempo real e emita CT-e de forma simples e rápida.">
     <meta property="twitter:image" content="{{ asset('LOGO.svg') }}">
 
     <!-- Schema Markup JSON-LD (E-E-A-T & Google SERPs Rich Snippets) -->
@@ -35,22 +35,22 @@
             {
                 "@type": "Organization",
                 "@id": "{{ url('/') }}/#organization",
-                "name": "Thiga TMS",
+                "name": "TMS LOG",
                 "url": "{{ url('/') }}",
                 "logo": {
                     "@type": "ImageObject",
                     "url": "{{ asset('LOGO.svg') }}",
-                    "caption": "Thiga TMS Logo"
+                    "caption": "TMS LOG Logo"
                 },
                 "sameAs": [
-                    "https://www.linkedin.com/company/thiga-tms"
+                    "https://www.linkedin.com/company/tms-log"
                 ]
             },
             {
                 "@type": "WebSite",
                 "@id": "{{ url('/') }}/#website",
                 "url": "{{ url('/') }}",
-                "name": "Thiga TMS",
+                "name": "TMS LOG",
                 "description": "Sistema de Gestão de Transportes e Roteirização Inteligente",
                 "publisher": {
                     "@id": "{{ url('/') }}/#organization"
@@ -59,7 +59,7 @@
             {
                 "@type": "SoftwareApplication",
                 "@id": "{{ url('/') }}/#software",
-                "name": "Thiga TMS",
+                "name": "TMS LOG",
                 "applicationCategory": "BusinessApplication",
                 "operatingSystem": "All",
                 "offers": {
@@ -84,15 +84,15 @@
                 "mainEntity": [
                     {
                         "@type": "Question",
-                        "name": "Como funciona o cálculo de frete no Thiga TMS?",
+                        "name": "Como funciona o cálculo de frete no TMS LOG?",
                         "acceptedAnswer": {
                             "@type": "Answer",
-                            "text": "O Thiga TMS calcula o valor do frete combinando a distância exata da rota via Mapbox, as tabelas de fretes do transportador por cubagem/peso, e os impostos incidentes de forma automática, enviando uma proposta digital diretamente para o cliente."
+                            "text": "O TMS LOG calcula o valor do frete combinando a distância exata da rota via Mapbox, as tabelas de fretes do transportador por cubagem/peso, e os impostos incidentes de forma automática, enviando uma proposta digital diretamente para o cliente."
                         }
                     },
                     {
                         "@type": "Question",
-                        "name": "O Thiga TMS emite CT-e e MDF-e?",
+                        "name": "O TMS LOG emite CT-e e MDF-e?",
                         "acceptedAnswer": {
                             "@type": "Answer",
                             "text": "Sim! O sistema possui um módulo fiscal completo e simplificado para importação do XML da nota fiscal e emissão ágil do CT-e e MDF-e em poucos segundos, agilizando o despacho de cargas."
@@ -103,7 +103,7 @@
                         "name": "É possível acompanhar o motorista em tempo real?",
                         "acceptedAnswer": {
                             "@type": "Answer",
-                            "text": "Sim! O Thiga TMS possui rastreamento por geolocalização em tempo real integrado ao painel logístico, permitindo acompanhar o deslocamento exato do motorista e emitir alertas automáticos de status."
+                            "text": "Sim! O TMS LOG possui rastreamento por geolocalização em tempo real integrado ao painel logístico, permitindo acompanhar o deslocamento exato do motorista e emitir alertas automáticos de status."
                         }
                     }
                 ]
@@ -1068,7 +1068,7 @@
 <!-- FOOTER -->
 <footer>
     <div class="footer-logo">tms</div>
-    <div class="footer-text">© 2024 Thiga TMS. Todos os direitos reservados.</div>
+    <div class="footer-text">© {{ date('Y') }} TMS LOG. Todos os direitos reservados.</div>
 </footer>
 
 <script>

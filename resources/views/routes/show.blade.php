@@ -107,6 +107,104 @@
 </div>
 
 @php
+    $capacity = $route->getAvailableCapacity();
+    $hasAvailableCapacity = ($capacity['weight'] > 0 || $capacity['volume'] > 0) && $route->vehicle;
+    $existingOffer = $route->capacityOffers()->where('status', 'active')->first();
+@endphp
+
+@if($hasAvailableCapacity)
+    <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(22, 163, 74, 0.3); padding: 30px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="background-color: rgba(22, 163, 74, 0.2); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(22, 163, 74, 0.4);">
+                    <i class="fas fa-truck-loading" style="color: #16a34a; font-size: 1.5em;"></i>
+                </div>
+                <div>
+                    <h3 style="color: #16a34a; margin: 0; font-size: 1.4em; font-weight: 700; letter-spacing: 0.5px;">TMS LOG Compartilhado</h3>
+                    <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em;">Otimize sua margem preenchendo a capacidade ociosa do seu veículo!</span>
+                </div>
+            </div>
+            @if($existingOffer)
+                <span style="background-color: rgba(22, 163, 74, 0.15); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.3); padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600;">
+                    <i class="fas fa-check-circle"></i> Rota já Publicada
+                </span>
+            @else
+                <span style="background-color: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600;">
+                    <i class="fas fa-exclamation-circle"></i> Ociosidade Detectada
+                </span>
+            @endif
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; background-color: rgba(255, 255, 255, 0.03); padding: 20px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em; display: block; margin-bottom: 5px;">Peso Sobressalente:</span>
+                <span style="color: var(--cor-texto-claro); font-size: 1.3em; font-weight: 700;">{{ number_format($capacity['weight'], 2, ',', '.') }} kg</span>
+            </div>
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em; display: block; margin-bottom: 5px;">Volume Sobressalente:</span>
+                <span style="color: var(--cor-texto-claro); font-size: 1.3em; font-weight: 700;">{{ number_format($capacity['volume'], 2, ',', '.') }} m³</span>
+            </div>
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em; display: block; margin-bottom: 5px;">Capacidade Total Veículo:</span>
+                <span style="color: rgba(245, 245, 245, 0.8); font-weight: 600;">{{ number_format($route->vehicle->capacity_weight, 2, ',', '.') }} kg / {{ number_format($route->vehicle->capacity_volume, 2, ',', '.') }} m³</span>
+            </div>
+            <div>
+                <span style="color: rgba(245, 245, 245, 0.6); font-size: 0.9em; display: block; margin-bottom: 5px;">Veículo Escalado:</span>
+                <span style="color: var(--cor-acento); font-weight: 600;">{{ $route->vehicle->plate }} ({{ $route->vehicle->brand }} {{ $route->vehicle->model }})</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <h4 style="color: var(--cor-texto-claro); margin-bottom: 12px; font-weight: 600;">Como funciona o TMS LOG Compartilhado?</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                <div style="display: flex; gap: 10px;">
+                    <i class="fas fa-percent" style="color: #16a34a; margin-top: 4px;"></i>
+                    <div style="color: rgba(245, 245, 245, 0.8); font-size: 0.9em;">
+                        <strong>Rentabilize o Espaço Vazio:</strong> Venda o espaço excedente do baú para outros parceiros da plataforma de forma simples e rápida.
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <i class="fas fa-hand-holding-usd" style="color: #16a34a; margin-top: 4px;"></i>
+                    <div style="color: rgba(245, 245, 245, 0.8); font-size: 0.9em;">
+                        <strong>Split de Custos Automático (Asaas):</strong> O pagamento é processado e splitado de forma transparente: o valor do frete vai direto para você, descontando apenas a taxa da plataforma.
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <i class="fas fa-shield-alt" style="color: #16a34a; margin-top: 4px;"></i>
+                    <div style="color: rgba(245, 245, 245, 0.8); font-size: 0.9em;">
+                        <strong>Custódia Financeira Segura:</strong> O saldo fica retido de forma segura na plataforma e é liberado na sua conta no momento exato em que a entrega for confirmada.
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <i class="fas fa-route" style="color: #16a34a; margin-top: 4px;"></i>
+                    <div style="color: rgba(245, 245, 245, 0.8); font-size: 0.9em;">
+                        <strong>Sem Esforço Extra:</strong> O sistema detecta a rota, o veículo e o motorista automaticamente e publica a oferta. Outras transportadoras que buscarem fretes no mesmo trajeto verão sua oferta.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 20px; flex-wrap: wrap;">
+            <div style="font-size: 0.85em; color: rgba(245, 245, 245, 0.5); max-width: 500px; line-height: 1.4;">
+                * Ao clicar no botão, o espaço ocioso será anunciado com tarifas padrão sugeridas (R$ 1,50/kg e R$ 120,00/m³). Você poderá editar os valores a qualquer momento na aba de ofertas.
+            </div>
+            @if($existingOffer)
+                <a href="{{ route('marketplace.my-offers') }}" class="btn-primary" style="background-color: rgba(22, 163, 74, 0.8); border-color: #16a34a; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 0.95em; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-tasks"></i> Gerenciar Oferta Ativa
+                </a>
+            @else
+                <form action="{{ route('marketplace.offers.auto-publish', $route) }}" method="POST" style="margin: 0;">
+                    @csrf
+                    <button type="submit" class="btn-primary" style="background-color: #16a34a; border-color: #16a34a; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 0.95em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease;">
+                        <i class="fas fa-bolt"></i> Disponibilizar Ociosidade no Marketplace
+                    </button>
+                </form>
+            @endif
+        </div>
+    </div>
+@endif
+
+@php
     $selectedRouteData = $route->getSelectedRouteOptionData();
     $tolls = $selectedRouteData['tolls'] ?? [];
     $totalTollCost = $selectedRouteData['total_toll_cost'] ?? 0;

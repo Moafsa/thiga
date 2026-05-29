@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Agente IA WhatsApp - Thiga TMS')
+@section('title', 'Agente IA WhatsApp - TMS LOG')
 @section('page-title', 'Agente IA WhatsApp')
 
 @push('styles')

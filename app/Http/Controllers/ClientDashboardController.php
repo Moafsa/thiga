@@ -100,12 +100,50 @@ class ClientDashboardController extends Controller
                 ->sum('total_amount'),
         ];
 
+        // Compile history of interactions per tenant
+        $tenantInteractions = [];
+        $clientsWithTenants = Client::whereIn('id', $clientIds)
+            ->with(['tenant'])
+            ->get();
+
+        foreach ($clientsWithTenants as $c) {
+            $t = $c->tenant;
+            if (!$t) continue;
+
+            $shipmentCount = Shipment::where('sender_client_id', $c->id)->count();
+            $proposalCount = Proposal::where('client_id', $c->id)->count();
+            $invoiceCount = Invoice::where('client_id', $c->id)->count();
+            $pendingInvoiceAmount = Invoice::where('client_id', $c->id)
+                ->whereIn('status', ['open', 'overdue'])
+                ->sum('total_amount');
+
+            $tenantInteractions[] = [
+                'tenant_id' => $t->id,
+                'tenant_name' => $t->name,
+                'client_id' => $c->id,
+                'client_name' => $c->name,
+                'client_cnpj' => $c->cnpj,
+                'client_email' => $c->email,
+                'client_phone' => $c->phone,
+                'shipment_count' => $shipmentCount,
+                'proposal_count' => $proposalCount,
+                'invoice_count' => $invoiceCount,
+                'pending_invoice_amount' => $pendingInvoiceAmount,
+                'is_current_login' => $user->tenant_id === $t->id,
+            ];
+        }
+
+        // Current login tenant info
+        $loginTenant = $user->tenant;
+
         return view('client.dashboard', compact(
             'client',
             'activeShipments',
             'recentProposals',
             'pendingInvoices',
-            'stats'
+            'stats',
+            'tenantInteractions',
+            'loginTenant'
         ));
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CteXml;
+use App\Models\Client;
 use App\Services\CteXmlParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -99,6 +100,16 @@ class CteXmlController extends Controller
 
                 $cteNumber = $cteData['document_number'];
                 $accessKey = $cteData['access_key'] ?? null;
+
+                // Find or create sender client (remetente)
+                if (!empty($cteData['origin'])) {
+                    Client::findOrCreateClient($tenant, $cteData['origin']);
+                }
+
+                // Find or create receiver client (destinatário)
+                if (!empty($cteData['destination'])) {
+                    Client::findOrCreateClient($tenant, $cteData['destination']);
+                }
 
                 // Check if XML with same CT-e number already exists
                 $existingXml = CteXml::where('tenant_id', $tenant->id)

@@ -457,6 +457,22 @@ Route::middleware(['web', 'auth'])->group(function () {
         });
 
     });
+
+    // Marketplace Co-loading Routes
+    Route::prefix('marketplace')->name('marketplace.')->group(function () {
+        Route::get('/', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'index'])->name('index');
+        Route::post('/offers', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'storeOffer'])->name('offers.store');
+        Route::post('/offers/auto-publish/{route}', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'autoPublish'])->name('offers.auto-publish');
+        Route::get('/offers/my', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'myOffers'])->name('my-offers');
+        Route::post('/offers/{offer}/book', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'book'])->name('offers.book');
+        Route::get('/bookings', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'bookings'])->name('bookings');
+        Route::post('/bookings/{booking}/approve', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'approveBooking'])->name('bookings.approve');
+        Route::post('/bookings/{booking}/reject', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'rejectBooking'])->name('bookings.reject');
+        Route::get('/bookings/{booking}/checkout', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'checkout'])->name('bookings.checkout');
+        Route::post('/bookings/{booking}/pay', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'pay'])->name('bookings.pay');
+        Route::get('/bookings/{booking}/track', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'track'])->name('bookings.track');
+        Route::post('/bookings/{booking}/complete', [App\Http\Controllers\CoLoadingMarketplaceController::class, 'completeDelivery'])->name('bookings.complete');
+    });
 });
 
 // ============================================================

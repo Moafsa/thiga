@@ -351,4 +351,74 @@ class Route extends Model
 
         return $url;
     }
+
+    public function capacityOffers(): HasMany
+    {
+        return $this->hasMany(RouteCapacityOffer::class);
+    }
+
+    public function capacityLedgerEntries(): HasMany
+    {
+        return $this->hasMany(RouteCapacityLedgerEntry::class);
+    }
+
+    public function spaceBookings()
+    {
+        return $this->hasManyThrough(
+            RouteSpaceBooking::class,
+            RouteCapacityOffer::class,
+            'route_id',
+            'route_capacity_offer_id'
+        );
+    }
+
+    /**
+     * Compute remaining dynamic weight/volume capacity for route
+     */
+    public function getAvailableCapacity(): array
+    {
+        $vehicle = $this->vehicle;
+        if (!$vehicle) {
+            return ['weight' => 0, 'volume' => 0, 'reserved_weight' => 0, 'reserved_volume' => 0];
+        }
+
+        $reservedWeight = $this->capacityLedgerEntries()->sum('weight_delta') ?? 0;
+        $reservedVolume = $this->capacityLedgerEntries()->sum('volume_delta') ?? 0;
+
+        $availableWeight = max(0, ($vehicle->capacity_weight ?? 0) - $reservedWeight);
+        $availableVolume = max(0, ($vehicle->capacity_volume ?? 0) - $reservedVolume);
+
+        return [
+            'weight' => $availableWeight,
+            'volume' => $availableVolume,
+            'reserved_weight' => $reservedWeight,
+            'reserved_volume' => $reservedVolume,
+        ];
+     }
+
+    /**
+     * Get dynamic end city from final shipment or geocode fallback
+     */
+    public function getEndCityAttribute(): string
+    {
+        $lastShipment = $this->shipments()->orderBy('id', 'desc')->first();
+        if ($lastShipment && $lastShipment->delivery_city) {
+            return $lastShipment->delivery_city;
+        }
+
+        return $this->start_city ?? 'Destino';
+    }
+
+    /**
+     * Get dynamic end state from final shipment or geocode fallback
+     */
+    public function getEndStateAttribute(): string
+    {
+        $lastShipment = $this->shipments()->orderBy('id', 'desc')->first();
+        if ($lastShipment && $lastShipment->delivery_state) {
+            return $lastShipment->delivery_state;
+        }
+
+        return $this->start_state ?? 'UF';
+    }
 }

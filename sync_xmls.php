@@ -27,11 +27,27 @@ foreach ($unsyncedXmls as $xmlRecord) {
             if (empty($cteData['document_number'])) continue;
             
             $cteNumber = $cteData['document_number'];
+
+            // Extrair e criar clientes reais usando findOrCreateClient com fallback para o cliente padrão
+            $tenant = \App\Models\Tenant::find($xmlRecord->tenant_id);
+            $senderClientId = $defaultClient->id;
+            $receiverClientId = $defaultClient->id;
+
+            if ($tenant) {
+                if (!empty($cteData['origin'])) {
+                    $senderClient = \App\Models\Client::findOrCreateClient($tenant, $cteData['origin']);
+                    $senderClientId = $senderClient->id;
+                }
+                if (!empty($cteData['destination'])) {
+                    $receiverClient = \App\Models\Client::findOrCreateClient($tenant, $cteData['destination']);
+                    $receiverClientId = $receiverClient->id;
+                }
+            }
             
             \App\Models\Shipment::create([
                 'tenant_id' => $xmlRecord->tenant_id,
-                'sender_client_id' => $defaultClient->id,
-                'receiver_client_id' => $defaultClient->id,
+                'sender_client_id' => $senderClientId,
+                'receiver_client_id' => $receiverClientId,
                 'tracking_number' => $cteNumber,
                 'title' => 'CT-e ' . $cteNumber,
                 'weight' => $cteData['weight'] ?? 0,

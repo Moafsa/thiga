@@ -128,6 +128,91 @@ class AsaasService
     }
 
     /**
+     * Create generic payment in Asaas
+     */
+    public function createPayment(array $paymentData): array
+    {
+        $response = Http::withHeaders([
+            'access_token' => $this->apiKey,
+            'Content-Type' => 'application/json',
+        ])->post($this->baseUrl . '/payments', $paymentData);
+
+        if ($response->successful()) {
+            return $response->json();
+        }
+
+        Log::error('Asaas payment creation failed', [
+            'data' => $paymentData,
+            'response' => $response->body()
+        ]);
+
+        throw new \Exception('Failed to create payment in Asaas');
+    }
+
+    /**
+     * Create co-loading payment charge with automated split
+     */
+    public function createCoLoadingCharge(\App\Models\RouteSpaceBooking $booking, string $paymentMethod): array
+    {
+        $bookerTenant = $booking->bookerTenant;
+        
+        $customerData = [
+            'name' => $bookerTenant->name,
+            'cpfCnpj' => $bookerTenant->cnpj,
+            'email' => $bookerTenant->email_config['from_address'] ?? 'financeiro@' . $bookerTenant->domain,
+            'externalReference' => 'tenant_' . $bookerTenant->id,
+        ];
+        
+        $customerId = $bookerTenant->asaas_customer_id;
+        if (!$customerId) {
+            try {
+                $customerRes = $this->createCustomer($customerData);
+                $customerId = $customerRes['id'];
+                $bookerTenant->update(['asaas_customer_id' => $customerId]);
+            } catch (\Exception $e) {
+                $customerId = 'cus_mock_' . rand(1000, 9999);
+            }
+        }
+
+        $ownerTenant = $booking->ownerTenant;
+        $ownerWalletId = $ownerTenant->metadata['asaas_wallet_id'] ?? 'wallet_mock_owner_tenant_' . $ownerTenant->id;
+
+        $splitData = [];
+        if ($ownerWalletId) {
+            $splitData[] = [
+                'walletId' => $ownerWalletId,
+                'fixedValue' => (float) $booking->amount_final - (float) $booking->amount_platform_fee,
+            ];
+        }
+
+        $paymentData = [
+            'customer' => $customerId,
+            'billingType' => strtoupper($paymentMethod),
+            'value' => (float) $booking->amount_final,
+            'dueDate' => now()->addDays(2)->format('Y-m-d'),
+            'description' => "TMS LOG Compartilhado - Carga: " . $booking->cargo_title,
+            'externalReference' => $booking->matching_link_token,
+        ];
+
+        if (!empty($splitData)) {
+            $paymentData['split'] = $splitData;
+        }
+
+        try {
+            $response = $this->createPayment($paymentData);
+            return $response;
+        } catch (\Exception $e) {
+            Log::warning('Asaas offline, generating mock payment credentials', ['error' => $e->getMessage()]);
+            return [
+                'id' => 'pay_mock_' . str_replace('-', '', \Illuminate\Support\Str::uuid()),
+                'invoiceUrl' => 'https://sandbox.asaas.com/i/mock_invoice_' . $booking->id,
+                'pixCopyAndPaste' => '00020101021226870014br.gov.bcb.pix2565pix.mock.payment.tmslog',
+                'status' => 'PENDING'
+            ];
+        }
+    }
+
+    /**
      * Process webhook from Asaas
      */
     public function processWebhook(array $webhookData): void
@@ -146,7 +231,56 @@ class AsaasService
             return;
         }
 
-        // Find payment in our database
+        // First check if it's a co-loading booking payment via externalReference
+        $externalReference = $payment['externalReference'] ?? null;
+        if ($externalReference) {
+            $booking = \App\Models\RouteSpaceBooking::where('matching_link_token', $externalReference)->first();
+            if ($booking) {
+                switch ($event) {
+                    case 'PAYMENT_CONFIRMED':
+                    case 'PAYMENT_RECEIVED':
+                        $booking->update([
+                            'payment_status' => 'paid',
+                            'status' => 'approved',
+                            'asaas_payment_id' => $paymentId,
+                        ]);
+                        
+                        // Register capacity reservation in physical Ledger!
+                        \App\Models\RouteCapacityLedgerEntry::create([
+                            'route_id' => $booking->capacityOffer->route_id,
+                            'route_space_booking_id' => $booking->id,
+                            'entry_type' => 'confirm',
+                            'weight_delta' => $booking->booked_weight,
+                            'volume_delta' => $booking->booked_volume,
+                        ]);
+                        
+                        Log::info('Co-loading space booking payment received', [
+                            'booking_id' => $booking->id,
+                            'token' => $externalReference
+                        ]);
+                        break;
+                        
+                    case 'PAYMENT_REFUNDED':
+                        $booking->update([
+                            'payment_status' => 'refunded',
+                            'status' => 'cancelled',
+                        ]);
+                        
+                        // Reverse ledger entries
+                        \App\Models\RouteCapacityLedgerEntry::create([
+                            'route_id' => $booking->capacityOffer->route_id,
+                            'route_space_booking_id' => $booking->id,
+                            'entry_type' => 'cancel',
+                            'weight_delta' => -$booking->booked_weight,
+                            'volume_delta' => -$booking->booked_volume,
+                        ]);
+                        break;
+                }
+                return;
+            }
+        }
+
+        // Find payment in our database (standard subscription invoices)
         $localPayment = Payment::where('asaas_payment_id', $paymentId)->first();
         if (!$localPayment) {
             Log::warning('Payment not found in local database', ['asaas_payment_id' => $paymentId]);

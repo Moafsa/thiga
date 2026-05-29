@@ -64,7 +64,7 @@ class AlertOverdueShipmentsJob implements ShouldQueue
                 "• {$s->tracking_number} — {$s->title} (vencida em {$s->delivery_date->format('d/m')})"
             )->join("\n");
 
-            $message = "⚠️ *Alerta Thiga TMS* — {$count} carga(s) atrasada(s):\n\n{$listText}"
+            $message = "⚠️ *Alerta TMS LOG* — {$count} carga(s) atrasada(s):\n\n{$listText}"
                 . ($count > 5 ? "\n...e mais " . ($count - 5) . " outras." : "")
                 . "\n\nAcesse o painel para tomar ação: " . config('app.url') . "/shipments";
 

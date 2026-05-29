@@ -1,4 +1,4 @@
-// Thiga TMS - Push Notification Service Worker
+// TMS LOG - Push Notification Service Worker
 self.addEventListener('push', function (event) {
     if (!event.data) return;
 
@@ -7,7 +7,7 @@ self.addEventListener('push', function (event) {
         data = event.data.json();
     } catch (e) {
         data = {
-            title: 'Thiga Transportes',
+            title: 'TMS LOG',
             body: event.data.text(),
         };
     }
@@ -37,7 +37,7 @@ self.addEventListener('push', function (event) {
     }
 
     event.waitUntil(
-        self.registration.showNotification(data.title || 'Thiga Transportes', options)
+        self.registration.showNotification(data.title || 'TMS LOG', options)
     );
 });
 

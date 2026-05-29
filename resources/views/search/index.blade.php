@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Busca: {{ $query }} - Thiga TMS')
+@section('title', 'Busca: {{ $query }} - TMS LOG')
 @section('page-title', 'Resultados da Busca')
 
 @push('styles')

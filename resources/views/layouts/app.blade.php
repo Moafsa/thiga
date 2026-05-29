@@ -326,7 +326,7 @@
     <aside class="sidebar" :class="{ 'expanded': sidebarOpen }">
         <div class="sidebar-logo">
             <i class="fas fa-truck text-accent"></i>
-            <span class="sidebar-logo-text">TMS SAAS</span>
+            <span class="sidebar-logo-text">TMS LOG</span>
         </div>
 
         <nav class="sidebar-nav">
@@ -371,6 +371,13 @@
                 <a href="{{ route('vehicles.index') }}"
                     class="sidebar-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" title="Veículos">
                     <i class="fas fa-car"></i> <span>Veículos</span>
+                </a>
+            </div>
+
+            <div class="sidebar-item">
+                <a href="{{ route('marketplace.index') }}"
+                    class="sidebar-link {{ request()->routeIs('marketplace.*') ? 'active' : '' }}" title="TMS LOG Compartilhado">
+                    <i class="fas fa-people-arrows text-warning"></i> <span class="text-warning">TMS LOG Compartilhado</span>
                 </a>
             </div>
 
@@ -575,10 +582,10 @@
     </script>
 
     <!-- Mapbox Helper -->
-    <script src="{{ asset('js/mapbox-helper.js') }}"></script>
-    <script src="{{ asset('js/route-map-mapbox.js') }}"></script>
-    <script src="{{ asset('js/monitoring-mapbox.js') }}"></script>
-    <script src="{{ asset('js/realtime-tracking.js') }}"></script>
+    <script src="{{ asset('js/mapbox-helper.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/route-map-mapbox.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/monitoring-mapbox.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/realtime-tracking.js') }}?v={{ time() }}"></script>
 
     @livewireScripts
     @stack('scripts')

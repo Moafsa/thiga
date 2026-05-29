@@ -64,6 +64,16 @@ async function initMonitoringMapbox() {
     });
 
     window.monitoringMap = monitoringMap;
+
+    // Bind Style Selector Dropdown if exists
+    const styleSelector = document.getElementById('monitoring-map-style-selector');
+    if (styleSelector) {
+        // Default style selector is matched
+        styleSelector.value = 'streets';
+        styleSelector.addEventListener('change', function() {
+            monitoringMap.setStyle(this.value);
+        });
+    }
 }
 
 // Load driver locations with Mapbox

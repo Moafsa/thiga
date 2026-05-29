@@ -1880,7 +1880,7 @@
   </div>
 
   <div class="footer">
-    🚛 Thiga TMS · Guia de Onboarding v2.0 · Maio 2025 · Todos os direitos reservados
+    🚛 TMS LOG · Guia de Onboarding v2.0 · <span id="ano-onboarding"></span> · Todos os direitos reservados
   </div>
 
 </main>
@@ -2019,6 +2019,10 @@
   // ─── INIT ────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     loadChecklist();
+
+    // Ano automático no rodapé
+    const anoOnb = document.getElementById('ano-onboarding');
+    if (anoOnb) anoOnb.textContent = new Date().getFullYear();
 
     // Restore done steps from checklist
     const saved = JSON.parse(localStorage.getItem('thiga_cl') || '{}');
