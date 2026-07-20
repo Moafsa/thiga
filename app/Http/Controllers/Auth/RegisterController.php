@@ -131,11 +131,11 @@ class RegisterController extends Controller
             return null;
         }
 
-        $candidate = "{$base}.thiga.app";
+        $candidate = "{$base}.conext.click";
         $suffix = 1;
 
         while (Tenant::where('domain', $candidate)->exists()) {
-            $candidate = "{$base}{$suffix}.thiga.app";
+            $candidate = "{$base}{$suffix}.conext.click";
             $suffix++;
 
             if ($suffix > 50) {
