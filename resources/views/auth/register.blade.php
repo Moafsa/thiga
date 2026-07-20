@@ -221,6 +221,30 @@
         <form method="POST" action="{{ route('register') }}">
             @csrf
 
+            <div class="form-group">
+                <label for="company_name">Nome da Empresa / Transportadora</label>
+                <input
+                    type="text"
+                    id="company_name"
+                    name="company_name"
+                    placeholder="Sua Transportadora Ltda"
+                    value="{{ old('company_name') }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="company_cnpj">CNPJ da Empresa</label>
+                <input
+                    type="text"
+                    id="company_cnpj"
+                    name="company_cnpj"
+                    placeholder="00.000.000/0000-00"
+                    value="{{ old('company_cnpj') }}"
+                    required
+                >
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="first_name">Nome</label>
@@ -259,14 +283,13 @@
             </div>
 
             <div class="form-group">
-                <label for="phone">Telefone</label>
+                <label for="phone">Telefone (opcional)</label>
                 <input
                     type="tel"
                     id="phone"
                     name="phone"
                     placeholder="(11) 99999-9999"
                     value="{{ old('phone') }}"
-                    required
                 >
             </div>
 
@@ -301,5 +324,16 @@
             </div>
         </form>
     </div>
+
+    <script>
+        document.getElementById('company_cnpj')?.addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,3})(\d{0,3})(\d{0,4})(\d{0,2})/);
+            if (!x[2]) {
+                e.target.value = x[1];
+            } else {
+                e.target.value = x[1] + '.' + x[2] + '.' + x[3] + '/' + x[4] + (x[5] ? '-' + x[5] : '');
+            }
+        });
+    </script>
 </body>
 </html>

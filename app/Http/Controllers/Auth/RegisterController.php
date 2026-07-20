@@ -24,6 +24,11 @@ class RegisterController extends Controller
 
     public function register(Request $request)
     {
+        if (!$request->has('name') && $request->has('first_name')) {
+            $name = trim($request->input('first_name') . ' ' . $request->input('last_name', ''));
+            $request->merge(['name' => $name]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
