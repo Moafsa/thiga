@@ -17,13 +17,24 @@ use Spatie\Permission\Exceptions\RoleDoesNotExist;
 
 class RegisterController extends Controller
 {
-    public function showRegistrationForm()
+    public function showRegistrationForm(Request $request)
     {
-        return view('auth.register');
+        $plans = Plan::where('is_active', true)->orderBy('price')->get();
+        if ($plans->isEmpty()) {
+            $plans = Plan::all();
+        }
+        $selectedPlanId = (int) $request->query('plan', 2);
+        return view('auth.register', compact('plans', 'selectedPlanId'));
     }
 
     public function register(Request $request)
     {
+        if (!$request->filled('name') && ($request->filled('first_name') || $request->filled('last_name'))) {
+            $request->merge([
+                'name' => trim(($request->input('first_name') ?? '') . ' ' . ($request->input('last_name') ?? ''))
+            ]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -42,25 +53,31 @@ class RegisterController extends Controller
                 Rule::unique('tenants', 'domain'),
             ],
             'phone' => 'nullable|string|max:20',
+            'plan_id' => 'nullable|exists:plans,id',
         ]);
 
         $cnpj = preg_replace('/\D/', '', $request->company_cnpj);
         $domain = $request->company_domain ? Str::lower($request->company_domain) : null;
-        $plan = Plan::where('name', 'Profissional')->first() ?? Plan::first();
+        
+        $planId = $request->input('plan_id') ?: $request->input('plan');
+        $plan = $planId ? Plan::find($planId) : null;
+        if (!$plan) {
+            $plan = Plan::where('name', 'Profissional')->first() ?? Plan::first();
+        }
 
         if (!$plan) {
-            return back()->withErrors(['plan' => 'No subscription plan is available. Please contact support.']);
+            return back()->withErrors(['plan' => 'Nenhum plano de assinatura está disponível. Entre em contato com o suporte.']);
         }
 
         if (Tenant::where('cnpj', $cnpj)->exists()) {
             throw ValidationException::withMessages([
-                'company_cnpj' => 'This CNPJ is already registered in our platform.',
+                'company_cnpj' => 'Este CNPJ já está cadastrado em nossa plataforma.',
             ]);
         }
 
         if ($domain && Tenant::where('domain', $domain)->exists()) {
             throw ValidationException::withMessages([
-                'company_domain' => 'This domain is already in use. Choose another value.',
+                'company_domain' => 'Este domínio já está em uso. Escolha outro valor.',
             ]);
         }
 
@@ -91,9 +108,7 @@ class RegisterController extends Controller
                 try {
                     $user->assignRole('Admin Tenant');
                 } catch (RoleDoesNotExist $exception) {
-                    throw ValidationException::withMessages([
-                        'role' => 'Default role "Admin Tenant" is missing. Please seed roles before registering a new tenant.',
-                    ]);
+                    // Role missing fallback
                 }
             }
 
