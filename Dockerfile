@@ -38,8 +38,12 @@ RUN useradd -u 1000 -ms /bin/bash -g www www
 # Copy existing application directory contents
 COPY . /var/www
 
-# Copy existing application directory permissions
-COPY --chown=www:www . /var/www
+RUN mkdir -p bootstrap/cache \
+    storage/framework/sessions storage/framework/views storage/framework/cache/data \
+    storage/logs storage/app/public \
+    && chmod -R 777 bootstrap/cache storage \
+    && composer install --no-dev --optimize-autoloader --no-interaction --no-scripts \
+    && chown -R www:www /var/www
 
 # Configure PHP-FPM to listen on all interfaces
 RUN sed -i 's/^listen = .*/listen = 0.0.0.0:9000/' /usr/local/etc/php-fpm.d/www.conf

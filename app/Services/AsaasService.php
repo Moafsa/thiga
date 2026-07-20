@@ -13,11 +13,14 @@ class AsaasService
     private string $apiKey;
     private string $webhookToken;
 
-    public function __construct()
-    {
-        $this->baseUrl = config('services.asaas.api_url');
-        $this->apiKey = config('services.asaas.api_key');
-        $this->webhookToken = config('services.asaas.webhook_token');
+    public function __construct(
+        ?string $apiKey = null,
+        ?string $webhookToken = null,
+        ?string $baseUrl = null,
+    ) {
+        $this->baseUrl = $baseUrl ?? (string) (config('services.asaas.api_url') ?: 'https://api.asaas.com/v3');
+        $this->apiKey = $apiKey ?? (string) (config('services.asaas.api_key') ?: '');
+        $this->webhookToken = $webhookToken ?? (string) (config('services.asaas.webhook_token') ?: '');
     }
 
     /**

@@ -13,9 +13,9 @@ class MittService
 
     public function __construct()
     {
-        $this->baseUrl = config('services.mitt.api_url');
-        $this->apiKey = config('services.mitt.api_key');
-        $this->webhookToken = config('services.mitt.webhook_token');
+        $this->baseUrl = (string) (config('services.mitt.api_url') ?: '');
+        $this->apiKey = (string) (config('services.mitt.api_key') ?: '');
+        $this->webhookToken = (string) (config('services.mitt.webhook_token') ?: '');
     }
 
     /**
