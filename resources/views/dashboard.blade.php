@@ -308,6 +308,17 @@
                 @endforeach
             </select>
         </div>
+        <div>
+            <label style="display: block; color: var(--cor-texto-claro); margin-bottom: 8px; font-size: 0.9em; font-weight: 500;">Rota</label>
+            <select name="route_id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background-color: rgba(var(--cor-principal-rgb), 0.5); color: var(--cor-texto-claro); font-family: var(--font-family-primary);">
+                <option value="">Todas as Rotas</option>
+                @if(isset($routesList))
+                    @foreach($routesList as $r)
+                        <option value="{{ $r->id }}" {{ ($filters['route_id'] ?? '') == $r->id ? 'selected' : '' }}>{{ $r->name }}</option>
+                    @endforeach
+                @endif
+            </select>
+        </div>
         <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn-primary" style="flex: 1; padding: 10px 20px;">
                 <i class="fas fa-filter"></i> Aplicar Filtros
@@ -332,6 +343,19 @@
                 Total: {{ $shipmentsStats['total'] }} | 
                 Pendentes: {{ $shipmentsStats['pending'] }} | 
                 Entregues: {{ $shipmentsStats['delivered'] }}
+            </div>
+        </div>
+    </a>
+
+    <a href="{{ route('shipments.index') }}?status=pending" class="stat-card" style="text-decoration: none;">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ $shipmentsStats['not_delivered'] ?? ($shipmentsStats['pending'] + $shipmentsStats['in_transit']) }}</h3>
+            <p>Cargas Não Entregues</p>
+            <div class="stat-trend negative">
+                Pendentes: {{ $shipmentsStats['pending'] }} | Em Trânsito: {{ $shipmentsStats['in_transit'] }}
             </div>
         </div>
     </a>

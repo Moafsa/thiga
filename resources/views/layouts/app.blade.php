@@ -719,6 +719,7 @@
     })();
     </script>
     
+    <script src="{{ asset('js/viacep.js') }}"></script>
     @livewireScripts
 </body>
 

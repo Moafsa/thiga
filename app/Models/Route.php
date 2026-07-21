@@ -15,6 +15,7 @@ class Route extends Model
     protected $fillable = [
         'tenant_id',
         'branch_id',
+        'origin_branch',
         'start_address',
         'start_city',
         'start_state',

@@ -25,6 +25,8 @@ class RouteCreationWizard extends Component
     public $driver_id;
     public $vehicle_id;
     public $branch_id;
+    public $origin_branch;
+    public $manual_cte_numbers;
     public $start_address_type = 'branch';
 
     // Shipments/Cargo
@@ -223,12 +225,34 @@ class RouteCreationWizard extends Component
             'driver_id' => $this->driver_id,
             'vehicle_id' => $this->vehicle_id,
             'branch_id' => $this->branch_id,
+            'origin_branch' => $this->origin_branch,
             'status' => 'scheduled',
         ]);
 
         if (!empty($this->selectedShipments)) {
             Shipment::whereIn('id', $this->selectedShipments)
-                ->update(['route_id' => $route->id]);
+                ->update(['route_id' => $route->id, 'origin_branch' => $this->origin_branch]);
+        }
+
+        if (!empty($this->manual_cte_numbers)) {
+            $cteNumbers = preg_split('/[\s,;]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($cteNumbers as $cteNum) {
+                $cteNum = trim($cteNum);
+                if (empty($cteNum)) continue;
+                Shipment::create([
+                    'tenant_id' => $tenant->id,
+                    'route_id' => $route->id,
+                    'origin_branch' => $this->origin_branch,
+                    'tracking_number' => 'CTE-' . $cteNum,
+                    'title' => 'CT-e #' . $cteNum,
+                    'status' => 'assigned',
+                    'value' => 0,
+                    'recipient_name' => 'CT-e #' . $cteNum,
+                    'delivery_address' => 'Endereço de Entrega',
+                    'delivery_city' => 'Cidade de Destino',
+                    'delivery_state' => 'SP',
+                ]);
+            }
         }
 
         return redirect()->route('routes.show', $route->id)

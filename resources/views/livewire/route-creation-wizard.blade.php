@@ -37,12 +37,7 @@
                 </div>
                 <div class="industrial-input-group">
                     <label>FILIAL DE ORIGEM</label>
-                    <select wire:model="branch_id">
-                        <option value="">Selecione...</option>
-                        @foreach($branches as $branch)
-                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                        @endforeach
-                    </select>
+                    <input type="text" wire:model="origin_branch" placeholder="Ex: Matriz SP / Galpão 2">
                 </div>
             </div>
         </div>
@@ -51,12 +46,18 @@
         <div class="command-pane pane-right">
             <div class="pane-header flex-between">
                 <div>
-                    <h2>Gestão de Cargas</h2>
-                    <p>Faça upload de XMLs ou selecione cargas pendentes.</p>
+                    <h2>Gestão de Cargas e CT-es</h2>
+                    <p>Digite números de CT-e, faça upload de XMLs ou selecione cargas.</p>
                 </div>
                 <button type="button" x-data x-on:click="$dispatch('open-manual-modal')" class="btn-primary" style="padding: 8px 15px; font-size: 0.8rem; border-radius: 2px;">
                     <i class="fas fa-plus mr-1"></i> Nova Carga Manual
                 </button>
+            </div>
+
+            <!-- Inserção Manual de CT-es -->
+            <div class="industrial-input-group" style="margin: 15px 20px;">
+                <label style="color: var(--cor-acento); font-size: 0.85em; font-weight: 600;"><i class="fas fa-file-invoice"></i> DIGITAÇÃO MANUAL DE CT-ES</label>
+                <textarea wire:model="manual_cte_numbers" placeholder="Digite cada número de CT-e separado por vírgula ou em linhas (ex: 1001, 1002, 1003)" style="width: 100%; min-height: 55px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px; border-radius: 4px; font-size: 0.85em;"></textarea>
             </div>
 
             <!-- Manual Cargo Modal (Alpine + Livewire) -->

@@ -400,6 +400,7 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/', [App\Http\Controllers\CteXmlController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\CteXmlController::class, 'store'])->name('store');
         Route::get('/export', [App\Http\Controllers\CteXmlController::class, 'export'])->name('export');
+        Route::post('/ai-analysis', [App\Http\Controllers\CteAiAnalysisController::class, 'analyze'])->name('ai-analysis');
         Route::get('/{cteXml}/download', [App\Http\Controllers\CteXmlController::class, 'download'])->name('download');
         Route::delete('/{cteXml}', [App\Http\Controllers\CteXmlController::class, 'destroy'])->name('destroy');
         Route::post('/destroy-multiple', [App\Http\Controllers\CteXmlController::class, 'destroyMultiple'])->name('destroy-multiple');

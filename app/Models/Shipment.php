@@ -14,6 +14,7 @@ class Shipment extends Model
     protected $fillable = [
         'tenant_id',
         'route_id',
+        'origin_branch',
         'driver_id',
         'sender_client_id',
         'receiver_client_id',

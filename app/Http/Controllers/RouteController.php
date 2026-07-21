@@ -181,6 +181,7 @@ class RouteController extends Controller
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'branch_id' => 'nullable|exists:branches,id',
+                'origin_branch' => 'nullable|string|max:255',
                 'start_address_type' => 'nullable|in:branch,current_location,manual',
                 'start_address' => 'required_if:start_address_type,manual|nullable|string|max:255',
                 'start_city' => 'required_if:start_address_type,manual|nullable|string|max:255',
@@ -197,6 +198,7 @@ class RouteController extends Controller
                 'available_cargo_ids.*' => 'exists:available_cargo,id',
                 'cte_xml_numbers' => 'nullable|array',
                 'cte_xml_numbers.*' => 'string',
+                'manual_cte_numbers' => 'nullable|string',
                 'addresses' => 'nullable|array|min:1',
                 'addresses.*.address' => 'required_with:addresses|string|max:255',
                 'addresses.*.city' => 'required_with:addresses|string|max:255',
@@ -278,11 +280,14 @@ class RouteController extends Controller
             $route = Route::create($validated);
             $hasShipments = false;
 
-            // Process CT-e XML numbers if provided
-            if ($request->has('cte_xml_numbers') && !empty($request->cte_xml_numbers)) {
-                $xmlNumbers = array_filter($request->cte_xml_numbers);
+            // Process CT-e XML numbers or manual CT-e input if provided
+            $xmlNumbers = $request->has('cte_xml_numbers') ? array_filter($request->cte_xml_numbers) : [];
+            if ($request->filled('manual_cte_numbers')) {
+                $manualSplit = preg_split('/[\s,;]+/', $request->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+                $xmlNumbers = array_unique(array_merge($xmlNumbers, $manualSplit));
+            }
 
-                if (!empty($xmlNumbers)) {
+            if (!empty($xmlNumbers)) {
                     \Log::info('Processing CT-e XML numbers', [
                         'xml_numbers_count' => count($xmlNumbers),
                         'route_id' => $route->id,
@@ -912,7 +917,21 @@ class RouteController extends Controller
                     ->first();
 
                 if (!$cteXml) {
-                    throw new \Exception("CT-e XML número {$xmlNumber} não encontrado.");
+                    $shipment = Shipment::create([
+                        'tenant_id' => $tenant->id,
+                        'route_id' => $route->id,
+                        'origin_branch' => $route->origin_branch,
+                        'tracking_number' => 'CTE-' . $xmlNumber,
+                        'title' => 'CT-e #' . $xmlNumber,
+                        'status' => 'assigned',
+                        'value' => 0,
+                        'recipient_name' => 'CT-e #' . $xmlNumber,
+                        'delivery_address' => $route->start_address ?? 'Endereço de Entrega',
+                        'delivery_city' => $route->start_city ?? 'Cidade de Destino',
+                        'delivery_state' => $route->start_state ?? 'SP',
+                    ]);
+                    $createdShipments[] = $shipment;
+                    continue;
                 }
 
                 if ($cteXml->is_used) {

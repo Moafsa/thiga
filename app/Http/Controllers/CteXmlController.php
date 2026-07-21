@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CteXml;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Services\CteXmlParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,26 +32,7 @@ class CteXmlController extends Controller
 
         $query = CteXml::where('tenant_id', $tenant->id);
 
-        // Filter by usage status
-        if ($request->filled('status')) {
-            if ($request->status === 'used') {
-                $query->where('is_used', true);
-            } elseif ($request->status === 'unused') {
-                $query->where('is_used', false);
-            }
-        }
-
-        // Filter by date
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        // Search by CT-e number
-        if ($request->filled('search')) {
+        if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('cte_number', 'like', "%{$search}%")
@@ -58,15 +40,21 @@ class CteXmlController extends Controller
             });
         }
 
-        $cteXmls = $query->orderBy('created_at', 'desc')
-            ->orderBy('cte_number', 'desc')
-            ->paginate(20);
+        if ($request->has('status') && !empty($request->status)) {
+            if ($request->status === 'used') {
+                $query->where('is_used', true);
+            } elseif ($request->status === 'unused') {
+                $query->where('is_used', false);
+            }
+        }
+
+        $cteXmls = $query->orderBy('created_at', 'desc')->paginate(15);
 
         return view('cte-xmls.index', compact('cteXmls'));
     }
 
     /**
-     * Store uploaded CT-e XML files
+     * Store uploaded CT-e XML files (or ZIP archives containing XMLs)
      */
     public function store(Request $request, CteXmlParserService $xmlParser)
     {
@@ -74,7 +62,7 @@ class CteXmlController extends Controller
 
         $validated = $request->validate([
             'cte_xml_files' => 'required|array',
-            'cte_xml_files.*' => 'file|mimes:xml,text/xml,application/xml|max:10240',
+            'cte_xml_files.*' => 'file|mimes:xml,text/xml,application/xml,zip,application/zip,application/x-zip-compressed|max:51200',
         ]);
 
         $uploadedCount = 0;
@@ -82,87 +70,167 @@ class CteXmlController extends Controller
         $errors = [];
 
         foreach ($request->file('cte_xml_files') as $file) {
-            try {
-                $xmlContent = file_get_contents($file->getRealPath());
-                
-                if (empty($xmlContent)) {
-                    $errors[] = $file->getClientOriginalName() . ': Empty or invalid XML file';
-                    continue;
-                }
+            $xmlEntries = $this->extractXmlContents($file);
 
-                // Parse XML to extract CT-e number and access key
-                $cteData = $xmlParser->parseXml($xmlContent);
-                
-                if (empty($cteData['document_number'])) {
-                    $errors[] = $file->getClientOriginalName() . ': Could not extract CT-e number from XML';
-                    continue;
-                }
+            if (empty($xmlEntries)) {
+                $errors[] = $file->getClientOriginalName() . ': Nenhum arquivo XML válido encontrado ou extraído.';
+                continue;
+            }
 
-                $cteNumber = $cteData['document_number'];
-                $accessKey = $cteData['access_key'] ?? null;
+            foreach ($xmlEntries as $entry) {
+                $filename = $entry['name'];
+                $xmlContent = $entry['content'];
 
-                // Find or create sender client (remetente)
-                if (!empty($cteData['origin'])) {
-                    Client::findOrCreateClient($tenant, $cteData['origin']);
-                }
+                try {
+                    if (empty($xmlContent)) {
+                        $errors[] = $filename . ': Conteúdo XML vazio ou inválido';
+                        continue;
+                    }
 
-                // Find or create receiver client (destinatário)
-                if (!empty($cteData['destination'])) {
-                    Client::findOrCreateClient($tenant, $cteData['destination']);
-                }
+                    // Parse XML to extract CT-e number and access key
+                    $cteData = $xmlParser->parseXml($xmlContent);
+                    
+                    if (empty($cteData['document_number'])) {
+                        $errors[] = $filename . ': Não foi possível extrair o número do CT-e do XML';
+                        continue;
+                    }
 
-                // Check if XML with same CT-e number already exists
-                $existingXml = CteXml::where('tenant_id', $tenant->id)
-                    ->where('cte_number', $cteNumber)
-                    ->first();
+                    $cteNumber = $cteData['document_number'];
+                    $accessKey = $cteData['access_key'] ?? null;
 
-                // Save XML to storage
-                $xmlPath = $this->saveXmlToStorage($xmlContent, $accessKey ?? 'cte-' . $cteNumber, $tenant->id);
+                    // Find or create sender client (remetente)
+                    $client = null;
+                    if (!empty($cteData['origin'])) {
+                        $client = Client::findOrCreateClient($tenant, $cteData['origin']);
+                    }
+                    if (!empty($cteData['destination'])) {
+                        Client::findOrCreateClient($tenant, $cteData['destination']);
+                    }
 
-                if ($existingXml) {
-                    // Update existing XML but preserve is_used status if already used
-                    $existingXml->update([
-                        'access_key' => $accessKey ?? $existingXml->access_key,
-                        'xml' => $xmlPath ? null : $xmlContent,
-                        'xml_url' => $xmlPath ?? $existingXml->xml_url,
-                        // Keep is_used and used_at if already used
+                    // Check if XML with same CT-e number or access key already exists
+                    $existingXml = CteXml::where('tenant_id', $tenant->id)
+                        ->where(function($q) use ($cteNumber, $accessKey) {
+                            $q->where('cte_number', $cteNumber);
+                            if ($accessKey) {
+                                $q->orWhere('access_key', $accessKey);
+                            }
+                        })
+                        ->first();
+
+                    // Save XML to storage
+                    $xmlPath = $this->saveXmlToStorage($xmlContent, $accessKey ?? 'cte-' . $cteNumber, $tenant->id);
+
+                    if ($existingXml) {
+                        $existingXml->update([
+                            'access_key' => $accessKey ?? $existingXml->access_key,
+                            'xml' => $xmlPath ? null : $xmlContent,
+                            'xml_url' => $xmlPath ?? $existingXml->xml_url,
+                        ]);
+                        $skippedCount++;
+                    } else {
+                        CteXml::create([
+                            'tenant_id' => $tenant->id,
+                            'cte_number' => $cteNumber,
+                            'access_key' => $accessKey,
+                            'xml' => $xmlPath ? null : $xmlContent,
+                            'xml_url' => $xmlPath,
+                            'is_used' => false,
+                        ]);
+                        $uploadedCount++;
+                    }
+
+                    // Automatic Revenue / Accounts Receivable Invoice generation (Requisito 9)
+                    $totalValue = $cteData['total_value'] ?? ($cteData['value'] ?? 0);
+                    if ($totalValue > 0 && $client) {
+                        $invoiceNumber = 'CTE-' . $cteNumber;
+                        $existingInvoice = Invoice::where('tenant_id', $tenant->id)
+                            ->where('invoice_number', $invoiceNumber)
+                            ->first();
+
+                        if (!$existingInvoice) {
+                            Invoice::create([
+                                'tenant_id' => $tenant->id,
+                                'client_id' => $client->id,
+                                'invoice_number' => $invoiceNumber,
+                                'issue_date' => now()->toDateString(),
+                                'due_date' => now()->addDays(30)->toDateString(),
+                                'subtotal' => $totalValue,
+                                'tax_amount' => $cteData['tax_amount'] ?? 0,
+                                'total_amount' => $totalValue,
+                                'status' => 'open',
+                                'notes' => 'Receita lançada automaticamente a partir do CT-e #' . $cteNumber,
+                                'metadata' => [
+                                    'cte_number' => $cteNumber,
+                                    'access_key' => $accessKey,
+                                    'auto_generated' => true,
+                                ],
+                            ]);
+                        }
+                    }
+
+                } catch (\Exception $e) {
+                    $errors[] = $filename . ': ' . $e->getMessage();
+                    \Log::error('Erro ao processar arquivo CT-e XML', [
+                        'file' => $filename,
+                        'error' => $e->getMessage(),
                     ]);
-                    $skippedCount++;
-                } else {
-                    // Create new XML record
-                    CteXml::create([
-                        'tenant_id' => $tenant->id,
-                        'cte_number' => $cteNumber,
-                        'access_key' => $accessKey,
-                        'xml' => $xmlPath ? null : $xmlContent,
-                        'xml_url' => $xmlPath,
-                        'is_used' => false,
-                    ]);
-                    $uploadedCount++;
                 }
-            } catch (\Exception $e) {
-                $errors[] = $file->getClientOriginalName() . ': ' . $e->getMessage();
-                \Log::error('Error processing CT-e XML file', [
-                    'file' => $file->getClientOriginalName(),
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
             }
         }
 
         $message = '';
         if ($uploadedCount > 0) {
-            $message .= "{$uploadedCount} XML file(s) uploaded successfully. ";
+            $message .= "{$uploadedCount} arquivo(s) XML importado(s) com sucesso. ";
         }
         if ($skippedCount > 0) {
-            $message .= "{$skippedCount} XML file(s) already exist and were updated (usage status preserved). ";
+            $message .= "⚠️ AVISO: {$skippedCount} arquivo(s) XML já existiam no sistema (duplicados) e foram ignorados/atualizados. ";
         }
         if (!empty($errors)) {
-            $message .= 'Errors: ' . implode('; ', $errors);
+            $message .= 'Erros: ' . implode('; ', $errors);
         }
 
+        $sessionKey = ($skippedCount > 0 && $uploadedCount === 0) ? 'warning' : 'success';
+
         return redirect()->route('cte-xmls.index')
-            ->with('success', $message ?: 'No files were processed.');
+            ->with($sessionKey, $message ?: 'Nenhum arquivo foi processado.');
+    }
+
+    /**
+     * Helper to extract XML contents from uploaded file (XML or ZIP)
+     */
+    protected function extractXmlContents($file): array
+    {
+        $xmlEntries = [];
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if ($extension === 'zip') {
+            $zip = new \ZipArchive();
+            if ($zip->open($file->getRealPath()) === true) {
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $stat = $zip->statIndex($i);
+                    if ($stat && strtolower(pathinfo($stat['name'], PATHINFO_EXTENSION)) === 'xml') {
+                        $content = $zip->getFromIndex($i);
+                        if ($content) {
+                            $xmlEntries[] = [
+                                'name' => basename($stat['name']),
+                                'content' => $content,
+                            ];
+                        }
+                    }
+                }
+                $zip->close();
+            }
+        } else {
+            $content = file_get_contents($file->getRealPath());
+            if ($content) {
+                $xmlEntries[] = [
+                    'name' => $file->getClientOriginalName(),
+                    'content' => $content,
+                ];
+            }
+        }
+
+        return $xmlEntries;
     }
 
     /**

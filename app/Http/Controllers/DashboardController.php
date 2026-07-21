@@ -39,23 +39,36 @@ class DashboardController extends Controller
             'date_to' => $request->get('date_to', now()->format('Y-m-d')),
             'status' => $request->get('status'),
             'client_id' => $request->get('client_id'),
+            'route_id' => $request->get('route_id'),
         ];
 
         // Build base query with filters
         $shipmentsQuery = Shipment::where('tenant_id', $tenant->id);
         $invoicesQuery = Invoice::where('tenant_id', $tenant->id);
         $expensesQuery = Expense::where('tenant_id', $tenant->id);
+        $proposalsQuery = Proposal::where('tenant_id', $tenant->id);
+        $routesQuery = Route::where('tenant_id', $tenant->id);
 
         if ($filters['date_from']) {
             $shipmentsQuery->where('created_at', '>=', $filters['date_from']);
             $invoicesQuery->where('created_at', '>=', $filters['date_from']);
             $expensesQuery->where('created_at', '>=', $filters['date_from']);
+            $proposalsQuery->where('created_at', '>=', $filters['date_from']);
+            $routesQuery->where('created_at', '>=', $filters['date_from']);
         }
 
         if ($filters['date_to']) {
             $shipmentsQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
             $invoicesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
             $expensesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+            $proposalsQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+            $routesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+        }
+
+        if ($filters['route_id']) {
+            $shipmentsQuery->where('route_id', $filters['route_id']);
+            $expensesQuery->where('route_id', $filters['route_id']);
+            $routesQuery->where('id', $filters['route_id']);
         }
 
         if ($filters['status']) {
@@ -76,36 +89,25 @@ class DashboardController extends Controller
             'pending' => (clone $shipmentsQuery)->where('status', 'pending')->count(),
             'in_transit' => (clone $shipmentsQuery)->where('status', 'in_transit')->count(),
             'delivered' => (clone $shipmentsQuery)->where('status', 'delivered')->count(),
+            'not_delivered' => (clone $shipmentsQuery)->whereIn('status', ['pending', 'in_transit', 'assigned', 'failed_delivery'])->count(),
             'cancelled' => (clone $shipmentsQuery)->where('status', 'cancelled')->count(),
         ];
 
-        // Financial statistics
+        // Financial statistics (governed by date & route filters)
         $financialStats = [
             'monthly_revenue' => (clone $invoicesQuery)->where('status', 'paid')->sum('total_amount'),
             'monthly_expenses' => (clone $expensesQuery)->where('status', 'paid')->sum('amount'),
-            'open_invoices' => Invoice::where('tenant_id', $tenant->id)
-                ->whereIn('status', ['open', 'overdue'])
-                ->count(),
-            'overdue_invoices' => Invoice::where('tenant_id', $tenant->id)
-                ->where('status', 'overdue')
-                ->count(),
-            'overdue_amount' => Invoice::where('tenant_id', $tenant->id)
-                ->where('status', 'overdue')
-                ->sum('total_amount'),
+            'open_invoices' => (clone $invoicesQuery)->whereIn('status', ['open', 'overdue'])->count(),
+            'overdue_invoices' => (clone $invoicesQuery)->where('status', 'overdue')->count(),
+            'overdue_amount' => (clone $invoicesQuery)->where('status', 'overdue')->sum('total_amount'),
         ];
 
-        // Proposals statistics
+        // Proposals statistics (governed by date filters)
         $proposalsStats = [
-            'total' => Proposal::where('tenant_id', $tenant->id)->count(),
-            'pending' => Proposal::where('tenant_id', $tenant->id)
-                ->whereIn('status', ['draft', 'sent', 'negotiating'])
-                ->count(),
-            'accepted' => Proposal::where('tenant_id', $tenant->id)
-                ->where('status', 'accepted')
-                ->count(),
-            'rejected' => Proposal::where('tenant_id', $tenant->id)
-                ->where('status', 'rejected')
-                ->count(),
+            'total' => (clone $proposalsQuery)->count(),
+            'pending' => (clone $proposalsQuery)->whereIn('status', ['draft', 'sent', 'negotiating'])->count(),
+            'accepted' => (clone $proposalsQuery)->where('status', 'accepted')->count(),
+            'rejected' => (clone $proposalsQuery)->where('status', 'rejected')->count(),
         ];
 
         // Clients statistics (apenas os que estão na listagem)
@@ -114,12 +116,12 @@ class DashboardController extends Controller
             'active' => Client::where('tenant_id', $tenant->id)->listed()->where('is_active', true)->count(),
         ];
 
-        // Routes statistics
+        // Routes statistics (governed by date & route filters)
         $routesStats = [
-            'total' => Route::where('tenant_id', $tenant->id)->count(),
-            'scheduled' => Route::where('tenant_id', $tenant->id)->where('status', 'scheduled')->count(),
-            'in_progress' => Route::where('tenant_id', $tenant->id)->where('status', 'in_progress')->count(),
-            'completed' => Route::where('tenant_id', $tenant->id)->where('status', 'completed')->count(),
+            'total' => (clone $routesQuery)->count(),
+            'scheduled' => (clone $routesQuery)->where('status', 'scheduled')->count(),
+            'in_progress' => (clone $routesQuery)->where('status', 'in_progress')->count(),
+            'completed' => (clone $routesQuery)->where('status', 'completed')->count(),
         ];
 
         // Drivers & Vehicles statistics
@@ -258,6 +260,8 @@ class DashboardController extends Controller
             ['type' => 'MDF-e', 'count' => $fiscalStats['mdfes_total']],
         ];
 
+        $routesList = Route::where('tenant_id', $tenant->id)->orderBy('name')->get();
+
         return view('dashboard', compact(
             'shipmentsStats',
             'financialStats',
@@ -275,7 +279,8 @@ class DashboardController extends Controller
             'fiscalByStatus',
             'fiscalByType',
             'filters',
-            'clients'
+            'clients',
+            'routesList'
         ));
     }
 

@@ -15,19 +15,25 @@
     </div>
 </div>
 
+@if(session('warning'))
+    <div style="background-color: rgba(255, 193, 7, 0.15); border: 1px solid #ffc107; color: #ffe082; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: 500;">
+        <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> {{ session('warning') }}
+    </div>
+@endif
+
 <!-- Upload Form -->
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
-    <h3 style="color: var(--cor-acento); margin-bottom: 15px;">Upload de XMLs</h3>
+    <h3 style="color: var(--cor-acento); margin-bottom: 15px;">Upload de XMLs ou pacotes ZIP</h3>
     <form action="{{ route('cte-xmls.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
         <div style="display: flex; gap: 15px; align-items: flex-end;">
             <div style="flex: 1;">
-                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Arquivos XML de CT-e</label>
-                <input type="file" name="cte_xml_files[]" id="cte_xml_files" multiple accept=".xml,text/xml,application/xml" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
-                <small style="color: rgba(245, 245, 245, 0.6);">Você pode enviar um ou mais arquivos XML de CT-e</small>
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Arquivos XML ou arquivo .ZIP de CT-e</label>
+                <input type="file" name="cte_xml_files[]" id="cte_xml_files" multiple accept=".xml,.zip,text/xml,application/xml,application/zip,application/x-zip-compressed" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                <small style="color: rgba(245, 245, 245, 0.6);">Você pode enviar arquivos XML de CT-e individuais ou um arquivo <strong>.ZIP</strong> contendo múltiplos XMLs.</small>
             </div>
             <button type="submit" class="btn-primary" style="padding: 12px 24px;">
-                <i class="fas fa-upload"></i> Enviar XMLs
+                <i class="fas fa-upload"></i> Enviar XMLs / ZIP
             </button>
         </div>
         @error('cte_xml_files')
@@ -39,7 +45,7 @@
 
 <!-- Filters -->
 <div style="background-color: var(--cor-secundaria); padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-    <form method="GET" action="{{ route('cte-xmls.index') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+    <form method="GET" action="{{ route('cte-xmls.index') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
         <div>
             <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Status</label>
             <select name="status" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
@@ -50,17 +56,17 @@
         </div>
         <div>
             <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Data Inicial</label>
-            <input type="date" name="date_from" value="{{ request('date_from') }}" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <input type="date" name="date_from" id="filter_date_from" value="{{ request('date_from') }}" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
         </div>
         <div>
             <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Data Final</label>
-            <input type="date" name="date_to" value="{{ request('date_to') }}" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+            <input type="date" name="date_to" id="filter_date_to" value="{{ request('date_to') }}" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
         </div>
         <div>
             <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 5px; font-size: 0.9em;">Buscar</label>
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Número ou chave de acesso" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
         </div>
-        <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; grid-column: span 2;">
             <button type="submit" class="btn-secondary" style="padding: 10px 20px;">
                 <i class="fas fa-filter"></i> Filtrar
             </button>
@@ -70,6 +76,9 @@
             <a href="{{ route('cte-xmls.export', request()->query()) }}" class="btn-primary" style="padding: 10px 20px; white-space: nowrap;">
                 <i class="fas fa-file-excel"></i> Exportar Excel
             </a>
+            <button type="button" id="btn-ai-analysis" class="btn-secondary" style="padding: 10px 20px; white-space: nowrap; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border: none; color: white;">
+                <i class="fas fa-robot"></i> Análise Geral com IA
+            </button>
         </div>
     </form>
 </div>
@@ -268,10 +277,71 @@
             });
         }
 
+        // AI Analysis Modal Handler
+        const btnAiAnalysis = document.getElementById('btn-ai-analysis');
+        const modalAi = document.getElementById('modal-ai-analysis');
+        const modalAiClose = document.getElementById('modal-ai-close');
+        const aiContent = document.getElementById('ai-analysis-content');
+
+        if (btnAiAnalysis && modalAi) {
+            btnAiAnalysis.addEventListener('click', function() {
+                modalAi.style.display = 'flex';
+                aiContent.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--cor-acento);"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top: 15px;">Gerando análise de inteligência fiscal dos CT-es...</p></div>';
+
+                const dateFrom = document.getElementById('filter_date_from')?.value || '';
+                const dateTo = document.getElementById('filter_date_to')?.value || '';
+
+                fetch('{{ route("cte-xmls.ai-analysis") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ date_from: dateFrom, date_to: dateTo })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.analysis) {
+                        let formattedText = data.analysis
+                            .replace(/### (.*?)\n/g, '<h4 style="color: var(--cor-acento); margin-top: 15px; margin-bottom: 8px;">$1</h4>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/- (.*?)\n/g, '<li style="margin-bottom: 4px;">$1</li>');
+                        aiContent.innerHTML = '<div style="line-height: 1.6; color: var(--cor-texto-claro);">' + formattedText + '</div>';
+                    } else {
+                        aiContent.innerHTML = '<p style="color: #ef4444;">Não foi possível gerar a análise.</p>';
+                    }
+                })
+                .catch(err => {
+                    aiContent.innerHTML = '<p style="color: #ef4444;">Erro na requisição da análise de IA.</p>';
+                });
+            });
+
+            if (modalAiClose) {
+                modalAiClose.addEventListener('click', function() {
+                    modalAi.style.display = 'none';
+                });
+            }
+        }
+
         // Initialize UI
         updateSelectionUI();
     });
 </script>
+
+<!-- Modal Análise por IA -->
+<div id="modal-ai-analysis" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: var(--cor-secundaria); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; width: 100%; max-width: 700px; max-height: 85vh; overflow-y: auto; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px;">
+            <h3 style="color: var(--cor-acento); display: flex; align-items: center; gap: 10px; margin: 0;">
+                <i class="fas fa-robot"></i> Análise Geral de CT-es por IA
+            </h3>
+            <button type="button" id="modal-ai-close" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="ai-analysis-content"></div>
+    </div>
+</div>
 @endpush
 @endsection
 
