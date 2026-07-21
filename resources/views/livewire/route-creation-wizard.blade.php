@@ -173,11 +173,11 @@
                      x-on:dragleave.prevent="isDropping = false" 
                      x-on:drop.prevent="isDropping = false; $wire.uploadMultiple('xml_files', $event.dataTransfer.files)"
                      x-bind:class="{ 'dropping': isDropping }">
-                    <input type="file" wire:model="xml_files" multiple id="xml-upload" class="hidden-input">
+                    <input type="file" wire:model="xml_files" multiple accept=".xml,.zip" id="xml-upload" class="hidden-input">
                     <label for="xml-upload" class="dropzone-label">
                         <i class="fas fa-file-upload"></i>
-                        <span wire:loading.remove wire:target="xml_files">Arraste os XMLs dos CT-es aqui ou clique para buscar</span>
-                        <span wire:loading wire:target="xml_files">Processando arquivos XML, extraindo dados...</span>
+                        <span wire:loading.remove wire:target="xml_files">Arraste os arquivos XML ou pacotes ZIP contendo os CT-es aqui ou clique para buscar</span>
+                        <span wire:loading wire:target="xml_files">Processando arquivos e descompactando pacotes ZIP...</span>
                     </label>
                 </div>
 

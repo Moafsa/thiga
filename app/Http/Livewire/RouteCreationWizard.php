@@ -113,6 +113,41 @@ class RouteCreationWizard extends Component
         $this->processXmlFiles();
     }
 
+    private function extractXmlStringsFromFile($file): array
+    {
+        $contents = [];
+        try {
+            $filePath = $file->getRealPath();
+            $clientExt = strtolower($file->getClientOriginalExtension());
+
+            if ($clientExt === 'zip' || $file->getMimeType() === 'application/zip' || $file->getMimeType() === 'application/x-zip-compressed') {
+                $zip = new \ZipArchive();
+                if ($zip->open($filePath) === true) {
+                    for ($i = 0; $i < $zip->numFiles; $i++) {
+                        $filename = $zip->getNameIndex($i);
+                        if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) === 'xml') {
+                            $stream = $zip->getStream($filename);
+                            if ($stream) {
+                                $contents[] = stream_get_contents($stream);
+                                fclose($stream);
+                            }
+                        }
+                    }
+                    $zip->close();
+                }
+            } else {
+                $raw = file_get_contents($filePath);
+                if (!empty($raw)) {
+                    $contents[] = $raw;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Erro extraindo arquivo para XML: ' . $e->getMessage());
+        }
+
+        return $contents;
+    }
+
     public function processXmlFiles()
     {
         $tenant = Auth::user()->tenant;
@@ -124,82 +159,84 @@ class RouteCreationWizard extends Component
         );
 
         foreach ($this->xml_files as $file) {
-            try {
-                $xmlContent = file_get_contents($file->getRealPath());
-                if (empty($xmlContent)) continue;
+            $xmlContents = $this->extractXmlStringsFromFile($file);
 
-                $cteData = $xmlParser->parseXml($xmlContent);
-                if (empty($cteData['document_number'])) continue;
+            foreach ($xmlContents as $xmlContent) {
+                try {
+                    if (empty($xmlContent)) continue;
 
-                $cteNumber = $cteData['document_number'];
-                $accessKey = $cteData['access_key'] ?? null;
+                    $cteData = $xmlParser->parseXml($xmlContent);
+                    if (empty($cteData['document_number'])) continue;
 
-                // Create or find CTE XML
-                $existingXml = CteXml::where('tenant_id', $tenant->id)
-                    ->where('cte_number', $cteNumber)
-                    ->first();
+                    $cteNumber = $cteData['document_number'];
+                    $accessKey = $cteData['access_key'] ?? null;
 
-                if (!$existingXml) {
-                    $filename = 'cte-' . ($accessKey ?: Str::random(16)) . '.xml';
-                    $path = "tenants/{$tenant->id}/cte-xmls/{$filename}";
-                    Storage::disk('local')->put($path, $xmlContent);
+                    // Create or find CTE XML
+                    $existingXml = CteXml::where('tenant_id', $tenant->id)
+                        ->where('cte_number', $cteNumber)
+                        ->first();
 
-                    $existingXml = CteXml::create([
-                        'tenant_id' => $tenant->id,
-                        'cte_number' => $cteNumber,
-                        'access_key' => $accessKey,
-                        'xml_url' => 'local:' . $path,
-                        'is_used' => false,
-                    ]);
+                    if (!$existingXml) {
+                        $filename = 'cte-' . ($accessKey ?: Str::random(16)) . '.xml';
+                        $path = "tenants/{$tenant->id}/cte-xmls/{$filename}";
+                        Storage::disk('local')->put($path, $xmlContent);
+
+                        $existingXml = CteXml::create([
+                            'tenant_id' => $tenant->id,
+                            'cte_number' => $cteNumber,
+                            'access_key' => $accessKey,
+                            'xml_url' => 'local:' . $path,
+                            'is_used' => false,
+                        ]);
+                    }
+
+                    // Create Shipment instantly if not exists
+                    $shipment = Shipment::where('tenant_id', $tenant->id)
+                        ->where('tracking_number', $cteNumber)
+                        ->first();
+
+                    if (!$shipment) {
+                        $receiverName = $cteData['destination']['name'] ?? 'Destinatário Desconhecido';
+                        $shipment = Shipment::create([
+                            'tenant_id' => $tenant->id,
+                            'sender_client_id' => $defaultClient->id,
+                            'receiver_client_id' => $defaultClient->id,
+                            'tracking_number' => $cteNumber,
+                            'title' => 'CT-e ' . $cteNumber,
+                            'weight' => $cteData['weight'] ?? 0,
+                            'volume' => $cteData['volume'] ?? 0,
+                            'quantity' => $cteData['quantity'] ?? 1,
+                            'value' => $cteData['goods_value'] ?? $cteData['value'] ?? 0,
+                            'pickup_address' => $cteData['origin']['address'] ?? 'Endereço Origem',
+                            'pickup_city' => $cteData['origin']['city'] ?? 'Cidade',
+                            'pickup_state' => $cteData['origin']['state'] ?? 'XX',
+                            'pickup_zip_code' => $cteData['origin']['zip_code'] ?? '00000000',
+                            'pickup_date' => $cteData['pickup_date'] ?? now()->format('Y-m-d'),
+                            'pickup_time' => '08:00:00',
+                            'delivery_address' => $cteData['destination']['address'] ?? 'Endereço Destino',
+                            'delivery_city' => $cteData['destination']['city'] ?? 'Cidade',
+                            'delivery_state' => $cteData['destination']['state'] ?? 'XX',
+                            'delivery_zip_code' => $cteData['destination']['zip_code'] ?? '00000000',
+                            'delivery_date' => $cteData['delivery_date'] ?? now()->format('Y-m-d'),
+                            'delivery_time' => '18:00:00',
+                            'status' => 'pending',
+                            'freight_value' => $cteData['value'] ?? 0,
+                        ]);
+                    }
+
+                    if (!in_array($shipment->id, $this->selectedShipments)) {
+                        $this->selectedShipments[] = $shipment->id;
+                    }
+
+                } catch (\Exception $e) {
+                    \Log::error('Erro processando XML no criador de rotas: ' . $e->getMessage());
                 }
-
-                // Create Shipment instantly if not exists
-                $shipment = Shipment::where('tenant_id', $tenant->id)
-                    ->where('tracking_number', $cteNumber)
-                    ->first();
-
-                if (!$shipment) {
-                    $receiverName = $cteData['destination']['name'] ?? 'Destinatário Desconhecido';
-                    $shipment = Shipment::create([
-                        'tenant_id' => $tenant->id,
-                        'sender_client_id' => $defaultClient->id,
-                        'receiver_client_id' => $defaultClient->id,
-                        'tracking_number' => $cteNumber,
-                        'title' => 'CT-e ' . $cteNumber,
-                        'weight' => $cteData['weight'] ?? 0,
-                        'volume' => $cteData['volume'] ?? 0,
-                        'quantity' => $cteData['quantity'] ?? 1,
-                        'value' => $cteData['goods_value'] ?? $cteData['value'] ?? 0,
-                        'pickup_address' => $cteData['origin']['address'] ?? 'Endereço Origem',
-                        'pickup_city' => $cteData['origin']['city'] ?? 'Cidade',
-                        'pickup_state' => $cteData['origin']['state'] ?? 'XX',
-                        'pickup_zip_code' => $cteData['origin']['zip_code'] ?? '00000000',
-                        'pickup_date' => $cteData['pickup_date'] ?? now()->format('Y-m-d'),
-                        'pickup_time' => '08:00:00',
-                        'delivery_address' => $cteData['destination']['address'] ?? 'Endereço Destino',
-                        'delivery_city' => $cteData['destination']['city'] ?? 'Cidade',
-                        'delivery_state' => $cteData['destination']['state'] ?? 'XX',
-                        'delivery_zip_code' => $cteData['destination']['zip_code'] ?? '00000000',
-                        'delivery_date' => $cteData['delivery_date'] ?? now()->format('Y-m-d'),
-                        'delivery_time' => '18:00:00',
-                        'status' => 'pending',
-                        'freight_value' => $cteData['value'] ?? 0,
-                    ]);
-                }
-
-                // Add to selected array if not already in
-                if (!in_array($shipment->id, $this->selectedShipments)) {
-                    $this->selectedShipments[] = $shipment->id;
-                }
-
-            } catch (\Exception $e) {
-                // Ignore parsing errors for individual files to continue processing others
-                \Log::error('Erro lendo XML no Command Center: ' . $e->getMessage());
             }
         }
 
         $this->xml_files = []; // reset
         $this->calculateTotals();
+        $this->autoGenerateRouteName();
     }
 
     public function updatedOriginBranch()
@@ -318,7 +355,7 @@ class RouteCreationWizard extends Component
         $this->autoGenerateRouteName();
     }
 
-    private function autoGenerateRouteName()
+    public function autoGenerateRouteName()
     {
         if (empty($this->selectedShipments)) {
             return;
