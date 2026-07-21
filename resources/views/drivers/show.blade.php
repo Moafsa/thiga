@@ -121,7 +121,7 @@
 
         <div>
             <span style="color: rgba(245,245,245,0.7); display: block; font-size: 0.85em;">Senha Atual / Gerada:</span>
-            <span style="color: #10b981; font-weight: 700; font-size: 1.1em; letter-spacing: 0.5px;">{{ $driver->temp_password ?? 'Thiga@2026' }}</span>
+            <span style="color: #10b981; font-weight: 700; font-size: 1.1em; letter-spacing: 0.5px;">{{ $driver->temp_password ?? '—' }}</span>
         </div>
 
         <div style="grid-column: 1 / -1; margin-top: 10px; display: flex; gap: 12px; flex-wrap: wrap;">

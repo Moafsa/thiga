@@ -118,8 +118,8 @@ class DriverController extends Controller
             }
         }
 
-        // Generate or set password
-        $rawPassword = $request->input('password') ?: ('Thiga@' . rand(1000, 9999));
+        // Generate or set password dynamically (avoids static password strings for security scanners)
+        $rawPassword = $request->input('password') ?: (Str::ucfirst(Str::random(4)) . rand(1000, 9999) . '!');
         $validated['temp_password'] = $rawPassword;
 
         $driver = Driver::create($validated);
@@ -449,7 +449,7 @@ public function edit(Driver $driver)
     {
         $this->authorizeAccess($driver);
 
-        $newPassword = 'Thiga@' . rand(1000, 9999);
+        $newPassword = Str::ucfirst(Str::random(4)) . rand(1000, 9999) . '!';
         $driver->login_token = Str::random(32) . dechex(time()) . Str::random(16);
         $driver->temp_password = $newPassword;
         $driver->save();
