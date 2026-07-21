@@ -1515,6 +1515,7 @@ class RouteController extends Controller
         // Standard route update
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'origin_branch' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'driver_id' => 'required|exists:drivers,id',
             'vehicle_id' => 'nullable|exists:vehicles,id',
@@ -1524,6 +1525,7 @@ class RouteController extends Controller
             'status' => 'nullable|string|in:scheduled,in_progress,completed,cancelled',
             'shipment_ids' => 'nullable|array',
             'shipment_ids.*' => 'exists:shipments,id',
+            'manual_cte_numbers' => 'nullable|string',
             'notes' => 'nullable|string',
             'min_freight_rate_type' => 'nullable|in:percentage,fixed',
             'min_freight_rate_value' => 'nullable|numeric|min:0|required_if:min_freight_rate_type,percentage,fixed',
@@ -1610,6 +1612,22 @@ class RouteController extends Controller
         Shipment::where('route_id', $route->id)
             ->where('tenant_id', $tenant->id)
             ->update(['route_id' => null]);
+
+        // Process manual CT-e input if provided during route edit
+        if ($request->filled('manual_cte_numbers')) {
+            $manualSplit = preg_split('/[\s,;]+/', $request->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+            if (!empty($manualSplit)) {
+                $xmlParser = app(CteXmlParserService::class);
+                try {
+                    $this->processCteXmlNumbers($manualSplit, $tenant, $xmlParser, $route);
+                } catch (\Exception $e) {
+                    \Log::error('Error processing manual CT-e numbers on route update', [
+                        'route_id' => $route->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         // Associate new shipments
         if ($request->has('shipment_ids')) {

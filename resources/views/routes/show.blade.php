@@ -8,24 +8,19 @@
 @endpush
 
 @section('content')
-<div class="page-header">
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
     <div class="page-header-text">
         <h1 style="color: var(--cor-acento); font-size: 2em; margin-bottom: 0;">{{ $route->name }}</h1>
-        <form action="{{ route('routes.destroy', $route) }}" method="POST" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta rota? Esta ação não pode ser desfeita.');">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="btn-secondary" style="background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.3);">
-                <i class="fas fa-trash"></i> Excluir
-            </button>
-        </form>
-        @endif
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <a href="{{ route('routes.edit', $route) }}" class="btn-primary" style="background-color: var(--cor-principal); border-color: rgba(255,255,255,0.2);">
+            <i class="fas fa-edit"></i> Editar Rota
+        </a>
         @if($route->shipments->count() > 1 && $route->status !== 'completed' && $route->status !== 'in_progress')
             <button type="button" class="btn-primary" style="background-color: #9C27B0; border-color: #9C27B0;" @click="$dispatch('open-optimize-modal')">
                 <i class="fas fa-magic"></i> Sugerir Rota Otimizada
             </button>
         @endif
-    </div>
-</div>
         <form action="{{ route('routes.destroy', $route) }}" method="POST" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta rota? Esta ação não pode ser desfeita.');">
             @csrf
             @method('DELETE')
@@ -33,7 +28,6 @@
                 <i class="fas fa-trash"></i> Excluir
             </button>
         </form>
-        @endif
     </div>
 </div>
 
