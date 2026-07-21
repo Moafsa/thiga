@@ -47,18 +47,18 @@ async function initMonitoringMapbox() {
 
     const authToken = document.querySelector('meta[name="api-token"]')?.content || localStorage.getItem('auth_token');
 
-    // Initialize map in Asset Tracking Mode (2D Fleet Overview)
+    // Initialize map in Mapbox Asset Tracking Mode (Dark Fleet Overview)
     monitoringMap = new MapboxHelper('monitoring-map', {
         center: [-46.6333, -23.5505], // [lng, lat]
         zoom: 10,
-        style: 'mapbox://styles/mapbox/streets-v12', // Clean Asset Tracking Basemap
-        pitch: 0, // Flat 2D view for multi-vehicle overview
+        style: 'mapbox://styles/mapbox/dark-v11', // Mapbox Asset Tracking Dark Basemap
+        pitch: 0, // Flat 2D overview
         bearing: 0,
         accessToken: window.mapboxAccessToken,
         apiBaseUrl: '/api/maps',
         authToken: authToken,
         onLoad: async (map) => {
-            console.log('Admin Monitoring Map loaded in Asset Tracking mode');
+            console.log('Admin Monitoring Map loaded in Mapbox Asset Tracking mode');
             await loadRoutesAndShipmentsMapbox();
             setTimeout(() => {
                 loadDriverLocationsMapbox();
@@ -67,19 +67,9 @@ async function initMonitoringMapbox() {
     });
 
     window.monitoringMap = monitoringMap;
-
-    // Bind Style Selector Dropdown if exists
-    const styleSelector = document.getElementById('monitoring-map-style-selector');
-    if (styleSelector) {
-        // Default style selector is matched
-        styleSelector.value = 'streets';
-        styleSelector.addEventListener('change', function() {
-            monitoringMap.setStyle(this.value);
-        });
-    }
 }
 
-// Load driver locations with Mapbox
+// Load driver locations with Mapbox Asset Tracking markers
 async function loadDriverLocationsMapbox() {
     if (!monitoringMap) {
         console.warn('Map not initialized');
@@ -101,8 +91,11 @@ async function loadDriverLocationsMapbox() {
             }
         });
 
+        const colors = ['#F59E0B', '#EF4444', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+
         // Add or update markers for active drivers
-        for (const driver of drivers) {
+        for (let i = 0; i < drivers.length; i++) {
+            const driver = drivers[i];
             const lat = driver.latitude || driver.current_latitude;
             const lng = driver.longitude || driver.current_longitude;
             
@@ -114,25 +107,29 @@ async function loadDriverLocationsMapbox() {
             };
 
             const driverName = driver.name || driver.user?.name || 'Motorista';
+            const vehicleLabel = driver.vehicle_plate ? `Truck (${driver.vehicle_plate})` : `Truck ${String.fromCharCode(65 + (i % 26))}`;
+            const pinColor = colors[i % colors.length];
+
             const driverInfo = `
                 <div style="padding: 10px; min-width: 200px;">
                     <h4 style="margin: 0 0 10px 0; color: #FF6B35;">${driverName}</h4>
+                    <p style="margin: 5px 0; color: #666;"><strong>Veículo:</strong> ${vehicleLabel}</p>
                     <p style="margin: 5px 0; color: #666;"><strong>Status:</strong> <span style="color: #4CAF50;">Online</span></p>
                     ${driver.phone || driver.user?.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Telefone:</strong> ${driver.phone || driver.user.phone}</p>` : ''}
-                    ${driver.current_location ? `<p style="margin: 5px 0; color: #666;"><strong>Local:</strong> ${driver.current_location}</p>` : ''}
                     <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Atualizado: agora</p>
                 </div>
             `;
 
             if (driverMarkers[driver.id]) {
-                // Remove old marker and create new one (Mapbox markers are immutable)
                 monitoringMap.removeMarker(driverMarkers[driver.id]);
             }
             
-            // Create new marker
+            // Create new Mapbox Asset Tracking marker badge pin
             driverMarkers[driver.id] = monitoringMap.addMarker(position, {
                 title: driverName,
-                color: '#FF0000',
+                label: vehicleLabel,
+                color: pinColor,
+                iconClass: 'fa-truck',
                 size: 32,
                 content: driverInfo
             });
@@ -205,10 +202,12 @@ async function loadRoutesAndShipmentsMapbox() {
                 }
             }
 
-            // Add origin marker
+            // Add origin marker with Mapbox Asset Tracking Warehouse badge
             monitoringMap.addMarker(origin, {
                 title: `Rota: ${route.name || route.id}`,
-                color: '#9C27B0',
+                label: `Warehouse (${route.origin_branch || route.name || 'Matriz'})`,
+                color: '#3B82F6',
+                iconClass: 'fa-warehouse',
                 size: 28
             });
 

@@ -232,19 +232,43 @@ class MapboxHelper {
     addMarker(position, options = {}) {
         const { lat, lng } = position;
         const el = document.createElement('div');
-        el.className = 'custom-marker';
-        el.style.width = (options.size || 32) + 'px';
-        el.style.height = (options.size || 32) + 'px';
-        el.style.borderRadius = '50%';
-        el.style.backgroundColor = options.color || '#2196F3';
-        el.style.border = '3px solid white';
-        el.style.cursor = 'pointer';
-        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
 
-        if (options.iconUrl) {
-            el.style.backgroundImage = `url(${options.iconUrl})`;
-            el.style.backgroundSize = 'cover';
-            el.style.backgroundPosition = 'center';
+        if (options.label || options.badge) {
+            el.className = 'asset-tracking-marker';
+            el.style.display = 'flex';
+            el.style.flexDirection = 'column';
+            el.style.alignItems = 'center';
+            el.style.cursor = 'pointer';
+            el.style.background = 'transparent';
+            el.style.border = 'none';
+
+            const pinColor = options.color || '#F59E0B';
+            const labelText = options.label || options.badge;
+            const iconClass = options.iconClass || (labelText.toLowerCase().includes('ware') || labelText.toLowerCase().includes('galp') ? 'fa-warehouse' : 'fa-truck');
+
+            el.innerHTML = `
+                <div style="width: 26px; height: 26px; border-radius: 50%; background: ${pinColor}; border: 2px solid #ffffff; box-shadow: 0 0 10px ${pinColor}; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 11px;">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div style="background: rgba(0, 0, 0, 0.85); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; white-space: nowrap; margin-top: 3px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); font-family: sans-serif;">
+                    ${labelText}
+                </div>
+            `;
+        } else {
+            el.className = 'custom-marker';
+            el.style.width = (options.size || 32) + 'px';
+            el.style.height = (options.size || 32) + 'px';
+            el.style.borderRadius = '50%';
+            el.style.backgroundColor = options.color || '#2196F3';
+            el.style.border = '3px solid white';
+            el.style.cursor = 'pointer';
+            el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+            if (options.iconUrl) {
+                el.style.backgroundImage = `url(${options.iconUrl})`;
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+            }
         }
 
         const marker = new mapboxgl.Marker(el)

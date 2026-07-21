@@ -126,15 +126,6 @@
 
 <div class="monitoring-dashboard">
     <div class="map-container">
-        <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; display: flex; align-items: center; gap: 10px; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 8px;">
-            <label style="color: rgba(245, 245, 245, 0.9); font-size: 0.9em; margin: 0;"><i class="fas fa-layer-group"></i> Estilo do Mapa:</label>
-            <select id="monitoring-map-style-selector" style="padding: 6px 10px; border-radius: 5px; background-color: var(--cor-principal); color: var(--cor-texto-claro); border: 1px solid rgba(255, 255, 255, 0.2); cursor: pointer; font-size: 0.9em;">
-                <option value="streets">Ruas (Padrão)</option>
-                <option value="dark">Premium Dark</option>
-                <option value="satellite">Satélite Real</option>
-                <option value="navigation">Navegação 3D</option>
-            </select>
-        </div>
         <div id="monitoring-map"></div>
     </div>
 
