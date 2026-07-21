@@ -27,6 +27,7 @@ class RouteCreationWizard extends Component
     public $vehicle_id;
     public $branch_id;
     public $origin_branch;
+    public $is_custom_origin = false;
     public $manual_cte_numbers;
     public $start_address_type = 'branch';
 
@@ -203,6 +204,74 @@ class RouteCreationWizard extends Component
     public function updatedOriginBranch()
     {
         $this->autoGenerateRouteName();
+    }
+
+    public function updatedManualCteNumbers()
+    {
+        $this->processManualCteNumbers();
+    }
+
+    public function processManualCteNumbers()
+    {
+        if (empty($this->manual_cte_numbers)) return;
+
+        $tenant = Auth::user()->tenant;
+        $cteTokens = preg_split('/[^0-9A-Za-z]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+        if (empty($cteTokens)) return;
+
+        $defaultClient = \App\Models\Client::firstOrCreate(
+            ['tenant_id' => $tenant->id, 'name' => 'Cliente Padrão (Sistema)'],
+            ['address' => 'N/A', 'city' => 'N/A', 'state' => 'XX', 'zip_code' => '00000000', 'is_active' => true]
+        );
+
+        $newlySelectedIds = [];
+
+        foreach ($cteTokens as $token) {
+            $cleanNum = trim($token);
+            if (empty($cleanNum)) continue;
+
+            $shipment = Shipment::where('tenant_id', $tenant->id)
+                ->where(function ($q) use ($cleanNum) {
+                    $q->where('tracking_number', $cleanNum)
+                      ->orWhere('tracking_number', 'CTE-' . $cleanNum)
+                      ->orWhere('tracking_number', '#' . $cleanNum)
+                      ->orWhere('title', 'like', "%{$cleanNum}%");
+                })->first();
+
+            if (!$shipment) {
+                $shipment = Shipment::create([
+                    'tenant_id' => $tenant->id,
+                    'sender_client_id' => $defaultClient->id,
+                    'receiver_client_id' => $defaultClient->id,
+                    'tracking_number' => $cleanNum,
+                    'title' => 'CT-e #' . $cleanNum,
+                    'status' => 'pending',
+                    'value' => 0,
+                    'weight' => 0,
+                    'receiver_name' => 'Destinatário CT-e #' . $cleanNum,
+                    'pickup_address' => 'Endereço Origem',
+                    'pickup_city' => 'Origem',
+                    'pickup_state' => 'XX',
+                    'pickup_zip_code' => '00000000',
+                    'delivery_address' => 'A combinar',
+                    'delivery_city' => 'Destino',
+                    'delivery_state' => 'XX',
+                    'delivery_zip_code' => '00000000',
+                    'pickup_date' => now()->format('Y-m-d'),
+                    'delivery_date' => now()->format('Y-m-d'),
+                ]);
+            }
+
+            if (!in_array($shipment->id, $this->selectedShipments)) {
+                $newlySelectedIds[] = $shipment->id;
+            }
+        }
+
+        if (!empty($newlySelectedIds)) {
+            $this->selectedShipments = array_values(array_unique(array_merge($this->selectedShipments, $newlySelectedIds)));
+            $this->calculateTotals();
+            $this->autoGenerateRouteName();
+        }
     }
 
     public function updatedSelectedShipments()
@@ -430,10 +499,25 @@ class RouteCreationWizard extends Component
 
         $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->take(200)->get();
 
+        $companies = \App\Models\Company::where('tenant_id', $tenant->id)->where('is_active', true)->get();
+        $branches = Branch::where('tenant_id', $tenant->id)->where('is_active', true)->get();
+
+        $originOptions = collect();
+        foreach ($companies as $comp) {
+            $name = $comp->trade_name ?: $comp->name;
+            $location = $comp->city && $comp->state ? " ({$comp->city}/{$comp->state})" : '';
+            $originOptions->push(['label' => "🏢 Empresa: {$name}{$location}", 'value' => "{$name}{$location}"]);
+        }
+        foreach ($branches as $br) {
+            $location = $br->city && $br->state ? " ({$br->city}/{$br->state})" : '';
+            $originOptions->push(['label' => "📍 Filial: {$br->name}{$location}", 'value' => "{$br->name}{$location}"]);
+        }
+
         return view('livewire.route-creation-wizard', [
             'drivers' => Driver::where('tenant_id', $tenant->id)->where('is_active', true)->get(),
             'vehicles' => Vehicle::where('tenant_id', $tenant->id)->where('is_active', true)->get(),
-            'branches' => Branch::where('tenant_id', $tenant->id)->where('is_active', true)->get(),
+            'branches' => $branches,
+            'originOptions' => $originOptions,
             'availableShipments' => $availableShipments,
             'availableCargo' => AvailableCargo::where('tenant_id', $tenant->id)->where('status', 'available')->get(),
         ]);

@@ -50,8 +50,23 @@
                     </select>
                 </div>
                 <div class="industrial-input-group">
-                    <label>FILIAL DE ORIGEM</label>
-                    <input type="text" wire:model="origin_branch" placeholder="Ex: Matriz SP / Galpão 2">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="margin-bottom: 0;"><i class="fas fa-building"></i> EMPRESA / FILIAL DE ORIGEM</label>
+                        <button type="button" wire:click="$toggle('is_custom_origin')" style="background: rgba(255,255,255,0.1); color: var(--cor-acento); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 8px; font-size: 0.75em; font-weight: 600; cursor: pointer;">
+                            {{ $is_custom_origin ? '🏢 Selecionar da Lista' : '✏️ Digitar Outro Local' }}
+                        </button>
+                    </div>
+
+                    @if(!$is_custom_origin && count($originOptions) > 0)
+                        <select wire:model="origin_branch" wire:change="updatedOriginBranch">
+                            <option value="">Selecione a Empresa / Filial de Partida...</option>
+                            @foreach($originOptions as $opt)
+                                <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <input type="text" wire:model.lazy="origin_branch" wire:change="updatedOriginBranch" placeholder="Digite o local de partida (ex: Galpão Betim/MG)...">
+                    @endif
                 </div>
             </div>
         </div>
@@ -70,8 +85,16 @@
 
             <!-- Inserção Manual de CT-es -->
             <div class="industrial-input-group" style="margin: 15px 20px;">
-                <label style="color: var(--cor-acento); font-size: 0.85em; font-weight: 600;"><i class="fas fa-file-invoice"></i> DIGITAÇÃO MANUAL DE CT-ES</label>
-                <textarea wire:model="manual_cte_numbers" placeholder="Digite cada número de CT-e separado por vírgula ou em linhas (ex: 1001, 1002, 1003)" style="width: 100%; min-height: 55px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px; border-radius: 4px; font-size: 0.85em;"></textarea>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="color: var(--cor-acento); font-size: 0.85em; font-weight: 600; margin-bottom: 0;">
+                        <i class="fas fa-file-invoice"></i> DIGITAÇÃO MANUAL / COLAR CT-ES
+                    </label>
+                    <span style="font-size: 0.75em; color: rgba(255,255,255,0.5);">Clique fora para processar e selecionar abaixo</span>
+                </div>
+                <textarea wire:model.lazy="manual_cte_numbers" 
+                          wire:change="processManualCteNumbers"
+                          placeholder="Cole ou digite os números dos CT-es (ex: 2506, 2507/2508, 2509). Clique fora para juntar e marcar como selecionadas..." 
+                          style="width: 100%; min-height: 60px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px; border-radius: 4px; font-size: 0.85em;"></textarea>
             </div>
 
             <!-- Manual Cargo Modal (Alpine + Livewire) -->
