@@ -48,21 +48,50 @@ class DashboardController extends Controller
         $expensesQuery = Expense::where('tenant_id', $tenant->id);
         $proposalsQuery = Proposal::where('tenant_id', $tenant->id);
         $routesQuery = Route::where('tenant_id', $tenant->id);
+        $clientsQuery = Client::where('tenant_id', $tenant->id)->listed();
 
         if ($filters['date_from']) {
-            $shipmentsQuery->where('created_at', '>=', $filters['date_from']);
-            $invoicesQuery->where('created_at', '>=', $filters['date_from']);
+            // Filter shipments by operational/launch date (pickup_date, delivery_date or created_at)
+            $shipmentsQuery->where(function($q) use ($filters) {
+                $q->where('pickup_date', '>=', $filters['date_from'])
+                  ->orWhere('delivery_date', '>=', $filters['date_from'])
+                  ->orWhere('created_at', '>=', $filters['date_from']);
+            });
+
+            // Filter invoices by launch/issue date (issue_date or created_at)
+            $invoicesQuery->where(function($q) use ($filters) {
+                $q->where('issue_date', '>=', $filters['date_from'])
+                  ->orWhere(function($sub) use ($filters) {
+                      $sub->whereNull('issue_date')->where('created_at', '>=', $filters['date_from']);
+                  });
+            });
+
             $expensesQuery->where('created_at', '>=', $filters['date_from']);
             $proposalsQuery->where('created_at', '>=', $filters['date_from']);
             $routesQuery->where('created_at', '>=', $filters['date_from']);
+            $clientsQuery->where('created_at', '>=', $filters['date_from']);
         }
 
         if ($filters['date_to']) {
-            $shipmentsQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
-            $invoicesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+            // Filter shipments by operational/launch date
+            $shipmentsQuery->where(function($q) use ($filters) {
+                $q->where('pickup_date', '<=', $filters['date_to'])
+                  ->orWhere('delivery_date', '<=', $filters['date_to'])
+                  ->orWhere('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+            });
+
+            // Filter invoices by launch/issue date
+            $invoicesQuery->where(function($q) use ($filters) {
+                $q->where('issue_date', '<=', $filters['date_to'])
+                  ->orWhere(function($sub) use ($filters) {
+                      $sub->whereNull('issue_date')->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+                  });
+            });
+
             $expensesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
             $proposalsQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
             $routesQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+            $clientsQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
         }
 
         if ($filters['route_id']) {
@@ -110,10 +139,10 @@ class DashboardController extends Controller
             'rejected' => (clone $proposalsQuery)->where('status', 'rejected')->count(),
         ];
 
-        // Clients statistics (apenas os que estão na listagem)
+        // Clients statistics (filtrados por período de data do filtro)
         $clientsStats = [
-            'total' => Client::where('tenant_id', $tenant->id)->listed()->count(),
-            'active' => Client::where('tenant_id', $tenant->id)->listed()->where('is_active', true)->count(),
+            'total' => (clone $clientsQuery)->count(),
+            'active' => (clone $clientsQuery)->where('is_active', true)->count(),
         ];
 
         // Routes statistics (governed by date & route filters)
@@ -161,15 +190,27 @@ class DashboardController extends Controller
             'on_time_rate' => $this->calculateOnTimeRate($tenant->id, $filters),
         ];
 
-        // Fiscal documents statistics
+        // Fiscal documents statistics (filtrado por data de lançamento / autorização / envio)
         $fiscalQuery = FiscalDocument::where('tenant_id', $tenant->id);
 
         if ($filters['date_from']) {
-            $fiscalQuery->where('created_at', '>=', $filters['date_from']);
+            $fiscalQuery->where(function ($q) use ($filters) {
+                $q->where('authorized_at', '>=', $filters['date_from'])
+                  ->orWhere('sent_at', '>=', $filters['date_from'])
+                  ->orWhere(function($sub) use ($filters) {
+                      $sub->whereNull('authorized_at')->whereNull('sent_at')->where('created_at', '>=', $filters['date_from']);
+                  });
+            });
         }
 
         if ($filters['date_to']) {
-            $fiscalQuery->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+            $fiscalQuery->where(function ($q) use ($filters) {
+                $q->where('authorized_at', '<=', $filters['date_to'] . ' 23:59:59')
+                  ->orWhere('sent_at', '<=', $filters['date_to'] . ' 23:59:59')
+                  ->orWhere(function($sub) use ($filters) {
+                      $sub->whereNull('authorized_at')->whereNull('sent_at')->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
+                  });
+            });
         }
 
         $fiscalStats = [
