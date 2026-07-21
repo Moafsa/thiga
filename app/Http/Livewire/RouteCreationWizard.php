@@ -26,6 +26,7 @@ class RouteCreationWizard extends Component
     // Basic Data
     public $name;
     public $scheduled_date;
+    public $start_time = '08:00';
     public $driver_id;
     public $vehicle_id;
     public $branch_id;
@@ -228,6 +229,7 @@ class RouteCreationWizard extends Component
             'tenant_id' => $tenant->id,
             'name' => $this->name,
             'scheduled_date' => $this->scheduled_date,
+            'start_time' => $this->start_time ?: '08:00',
             'driver_id' => $this->driver_id,
             'vehicle_id' => $this->vehicle_id,
             'branch_id' => $this->branch_id,
@@ -268,6 +270,7 @@ class RouteCreationWizard extends Component
     public function mount()
     {
         $this->scheduled_date = now()->format('Y-m-d');
+        $this->start_time = now()->format('H:i');
         $this->syncLegacyXmls();
     }
 

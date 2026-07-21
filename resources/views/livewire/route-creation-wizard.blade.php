@@ -13,8 +13,17 @@
                     @error('name') <span class="error">{{ $message }}</span> @enderror
                 </div>
                 <div class="industrial-input-group">
-                    <label>DATA PROGRAMADA *</label>
-                    <input type="date" wire:model="scheduled_date">
+                    <label><i class="fas fa-calendar-alt"></i> DATA E HORA PROGRAMADA *</label>
+                    <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px;">
+                        <div>
+                            <span style="font-size: 0.75em; color: rgba(255,255,255,0.6); display: block; margin-bottom: 4px;">Data Agendada</span>
+                            <input type="date" wire:model="scheduled_date" style="width: 100%;">
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75em; color: rgba(255,255,255,0.6); display: block; margin-bottom: 4px;">Horário (Hora)</span>
+                            <input type="time" wire:model="start_time" style="width: 100%;">
+                        </div>
+                    </div>
                     @error('scheduled_date') <span class="error">{{ $message }}</span> @enderror
                 </div>
                 <div class="industrial-input-group">
