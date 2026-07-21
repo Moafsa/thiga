@@ -8,8 +8,13 @@
             </div>
             <div class="pane-body">
                 <div class="industrial-input-group">
-                    <label>IDENTIFICAÇÃO (NOME) *</label>
-                    <input type="text" wire:model="name" placeholder="Ex: Rota Noturna SP">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="margin-bottom: 0;">IDENTIFICAÇÃO (NOME) *</label>
+                        <button type="button" wire:click="autoGenerateRouteName" style="background: rgba(255,107,53,0.15); color: var(--cor-acento); border: 1px solid rgba(255,107,53,0.3); border-radius: 4px; padding: 2px 8px; font-size: 0.75em; font-weight: 600; cursor: pointer;">
+                            ✨ Gerar Nome Automático
+                        </button>
+                    </div>
+                    <input type="text" wire:model="name" placeholder="Ex: Rota Belo Horizonte/MG → São Paulo/SP">
                     @error('name') <span class="error">{{ $message }}</span> @enderror
                 </div>
                 <div class="industrial-input-group">

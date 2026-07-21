@@ -204,6 +204,11 @@ class RouteCreationWizard extends Component
         $this->calculateTotals();
     }
 
+    public function updatedOriginBranch()
+    {
+        $this->autoGenerateRouteName();
+    }
+
     public function updatedSelectedShipments()
     {
         $this->calculateTotals();
@@ -214,6 +219,53 @@ class RouteCreationWizard extends Component
         $shipments = Shipment::whereIn('id', $this->selectedShipments)->get();
         $this->total_value = $shipments->sum('value');
         $this->total_weight = $shipments->sum('weight');
+        $this->autoGenerateRouteName();
+    }
+
+    private function autoGenerateRouteName()
+    {
+        if (empty($this->selectedShipments)) {
+            return;
+        }
+
+        $shipments = Shipment::whereIn('id', $this->selectedShipments)->get();
+        if ($shipments->isEmpty()) return;
+
+        // Origin label
+        $firstShipment = $shipments->first();
+        $originCity = $firstShipment->pickup_city ?: 'Origem';
+        $originState = $firstShipment->pickup_state ?: '';
+        
+        $originLabel = !empty($this->origin_branch) 
+            ? $this->origin_branch 
+            : ($originState ? "{$originCity}/{$originState}" : $originCity);
+
+        // Unique destinations
+        $destinations = $shipments->map(function ($s) {
+            if ($s->delivery_city && $s->delivery_state) {
+                return "{$s->delivery_city}/{$s->delivery_state}";
+            }
+            return $s->delivery_city ?: $s->recipient_name;
+        })->filter()->unique()->values();
+
+        if ($destinations->count() === 1) {
+            $destLabel = $destinations->first();
+            $autoName = "Rota {$originLabel} → {$destLabel}";
+        } elseif ($destinations->count() > 1) {
+            $destLabel = $destinations->take(2)->implode(' + ');
+            if ($destinations->count() > 2) {
+                $extraCount = $destinations->count() - 2;
+                $destLabel .= " (+{$extraCount} cidades)";
+            }
+            $autoName = "Rota {$originLabel} → {$destLabel}";
+        } else {
+            $autoName = "Rota {$originLabel} ({$shipments->count()} Cargas)";
+        }
+
+        // Auto-fill if name is empty or starts with Rota
+        if (empty($this->name) || str_starts_with($this->name, 'Rota ')) {
+            $this->name = $autoName;
+        }
     }
 
     public function save()
