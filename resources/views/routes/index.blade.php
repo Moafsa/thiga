@@ -140,6 +140,61 @@
     </a>
 </div>
 
+<!-- Barra de Busca e Filtros -->
+<div style="background-color: var(--cor-secundaria); padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.08);">
+    <form action="{{ route('routes.index') }}" method="GET" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        <div style="flex: 2; min-width: 250px;">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 6px; font-size: 0.85em; font-weight: 600;">
+                <i class="fas fa-search"></i> Buscar Rota, CT-e, Motorista ou Placa
+            </label>
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Digite o nome da rota, CT-e, motorista, placa ou filial..." style="width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+        </div>
+
+        <div style="flex: 1; min-width: 160px;">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 6px; font-size: 0.85em; font-weight: 600;">
+                <i class="fas fa-user"></i> Motorista
+            </label>
+            <select name="driver_id" style="width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                <option value="">Todos os Motoristas</option>
+                @foreach($drivers as $driver)
+                    <option value="{{ $driver->id }}" {{ request('driver_id') == $driver->id ? 'selected' : '' }}>{{ $driver->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 6px; font-size: 0.85em; font-weight: 600;">
+                <i class="fas fa-tasks"></i> Status
+            </label>
+            <select name="status" style="width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+                <option value="">Todos os Status</option>
+                <option value="scheduled" {{ request('status') === 'scheduled' ? 'selected' : '' }}>Agendada</option>
+                <option value="in_progress" {{ request('status') === 'in_progress' ? 'selected' : '' }}>Em Andamento</option>
+                <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Concluída</option>
+                <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Cancelada</option>
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 6px; font-size: 0.85em; font-weight: 600;">
+                <i class="fas fa-calendar-alt"></i> Data Agendada
+            </label>
+            <input type="date" name="scheduled_date" value="{{ request('scheduled_date') }}" style="width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro);">
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn-primary" style="padding: 10px 20px; font-weight: 700; border-radius: 6px; height: 42px;">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+            @if(request()->hasAny(['search', 'driver_id', 'status', 'scheduled_date']))
+                <a href="{{ route('routes.index') }}" class="btn-secondary" style="padding: 10px 15px; border-radius: 6px; height: 42px; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-times"></i> Limpar
+                </a>
+            @endif
+        </div>
+    </form>
+</div>
+
 <div class="industrial-grid">
     @forelse($routes as $route)
         <div class="industrial-card">

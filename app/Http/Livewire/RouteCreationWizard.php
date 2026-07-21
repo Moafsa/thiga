@@ -15,9 +15,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+use Livewire\WithPagination;
+
 class RouteCreationWizard extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithPagination;
+
+    protected $paginationTheme = 'bootstrap';
 
     // Basic Data
     public $name;
@@ -32,6 +36,8 @@ class RouteCreationWizard extends Component
     // Shipments/Cargo
     public $selectedShipments = [];
     public $selectedCargo = [];
+    public $searchShipment = '';
+    public $selectAll = false;
 
     // Summary & Calculation
     public $total_value = 0;
@@ -235,7 +241,7 @@ class RouteCreationWizard extends Component
         }
 
         if (!empty($this->manual_cte_numbers)) {
-            $cteNumbers = preg_split('/[\s,;]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+            $cteNumbers = preg_split('/[^0-9A-Za-z]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
             foreach ($cteNumbers as $cteNum) {
                 $cteNum = trim($cteNum);
                 if (empty($cteNum)) continue;
@@ -333,15 +339,56 @@ class RouteCreationWizard extends Component
         }
     }
 
+    public function updatingSearchShipment()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSelectAll($value)
+    {
+        if ($value) {
+            $tenant = Auth::user()->tenant;
+            $shipmentsQuery = Shipment::where('tenant_id', $tenant->id)->whereNull('route_id');
+            if (!empty($this->searchShipment)) {
+                $search = trim($this->searchShipment);
+                $shipmentsQuery->where(function ($q) use ($search) {
+                    $q->where('tracking_number', 'like', "%{$search}%")
+                        ->orWhere('title', 'like', "%{$search}%")
+                        ->orWhere('receiver_name', 'like', "%{$search}%")
+                        ->orWhere('delivery_city', 'like', "%{$search}%");
+                });
+            }
+            $allIds = $shipmentsQuery->pluck('id')->toArray();
+            $this->selectedShipments = array_values(array_unique(array_merge($this->selectedShipments, $allIds)));
+        } else {
+            $this->selectedShipments = [];
+        }
+        $this->calculateTotals();
+    }
+
     public function render()
     {
         $tenant = Auth::user()->tenant;
+
+        $shipmentsQuery = Shipment::where('tenant_id', $tenant->id)->whereNull('route_id');
+
+        if (!empty($this->searchShipment)) {
+            $search = trim($this->searchShipment);
+            $shipmentsQuery->where(function ($q) use ($search) {
+                $q->where('tracking_number', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('receiver_name', 'like', "%{$search}%")
+                    ->orWhere('delivery_city', 'like', "%{$search}%");
+            });
+        }
+
+        $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->paginate(30);
 
         return view('livewire.route-creation-wizard', [
             'drivers' => Driver::where('tenant_id', $tenant->id)->where('is_active', true)->get(),
             'vehicles' => Vehicle::where('tenant_id', $tenant->id)->where('is_active', true)->get(),
             'branches' => Branch::where('tenant_id', $tenant->id)->where('is_active', true)->get(),
-            'availableShipments' => Shipment::where('tenant_id', $tenant->id)->whereNull('route_id')->orderBy('created_at', 'desc')->get(),
+            'availableShipments' => $availableShipments,
             'availableCargo' => AvailableCargo::where('tenant_id', $tenant->id)->where('status', 'available')->get(),
         ]);
     }

@@ -139,11 +139,23 @@
 
                 <!-- Shipment List -->
                 <div class="shipment-list-container mt-6">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px;">
+                        <div style="position: relative; flex: 1;">
+                            <input type="text" wire:model.debounce.300ms="searchShipment" placeholder="🔍 Buscar por número de CT-e, destinatário ou cidade..." style="width: 100%; padding: 10px 12px 10px 36px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.85em;">
+                            <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5);"></i>
+                        </div>
+                        <div style="font-size: 0.8em; color: rgba(255,255,255,0.6); white-space: nowrap;">
+                            Exibindo {{ $availableShipments->count() }} de {{ $availableShipments->total() }} cargas
+                        </div>
+                    </div>
+
                     <table class="industrial-table">
                         <thead>
                             <tr>
-                                <th width="40">INC</th>
-                                <th>RASTREIO</th>
+                                <th width="40">
+                                    <input type="checkbox" wire:model="selectAll" class="industrial-checkbox" title="Selecionar Todos">
+                                </th>
+                                <th>RASTREIO / CT-E</th>
                                 <th>DESTINO</th>
                                 <th class="text-right">PESO</th>
                                 <th class="text-right">VALOR</th>
@@ -167,11 +179,15 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga pendente no sistema. Faça upload de CT-es para começar.</td>
+                                    <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga encontrada. Faça upload de CT-es ou altere o termo de busca.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
+
+                    <div style="margin-top: 15px;">
+                        {{ $availableShipments->links() }}
+                    </div>
                 </div>
             </div>
         </div>

@@ -53,7 +53,20 @@ class RouteController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('origin_branch', 'like', "%{$search}%")
+                    ->orWhereHas('driver', function ($dq) use ($search) {
+                        $dq->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('vehicle', function ($vq) use ($search) {
+                        $vq->where('plate', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('shipments', function ($sq) use ($search) {
+                        $sq->where('tracking_number', 'like', "%{$search}%")
+                            ->orWhere('title', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -69,7 +82,7 @@ class RouteController extends Controller
             $query->where('scheduled_date', $request->scheduled_date);
         }
 
-        $routes = $query->orderBy('scheduled_date', 'desc')->paginate(20);
+        $routes = $query->orderBy('scheduled_date', 'desc')->paginate(20)->appends($request->all());
 
         $drivers = Driver::where('tenant_id', $tenant->id)
             ->where('is_active', true)
@@ -82,6 +95,16 @@ class RouteController extends Controller
             ->get();
 
         return view('routes.index', compact('routes', 'drivers', 'vehicles'));
+    }
+
+    /**
+     * Helper to parse manual CT-e numbers with intelligent splitting (supports spaces, slashes /, commas ,, dots ., dashes -, newlines, tabs, pipes, etc.)
+     */
+    protected function parseSmartCteNumbers(?string $input): array
+    {
+        if (empty($input)) return [];
+        $tokens = preg_split('/[^0-9A-Za-z]+/', $input, -1, PREG_SPLIT_NO_EMPTY);
+        return array_values(array_unique(array_filter(array_map('trim', $tokens))));
     }
 
     /**
@@ -283,8 +306,8 @@ class RouteController extends Controller
             // Process CT-e XML numbers or manual CT-e input if provided
             $xmlNumbers = $request->has('cte_xml_numbers') ? array_filter($request->cte_xml_numbers) : [];
             if ($request->filled('manual_cte_numbers')) {
-                $manualSplit = preg_split('/[\s,;]+/', $request->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
-                $xmlNumbers = array_unique(array_merge($xmlNumbers, $manualSplit));
+                $manualSplit = $this->parseSmartCteNumbers($request->manual_cte_numbers);
+                $xmlNumbers = array_values(array_unique(array_merge($xmlNumbers, $manualSplit)));
             }
 
             if (!empty($xmlNumbers)) {
@@ -1615,7 +1638,7 @@ class RouteController extends Controller
 
         // Process manual CT-e input if provided during route edit
         if ($request->filled('manual_cte_numbers')) {
-            $manualSplit = preg_split('/[\s,;]+/', $request->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+            $manualSplit = $this->parseSmartCteNumbers($request->manual_cte_numbers);
             if (!empty($manualSplit)) {
                 $xmlParser = app(CteXmlParserService::class);
                 try {
