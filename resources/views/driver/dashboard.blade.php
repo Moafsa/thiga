@@ -1045,6 +1045,32 @@
     </button>
 </div>
 
+<!-- Location Tracking Toggle Card -->
+<div class="driver-card" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.12); padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px;">
+            <div id="location-icon-box" style="width: 48px; height: 48px; border-radius: 12px; background: rgba(239, 68, 68, 0.2); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; transition: all 0.3s ease;">
+                <i class="fas fa-satellite-dish" id="location-status-icon"></i>
+            </div>
+            <div>
+                <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                    Compartilhar Localização (GPS)
+                </h3>
+                <p style="margin: 0; font-size: 0.82rem; color: #94a3b8; line-height: 1.3;" id="location-status-desc">
+                    Localização desligada — Você não está visível no Mapa do Admin.
+                </p>
+            </div>
+        </div>
+
+        <!-- Toggle Switch -->
+        <label style="position: relative; display: inline-block; width: 56px; height: 30px; cursor: pointer; flex-shrink: 0;">
+            <input type="checkbox" id="location-toggle-input" onchange="handleLocationToggle(this.checked)" style="opacity: 0; width: 0; height: 0;">
+            <span id="location-slider-track" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .3s; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);"></span>
+            <span id="location-slider-thumb" style="position: absolute; height: 22px; width: 22px; left: 4px; bottom: 3px; background-color: #94a3b8; transition: .3s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.4);"></span>
+        </label>
+    </div>
+</div>
+
 @if($activeRoute)
     <!-- Route Status Card -->
     <div class="route-status-card">
@@ -1063,23 +1089,6 @@
             @endif
         </div>
     </div>
-
-    <!-- Location Status -->
-    @if($driver->current_latitude && $driver->current_longitude)
-    <div class="driver-card">
-        <div class="driver-card-header">
-            <div class="driver-card-title">
-                <i class="fas fa-map-marker-alt"></i> Localização Ativa
-            </div>
-            <span class="status-badge delivered">
-                <i class="fas fa-check-circle"></i> Online
-            </span>
-        </div>
-        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
-            Última atualização: {{ (isset($driver->attributes["last_location_update"]) && $driver->attributes["last_location_update"]) ? \Carbon\Carbon::parse($driver->attributes["last_location_update"])->diffForHumans() : "Nunca" }}
-        </p>
-    </div>
-    @endif
 
     <!-- Route Map -->
     @if($activeRoute && $activeRoute->shipments->isNotEmpty())
@@ -3312,16 +3321,20 @@
                         updatePushButton(false);
                     } else {
                         // Subscribe
-                        const res = await fetch('{{ route("driver.push.vapid-key") }}');
-                        const { publicKey } = await res.json();
-                        if (!publicKey) {
-                            alert('Notificações push não configuradas pelo administrador.');
-                            return;
+                        let publicKey = null;
+                        try {
+                            const res = await fetch('{{ route("driver.push.vapid-key") }}');
+                            const data = await res.json();
+                            publicKey = data.publicKey;
+                        } catch (e) {
+                            console.warn('VAPID key fetch error, using server fallback key');
                         }
+
+                        const keyToUse = publicKey || 'BKLXAlSPCOXKhKzMqDsj_NjobdO__j6HXn_gRPRsJmJitjlf3k1zwwswbhG6hBa-ILuYYg_UGvCekMbX4aeTAls';
 
                         const newSub = await registration.pushManager.subscribe({
                             userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(publicKey),
+                            applicationServerKey: urlBase64ToUint8Array(keyToUse),
                         });
 
                         await fetch('{{ route("driver.push.subscribe") }}', {
@@ -3364,7 +3377,132 @@
         return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
     }
 
-    document.addEventListener('DOMContentLoaded', initPushNotifications);
+    // --- REAL-TIME GPS LOCATION TRACKING LOGIC ---
+    let locationWatchId = null;
+    let locationInterval = null;
+
+    window.handleLocationToggle = function(enabled) {
+        const iconBox = document.getElementById('location-icon-box');
+        const icon = document.getElementById('location-status-icon');
+        const desc = document.getElementById('location-status-desc');
+        const track = document.getElementById('location-slider-track');
+        const thumb = document.getElementById('location-slider-thumb');
+
+        if (enabled) {
+            if (track) track.style.backgroundColor = '#16a34a';
+            if (thumb) thumb.style.transform = 'translateX(26px)';
+            if (thumb) thumb.style.backgroundColor = '#ffffff';
+            if (iconBox) {
+                iconBox.style.background = 'rgba(34, 197, 94, 0.2)';
+                iconBox.style.color = '#4ade80';
+            }
+            if (icon) icon.className = 'fas fa-satellite-dish fa-spin';
+            if (desc) desc.innerHTML = '<b style="color: #4ade80;">Localização Ativa</b> — Posição em tempo real transmitida para o Mapa do Admin.';
+
+            localStorage.setItem('driver_location_tracking_enabled', 'true');
+            startLocationTracking();
+        } else {
+            if (track) track.style.backgroundColor = '#334155';
+            if (thumb) thumb.style.transform = 'translateX(0px)';
+            if (thumb) thumb.style.backgroundColor = '#94a3b8';
+            if (iconBox) {
+                iconBox.style.background = 'rgba(239, 68, 68, 0.2)';
+                iconBox.style.color = '#f87171';
+            }
+            if (icon) icon.className = 'fas fa-satellite-dish';
+            if (desc) desc.innerHTML = 'Localização desligada — Você não está visível no Mapa do Admin.';
+
+            localStorage.setItem('driver_location_tracking_enabled', 'false');
+            stopLocationTracking();
+        }
+    };
+
+    function sendLocationToBackend(position) {
+        if (!position || !position.coords) return;
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = position.coords.accuracy || 0;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!csrfToken) return;
+
+        fetch('{{ route("location.update") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({
+                latitude: lat,
+                longitude: lng,
+                accuracy: accuracy,
+                route_id: {{ $activeRoute->id ?? 'null' }}
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('[GPS Admin Monitoring] Posição enviada ao backend:', lat, lng);
+        })
+        .catch(err => console.error('[GPS Admin Monitoring] Erro ao enviar posição:', err));
+    }
+
+    function startLocationTracking() {
+        stopLocationTracking();
+
+        if (!('geolocation' in navigator)) {
+            alert('Seu dispositivo ou navegador não suporta geolocalização por GPS.');
+            return;
+        }
+
+        // Send first location immediately
+        navigator.geolocation.getCurrentPosition(
+            sendLocationToBackend,
+            (err) => console.warn('[GPS Tracking] Erro posição inicial:', err.message),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+
+        // Continuous watchPosition
+        locationWatchId = navigator.geolocation.watchPosition(
+            sendLocationToBackend,
+            (err) => console.warn('[GPS Tracking] Erro watchPosition:', err.message),
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
+        );
+
+        // Interval fallback every 15 seconds
+        locationInterval = setInterval(function() {
+            navigator.geolocation.getCurrentPosition(
+                sendLocationToBackend,
+                null,
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+            );
+        }, 15000);
+    }
+
+    function stopLocationTracking() {
+        if (locationWatchId !== null) {
+            navigator.geolocation.clearWatch(locationWatchId);
+            locationWatchId = null;
+        }
+        if (locationInterval !== null) {
+            clearInterval(locationInterval);
+            locationInterval = null;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initPushNotifications();
+
+        // Restore Location Switch state on page load
+        const savedState = localStorage.getItem('driver_location_tracking_enabled');
+        const toggleInput = document.getElementById('location-toggle-input');
+        
+        const shouldEnable = savedState === 'true' || (savedState === null && {{ $activeRoute ? 'true' : 'false' }});
+
+        if (toggleInput) {
+            toggleInput.checked = shouldEnable;
+            window.handleLocationToggle(shouldEnable);
+        }
+    });
 </script>
 
 <!-- Push Notification Button (Floating) -->

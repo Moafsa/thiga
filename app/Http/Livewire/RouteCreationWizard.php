@@ -150,6 +150,9 @@ class RouteCreationWizard extends Component
 
     public function processXmlFiles()
     {
+        @set_time_limit(600);
+        @ini_set('memory_limit', '512M');
+
         $tenant = Auth::user()->tenant;
         $xmlParser = new CteXmlParserService();
 

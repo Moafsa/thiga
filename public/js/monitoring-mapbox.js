@@ -135,11 +135,53 @@ async function loadDriverLocationsMapbox() {
             });
         }
 
-        // Fit bounds will be called after routes are loaded
+        // Auto-center map on drivers
+        const activeDriverCoords = [];
+        for (const id in driverMarkers) {
+            if (driverMarkers[id] && typeof driverMarkers[id].getLngLat === 'function') {
+                const lngLat = driverMarkers[id].getLngLat();
+                if (lngLat && lngLat.lat && lngLat.lng) {
+                    activeDriverCoords.push({ lat: lngLat.lat, lng: lngLat.lng });
+                }
+            }
+        }
+
+        if (activeDriverCoords.length === 1 && monitoringMap && monitoringMap.map) {
+            // Apenas 1 motorista: centraliza direto no motorista com zoom 14
+            monitoringMap.map.flyTo({
+                center: [activeDriverCoords[0].lng, activeDriverCoords[0].lat],
+                zoom: 14,
+                essential: true,
+                speed: 1.2
+            });
+        } else if (activeDriverCoords.length > 1 && monitoringMap) {
+            // Múltiplos motoristas: enquadra todos no mapa
+            monitoringMap.fitBounds(activeDriverCoords);
+        }
     } catch (error) {
         console.error('Error loading driver locations:', error);
     }
 }
+
+// Global focus function for sidebar clicks
+window.focusDriver = function(driverId) {
+    const marker = driverMarkers[driverId];
+    if (marker && monitoringMap && monitoringMap.map) {
+        const lngLat = marker.getLngLat();
+        monitoringMap.map.flyTo({
+            center: [lngLat.lng, lngLat.lat],
+            zoom: 15,
+            essential: true,
+            speed: 1.4
+        });
+        const popup = marker.getPopup();
+        if (popup) {
+            popup.addTo(monitoringMap.map);
+        }
+    } else {
+        console.warn('Marker not found for driverId:', driverId);
+    }
+};
 
 // Load routes and shipments with Mapbox
 async function loadRoutesAndShipmentsMapbox() {

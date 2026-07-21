@@ -1,9 +1,8 @@
-const APP_SHELL_CACHE = 'driver-app-shell-v2';
-const RUNTIME_CACHE = 'driver-runtime-v2';
+const APP_SHELL_CACHE = 'driver-app-shell-v3';
+const RUNTIME_CACHE = 'driver-runtime-v3';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = [
   OFFLINE_URL,
-  '/driver/dashboard',
   '/manifest.json',
   '/icons/icon-192x192.png',
 ];
@@ -25,7 +24,7 @@ self.addEventListener('activate', (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => ![APP_SHELL_CACHE, RUNTIME_CACHE].includes(key))
+          .filter((key) => key !== APP_SHELL_CACHE && key !== RUNTIME_CACHE)
           .map((key) => caches.delete(key))
       );
       await cleanupQueue();

@@ -168,17 +168,65 @@
 
             <div class="pane-body">
                 <!-- Dropzone -->
+                <!-- Dropzone -->
                 <div class="xml-dropzone" x-data="{ isDropping: false }" 
                      x-on:dragover.prevent="isDropping = true" 
                      x-on:dragleave.prevent="isDropping = false" 
-                     x-on:drop.prevent="isDropping = false; $wire.uploadMultiple('xml_files', $event.dataTransfer.files)"
+                     x-on:drop.prevent="
+                         isDropping = false; 
+                         let files = $event.dataTransfer.files;
+                         let hasZip = false;
+                         let xmlCount = 0;
+                         for (let i = 0; i < files.length; i++) {
+                             if (files[i].name.toLowerCase().endsWith('.zip')) {
+                                 hasZip = true;
+                             } else {
+                                 xmlCount++;
+                             }
+                         }
+                         if (!hasZip && xmlCount > 20) {
+                             alert('⚠️ MUITOS ARQUIVOS SELECIONADOS (' + xmlCount + ' XMLs)\n\nPara enviar mais de 20 arquivos de uma só vez, por favor compacte todos os XMLs em um único arquivo .ZIP antes de enviar.');
+                             return;
+                         }
+                         $wire.uploadMultiple('xml_files', files);
+                     "
                      x-bind:class="{ 'dropping': isDropping }">
-                    <input type="file" wire:model="xml_files" multiple accept=".xml,.zip" id="xml-upload" class="hidden-input">
+                    <input type="file" id="xml-upload" class="hidden-input" multiple accept=".xml,.zip"
+                           x-on:change="
+                               let files = $event.target.files;
+                               let hasZip = false;
+                               let xmlCount = 0;
+                               for (let i = 0; i < files.length; i++) {
+                                   if (files[i].name.toLowerCase().endsWith('.zip')) {
+                                       hasZip = true;
+                                   } else {
+                                       xmlCount++;
+                                   }
+                               }
+                               if (!hasZip && xmlCount > 20) {
+                                   $event.target.value = '';
+                                   alert('⚠️ MUITOS ARQUIVOS SELECIONADOS (' + xmlCount + ' XMLs)\n\nPara enviar mais de 20 arquivos de uma só vez, por favor compacte todos os XMLs em um único arquivo .ZIP antes de enviar.');
+                                   return;
+                               }
+                               $wire.uploadMultiple('xml_files', files);
+                           ">
                     <label for="xml-upload" class="dropzone-label">
                         <i class="fas fa-file-upload"></i>
                         <span wire:loading.remove wire:target="xml_files">Arraste os arquivos XML ou pacotes ZIP contendo os CT-es aqui ou clique para buscar</span>
                         <span wire:loading wire:target="xml_files">Processando arquivos e descompactando pacotes ZIP...</span>
                     </label>
+                </div>
+
+                <!-- Overlay Processamento de XML/ZIP (Livewire) -->
+                <div id="xml-processing-overlay" wire:loading wire:target="xml_files" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 27, 42, 0.85); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; gap: 20px; backdrop-filter: blur(5px);">
+                    <div style="background: var(--cor-secundaria); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; text-align: center; max-width: 450px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                        <i class="fas fa-file-archive fa-spin" style="font-size: 3.5rem; color: var(--cor-acento); margin-bottom: 20px;"></i>
+                        <h3 style="color: var(--cor-texto-claro); font-size: 1.3rem; margin-bottom: 10px;">Processando XMLs</h3>
+                        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9rem; margin-bottom: 20px;">Descompactando e Processando Arquivos .ZIP... Por favor aguarde.</p>
+                        <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; position: relative;">
+                            <div style="width: 100%; height: 100%; background: repeating-linear-gradient(45deg, var(--cor-acento), var(--cor-acento) 10px, #ff885a 10px, #ff885a 20px); animation: progress-bar-stripes 1s linear infinite; border-radius: 6px;"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Shipment List -->

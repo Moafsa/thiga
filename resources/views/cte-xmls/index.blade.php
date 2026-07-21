@@ -24,7 +24,7 @@
 <!-- Upload Form -->
 <div style="background-color: var(--cor-secundaria); padding: 30px; border-radius: 15px; margin-bottom: 30px;">
     <h3 style="color: var(--cor-acento); margin-bottom: 15px;">Upload de XMLs ou pacotes ZIP</h3>
-    <form action="{{ route('cte-xmls.store') }}" method="POST" enctype="multipart/form-data">
+    <form id="xml-upload-form" action="{{ route('cte-xmls.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
         <div style="display: flex; gap: 15px; align-items: flex-end;">
             <div style="flex: 1;">
@@ -323,6 +323,34 @@
             }
         }
 
+        // Validate form submit: if > 20 files and none is zip, alert and prevent.
+        const uploadForm = document.getElementById('xml-upload-form');
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', function(e) {
+                const files = xmlFilesInput.files;
+                let hasZip = false;
+                let xmlCount = 0;
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].name.toLowerCase().endsWith('.zip')) {
+                        hasZip = true;
+                    } else {
+                        xmlCount++;
+                    }
+                }
+                if (!hasZip && xmlCount > 20) {
+                    e.preventDefault();
+                    alert('⚠️ MUITOS ARQUIVOS SELECIONADOS (' + xmlCount + ' XMLs)\n\nPara enviar mais de 20 arquivos de uma só vez, por favor compacte todos os XMLs em um único arquivo .ZIP antes de enviar.');
+                    return false;
+                }
+                
+                // Show loading overlay
+                const overlay = document.getElementById('xml-processing-overlay');
+                if (overlay) {
+                    overlay.style.display = 'flex';
+                }
+            });
+        }
+
         // Initialize UI
         updateSelectionUI();
     });
@@ -342,6 +370,25 @@
         <div id="ai-analysis-content"></div>
     </div>
 </div>
+
+<!-- Overlay Processamento de XML/ZIP -->
+<div id="xml-processing-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 27, 42, 0.85); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; gap: 20px; backdrop-filter: blur(5px);">
+    <div style="background: var(--cor-secundaria); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; text-align: center; max-width: 450px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <i class="fas fa-file-archive fa-spin" style="font-size: 3.5rem; color: var(--cor-acento); margin-bottom: 20px;"></i>
+        <h3 style="color: var(--cor-texto-claro); font-size: 1.3rem; margin-bottom: 10px;">Processando XMLs</h3>
+        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9rem; margin-bottom: 20px;">Descompactando e Processando Arquivos .ZIP... Por favor aguarde.</p>
+        <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; position: relative;">
+            <div style="width: 100%; height: 100%; background: repeating-linear-gradient(45deg, var(--cor-acento), var(--cor-acento) 10px, #ff885a 10px, #ff885a 20px); animation: progress-bar-stripes 1s linear infinite; border-radius: 6px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes progress-bar-stripes {
+        from { background-position: 40px 0; }
+        to { background-position: 0 0; }
+    }
+</style>
 @endpush
 @endsection
 

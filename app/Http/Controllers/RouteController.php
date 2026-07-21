@@ -694,20 +694,51 @@ class RouteController extends Controller
      */
     protected function processXmlFiles(array $files, $tenant, CteXmlParserService $xmlParser, Route $route): array
     {
+        @set_time_limit(600);
+        @ini_set('memory_limit', '512M');
+
         $createdShipments = [];
         $mapsService = app(MapsService::class);
         $failedFiles = [];
 
-        foreach ($files as $index => $file) {
+        // Collect all XML items from raw XMLs or ZIP archives
+        $itemsToProcess = [];
+        foreach ($files as $file) {
+            $extension = strtolower($file->getClientOriginalExtension());
+            if ($extension === 'zip') {
+                if (class_exists('\ZipArchive')) {
+                    $zip = new \ZipArchive();
+                    if ($zip->open($file->getRealPath()) === true) {
+                        for ($i = 0; $i < $zip->numFiles; $i++) {
+                            $entryName = $zip->getNameIndex($i);
+                            if (str_ends_with(strtolower($entryName), '.xml')) {
+                                $content = $zip->getFromIndex($i);
+                                if (!empty($content)) {
+                                    $itemsToProcess[] = ['filename' => basename($entryName), 'content' => $content];
+                                }
+                            }
+                        }
+                        $zip->close();
+                    }
+                }
+            } else {
+                $content = file_get_contents($file->getRealPath());
+                if (!empty($content)) {
+                    $itemsToProcess[] = ['filename' => $file->getClientOriginalName(), 'content' => $content];
+                }
+            }
+        }
+
+        foreach ($itemsToProcess as $index => $item) {
+            $filename = $item['filename'];
+            $xmlContent = $item['content'];
+
             try {
                 \Log::info('Processing XML file', [
                     'file_index' => $index + 1,
-                    'total_files' => count($files),
-                    'filename' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
+                    'total_files' => count($itemsToProcess),
+                    'filename' => $filename,
                 ]);
-
-                $xmlContent = file_get_contents($file->getRealPath());
 
                 if (empty($xmlContent)) {
                     throw new \Exception('Arquivo XML vazio ou inválido');
