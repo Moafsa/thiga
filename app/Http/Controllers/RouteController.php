@@ -957,7 +957,8 @@ class RouteController extends Controller
                 }
 
                 if ($cteXml->is_used) {
-                    throw new \Exception("CT-e XML número {$xmlNumber} já foi usado.");
+                    \Log::warning("CT-e XML número {$xmlNumber} já foi usado em outra rota.");
+                    continue;
                 }
 
                 // Get XML content

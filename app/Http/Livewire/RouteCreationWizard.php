@@ -224,6 +224,7 @@ class RouteCreationWizard extends Component
 
         $newlySelectedIds = [];
         $notFoundTokens = [];
+        $alreadyUsedTokens = [];
 
         foreach ($cteTokens as $token) {
             $cleanNum = trim($token);
@@ -238,34 +239,63 @@ class RouteCreationWizard extends Component
                       ->orWhere('title', 'like', "%{$cleanNum}%");
                 })->first();
 
-            // 2. If not found in Shipment table, search in CteXml table
-            if (!$shipment) {
-                $cteXml = CteXml::where('tenant_id', $tenant->id)
-                    ->where(function ($q) use ($cleanNum) {
-                        $q->where('cte_number', $cleanNum)
-                          ->orWhere('access_key', 'like', "%{$cleanNum}%");
-                    })->first();
-
-                if ($cteXml) {
-                    $this->syncLegacyXmls();
-                    $shipment = Shipment::where('tenant_id', $tenant->id)
-                        ->where('tracking_number', $cteXml->cte_number)
-                        ->first();
-                }
-            }
-
             if ($shipment) {
+                if ($shipment->route_id !== null) {
+                    $alreadyUsedTokens[] = $cleanNum;
+                    continue;
+                }
                 if (!in_array($shipment->id, $this->selectedShipments)) {
                     $newlySelectedIds[] = $shipment->id;
                 }
-            } else {
-                $notFoundTokens[] = $cleanNum;
+                continue;
             }
+
+            // 2. If not found in Shipment table, search in CteXml table
+            $cteXml = CteXml::where('tenant_id', $tenant->id)
+                ->where(function ($q) use ($cleanNum) {
+                    $q->where('cte_number', $cleanNum)
+                      ->orWhere('access_key', 'like', "%{$cleanNum}%");
+                })->first();
+
+            if ($cteXml) {
+                if ($cteXml->is_used) {
+                    $alreadyUsedTokens[] = $cleanNum;
+                    continue;
+                }
+
+                $this->syncLegacyXmls();
+                $shipment = Shipment::where('tenant_id', $tenant->id)
+                    ->where('tracking_number', $cteXml->cte_number)
+                    ->first();
+
+                if ($shipment) {
+                    if ($shipment->route_id !== null) {
+                        $alreadyUsedTokens[] = $cleanNum;
+                        continue;
+                    }
+                    if (!in_array($shipment->id, $this->selectedShipments)) {
+                        $newlySelectedIds[] = $shipment->id;
+                    }
+                    continue;
+                }
+            }
+
+            // If not found anywhere
+            $notFoundTokens[] = $cleanNum;
         }
 
+        $errorMessages = [];
+        if (!empty($alreadyUsedTokens)) {
+            $usedStr = implode(', ', array_unique($alreadyUsedTokens));
+            $errorMessages[] = "⛔ CT-e(s) já vinculados a outra rota: {$usedStr}. Não é possível reutilizá-los em uma nova rota.";
+        }
         if (!empty($notFoundTokens)) {
             $missingStr = implode(', ', array_unique($notFoundTokens));
-            $this->cteErrorMessage = "⚠️ CT-e(s) não encontrado(s) no sistema: {$missingStr}. Por favor, verifique os números digitados ou faça o upload do arquivo XML correspondente.";
+            $errorMessages[] = "⚠️ CT-e(s) não encontrado(s) no sistema: {$missingStr}. Por favor, verifique os números digitados ou faça o upload do arquivo XML correspondente.";
+        }
+
+        if (!empty($errorMessages)) {
+            $this->cteErrorMessage = implode('<br>', $errorMessages);
         }
 
         if (!empty($newlySelectedIds)) {

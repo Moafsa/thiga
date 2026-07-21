@@ -99,7 +99,7 @@
                 @if(!empty($cteErrorMessage))
                     <div style="background: rgba(255,75,75,0.15); border: 1px solid #ff4b4b; color: #ff6b6b; padding: 12px 15px; border-radius: 6px; margin-top: 10px; font-size: 0.85em; font-weight: 600; display: flex; align-items: center; gap: 10px;">
                         <i class="fas fa-exclamation-triangle" style="font-size: 1.2em; flex-shrink: 0;"></i>
-                        <div>{{ $cteErrorMessage }}</div>
+                        <div>{!! $cteErrorMessage !!}</div>
                     </div>
                 @endif
             </div>
