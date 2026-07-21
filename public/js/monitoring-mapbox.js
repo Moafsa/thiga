@@ -51,7 +51,7 @@ async function initMonitoringMapbox() {
     monitoringMap = new MapboxHelper('monitoring-map', {
         center: [-46.6333, -23.5505], // [lng, lat]
         zoom: 10,
-        style: 'mapbox://styles/mapbox/dark-v11', // Mapbox Asset Tracking Dark Basemap
+        style: 'mapbox://styles/mapbox/navigation-night-v1', // Mapbox Official Night Mode Basemap
         pitch: 0, // Flat 2D overview
         bearing: 0,
         accessToken: window.mapboxAccessToken,
