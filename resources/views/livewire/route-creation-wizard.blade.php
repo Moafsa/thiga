@@ -95,6 +95,13 @@
                           wire:change="processManualCteNumbers"
                           placeholder="Cole ou digite os números dos CT-es (ex: 2506, 2507/2508, 2509). Clique fora para juntar e marcar como selecionadas..." 
                           style="width: 100%; min-height: 60px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px; border-radius: 4px; font-size: 0.85em;"></textarea>
+
+                @if(!empty($cteErrorMessage))
+                    <div style="background: rgba(255,75,75,0.15); border: 1px solid #ff4b4b; color: #ff6b6b; padding: 12px 15px; border-radius: 6px; margin-top: 10px; font-size: 0.85em; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 1.2em; flex-shrink: 0;"></i>
+                        <div>{{ $cteErrorMessage }}</div>
+                    </div>
+                @endif
             </div>
 
             <!-- Manual Cargo Modal (Alpine + Livewire) -->

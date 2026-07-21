@@ -29,6 +29,7 @@ class RouteCreationWizard extends Component
     public $origin_branch;
     public $is_custom_origin = false;
     public $manual_cte_numbers;
+    public $cteErrorMessage = '';
     public $start_address_type = 'branch';
 
     // Shipments/Cargo
@@ -213,23 +214,22 @@ class RouteCreationWizard extends Component
 
     public function processManualCteNumbers()
     {
+        $this->cteErrorMessage = '';
+
         if (empty($this->manual_cte_numbers)) return;
 
         $tenant = Auth::user()->tenant;
         $cteTokens = preg_split('/[^0-9A-Za-z]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
         if (empty($cteTokens)) return;
 
-        $defaultClient = \App\Models\Client::firstOrCreate(
-            ['tenant_id' => $tenant->id, 'name' => 'Cliente Padrão (Sistema)'],
-            ['address' => 'N/A', 'city' => 'N/A', 'state' => 'XX', 'zip_code' => '00000000', 'is_active' => true]
-        );
-
         $newlySelectedIds = [];
+        $notFoundTokens = [];
 
         foreach ($cteTokens as $token) {
             $cleanNum = trim($token);
             if (empty($cleanNum)) continue;
 
+            // 1. Search in Shipment table
             $shipment = Shipment::where('tenant_id', $tenant->id)
                 ->where(function ($q) use ($cleanNum) {
                     $q->where('tracking_number', $cleanNum)
@@ -238,33 +238,34 @@ class RouteCreationWizard extends Component
                       ->orWhere('title', 'like', "%{$cleanNum}%");
                 })->first();
 
+            // 2. If not found in Shipment table, search in CteXml table
             if (!$shipment) {
-                $shipment = Shipment::create([
-                    'tenant_id' => $tenant->id,
-                    'sender_client_id' => $defaultClient->id,
-                    'receiver_client_id' => $defaultClient->id,
-                    'tracking_number' => $cleanNum,
-                    'title' => 'CT-e #' . $cleanNum,
-                    'status' => 'pending',
-                    'value' => 0,
-                    'weight' => 0,
-                    'receiver_name' => 'Destinatário CT-e #' . $cleanNum,
-                    'pickup_address' => 'Endereço Origem',
-                    'pickup_city' => 'Origem',
-                    'pickup_state' => 'XX',
-                    'pickup_zip_code' => '00000000',
-                    'delivery_address' => 'A combinar',
-                    'delivery_city' => 'Destino',
-                    'delivery_state' => 'XX',
-                    'delivery_zip_code' => '00000000',
-                    'pickup_date' => now()->format('Y-m-d'),
-                    'delivery_date' => now()->format('Y-m-d'),
-                ]);
+                $cteXml = CteXml::where('tenant_id', $tenant->id)
+                    ->where(function ($q) use ($cleanNum) {
+                        $q->where('cte_number', $cleanNum)
+                          ->orWhere('access_key', 'like', "%{$cleanNum}%");
+                    })->first();
+
+                if ($cteXml) {
+                    $this->syncLegacyXmls();
+                    $shipment = Shipment::where('tenant_id', $tenant->id)
+                        ->where('tracking_number', $cteXml->cte_number)
+                        ->first();
+                }
             }
 
-            if (!in_array($shipment->id, $this->selectedShipments)) {
-                $newlySelectedIds[] = $shipment->id;
+            if ($shipment) {
+                if (!in_array($shipment->id, $this->selectedShipments)) {
+                    $newlySelectedIds[] = $shipment->id;
+                }
+            } else {
+                $notFoundTokens[] = $cleanNum;
             }
+        }
+
+        if (!empty($notFoundTokens)) {
+            $missingStr = implode(', ', array_unique($notFoundTokens));
+            $this->cteErrorMessage = "⚠️ CT-e(s) não encontrado(s) no sistema: {$missingStr}. Por favor, verifique os números digitados ou faça o upload do arquivo XML correspondente.";
         }
 
         if (!empty($newlySelectedIds)) {
