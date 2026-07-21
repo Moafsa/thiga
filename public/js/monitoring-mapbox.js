@@ -47,15 +47,18 @@ async function initMonitoringMapbox() {
 
     const authToken = document.querySelector('meta[name="api-token"]')?.content || localStorage.getItem('auth_token');
 
-    // Initialize map centered on São Paulo
+    // Initialize map in Asset Tracking Mode (2D Fleet Overview)
     monitoringMap = new MapboxHelper('monitoring-map', {
         center: [-46.6333, -23.5505], // [lng, lat]
         zoom: 10,
+        style: 'mapbox://styles/mapbox/streets-v12', // Clean Asset Tracking Basemap
+        pitch: 0, // Flat 2D view for multi-vehicle overview
+        bearing: 0,
         accessToken: window.mapboxAccessToken,
         apiBaseUrl: '/api/maps',
         authToken: authToken,
         onLoad: async (map) => {
-            console.log('Monitoring map loaded');
+            console.log('Admin Monitoring Map loaded in Asset Tracking mode');
             await loadRoutesAndShipmentsMapbox();
             setTimeout(() => {
                 loadDriverLocationsMapbox();

@@ -73,15 +73,18 @@ async function initRouteMap() {
         // When driver location is updated, it will show on the map
     }
 
-    // Initialize Mapbox
+    // Initialize Mapbox in Navigation Mode (Turn-by-turn perspective)
     mapHelper = new MapboxHelper('route-map', {
         center: center,
-        zoom: hasAnyData ? 12 : 10, // Zoom out more if no data
+        zoom: hasAnyData ? 14 : 10,
+        style: 'mapbox://styles/mapbox/navigation-day-v1',
+        pitch: 55, // 3D Navigation tilt angle
+        bearing: -10,
         accessToken: window.mapboxAccessToken,
         apiBaseUrl: '/api/maps',
         authToken: authToken,
         onLoad: async (map) => {
-            console.log('Map loaded');
+            console.log('Driver Navigation Map loaded');
             await addMarkersAndRoute();
         }
     });

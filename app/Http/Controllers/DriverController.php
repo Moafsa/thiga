@@ -118,7 +118,13 @@ class DriverController extends Controller
             }
         }
 
+        // Generate or set password
+        $rawPassword = $request->input('password') ?: ('Thiga@' . rand(1000, 9999));
+        $validated['temp_password'] = $rawPassword;
+
         $driver = Driver::create($validated);
+        $driver->ensureLoginToken();
+
         $sanitizedEmail = Str::lower(
             "driver+{$tenant->id}+{$phoneDigits}@tms.local"
         );
@@ -128,7 +134,7 @@ class DriverController extends Controller
             ['email' => $sanitizedEmail],  // Find by email
             [
                 'name' => $validated['name'],
-                'password' => Hash::make(Str::random(32)),
+                'password' => Hash::make($rawPassword),
                 'tenant_id' => $tenant->id,
                 'phone' => $phoneDigits,
                 'is_active' => true,
@@ -434,6 +440,71 @@ public function edit(Driver $driver)
         if ($driver->tenant_id !== $tenant->id) {
             abort(403, 'Unauthorized access to this driver.');
         }
+    }
+
+    /**
+     * Reset credentials for a driver (generates new password and login token)
+     */
+    public function resetCredentials(Driver $driver)
+    {
+        $this->authorizeAccess($driver);
+
+        $newPassword = 'Thiga@' . rand(1000, 9999);
+        $driver->login_token = Str::random(32) . dechex(time()) . Str::random(16);
+        $driver->temp_password = $newPassword;
+        $driver->save();
+
+        if ($driver->user) {
+            $driver->user->password = Hash::make($newPassword);
+            $driver->user->save();
+        }
+
+        return redirect()->back()->with('success', 'Credenciais e Link de Auto-Login redefinidos com sucesso para ' . $driver->name . '!');
+    }
+
+    /**
+     * Send driver credentials via integrated WhatsApp or WhatsApp Web
+     */
+    public function sendWhatsAppCredentials(Driver $driver)
+    {
+        $this->authorizeAccess($driver);
+
+        $driver->ensureLoginToken();
+        $autologinUrl = $driver->autologin_url;
+        $phoneDigits = preg_replace('/\D/', '', $driver->phone);
+
+        if (empty($phoneDigits)) {
+            return redirect()->back()->with('error', 'O motorista não possui telefone cadastrado.');
+        }
+
+        $phoneWithDdi = str_starts_with($phoneDigits, '55') ? $phoneDigits : ('55' . $phoneDigits);
+
+        $message = "🚚 *TMS SaaS - Dados de Acesso do Motorista*\n\n";
+        $message .= "Olá, *{$driver->name}*!\n\n";
+        $message .= "⚡ *Acesso Direto sem Senha (clique no link):*\n";
+        $message .= "{$autologinUrl}\n\n";
+        $message .= "🔑 *Dados para Login Manual:*\n";
+        $message .= "Telefone: {$driver->phone}\n";
+        if ($driver->temp_password) {
+            $message .= "Senha: {$driver->temp_password}\n";
+        }
+        $message .= "\nBons fretes e boa viagem!";
+
+        try {
+            /** @var \App\Services\WhatsAppNotificationService $waService */
+            $waService = app(\App\Services\WhatsAppNotificationService::class);
+            $sent = $waService->sendNotification($phoneWithDdi, $message, $driver->tenant_id);
+
+            if ($sent) {
+                return redirect()->back()->with('success', 'Credenciais enviadas via WhatsApp para ' . $driver->name . '!');
+            }
+        } catch (\Exception $e) {
+            Log::warning('Falha ao enviar WhatsApp para motorista', ['error' => $e->getMessage()]);
+        }
+
+        // Fallback: redirect to WhatsApp Web link
+        $waWebUrl = "https://wa.me/{$phoneWithDdi}?text=" . urlencode($message);
+        return redirect()->away($waWebUrl);
     }
 }
 

@@ -30,6 +30,7 @@ Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->na
 Route::post('/register', [RegisterController::class, 'register']);
 
 // Driver login routes
+Route::get('/driver/autologin/{token}', [App\Http\Controllers\Auth\DriverAutologinController::class, 'autologin'])->name('driver.autologin');
 Route::get('/driver/login/phone', [DriverLoginController::class, 'showPhoneForm'])->name('driver.login.phone');
 Route::post('/driver/login/request-code', [DriverLoginController::class, 'requestCode'])->name('driver.login.request-code');
 Route::get('/driver/login/code', [DriverLoginController::class, 'showCodeForm'])->name('driver.login.code');
@@ -254,6 +255,8 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/{driver}', [App\Http\Controllers\DriverController::class, 'show'])->name('show');
         Route::get('/{driver}/edit', [App\Http\Controllers\DriverController::class, 'edit'])->name('edit');
         Route::put('/{driver}', [App\Http\Controllers\DriverController::class, 'update'])->name('update');
+        Route::post('/{driver}/reset-credentials', [App\Http\Controllers\DriverController::class, 'resetCredentials'])->name('reset-credentials');
+        Route::post('/{driver}/send-whatsapp', [App\Http\Controllers\DriverController::class, 'sendWhatsAppCredentials'])->name('send-whatsapp');
         Route::delete('/{driver}', [App\Http\Controllers\DriverController::class, 'destroy'])->name('destroy');
         Route::delete('/photos/{photo}', [App\Http\Controllers\DriverController::class, 'deletePhoto'])->name('photos.delete');
     });
