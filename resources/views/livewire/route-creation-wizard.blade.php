@@ -152,10 +152,13 @@
                 </div>
 
                 <!-- Shipment List -->
-                <div class="shipment-list-container mt-6">
+                <div class="shipment-list-container mt-6" x-data="{ search: '' }">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px;">
                         <div style="position: relative; flex: 1;">
-                            <input type="text" wire:model.debounce.300ms="searchShipment" placeholder="🔍 Buscar por número de CT-e, destinatário ou cidade..." style="width: 100%; padding: 10px 12px 10px 36px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.85em;">
+                            <input type="text" 
+                                   x-model="search" 
+                                   placeholder="🔍 Buscar por número de CT-e, destinatário ou cidade..." 
+                                   style="width: 100%; padding: 10px 12px 10px 36px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.85em;">
                             <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5);"></i>
                         </div>
                         <div style="font-size: 0.8em; color: rgba(255,255,255,0.6); white-space: nowrap;">
@@ -177,7 +180,8 @@
                         </thead>
                         <tbody>
                             @forelse($availableShipments as $shipment)
-                                <tr class="{{ in_array($shipment->id, $selectedShipments) ? 'selected-row' : '' }}">
+                                <tr class="{{ in_array($shipment->id, $selectedShipments) ? 'selected-row' : '' }}"
+                                    x-show="!search || '{{ strtolower(addslashes($shipment->tracking_number . ' ' . $shipment->receiver_name . ' ' . $shipment->delivery_city . ' ' . $shipment->delivery_state)) }}'.includes(search.toLowerCase().trim())">
                                     <td>
                                         <input type="checkbox" wire:model="selectedShipments" value="{{ $shipment->id }}" class="industrial-checkbox">
                                     </td>
@@ -193,7 +197,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga encontrada. Faça upload de CT-es ou altere o termo de busca.</td>
+                                    <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga pendente no sistema. Faça upload de CT-es para começar.</td>
                                 </tr>
                             @endforelse
                         </tbody>
