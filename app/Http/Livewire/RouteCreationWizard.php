@@ -15,13 +15,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-use Livewire\WithPagination;
-
 class RouteCreationWizard extends Component
 {
-    use WithFileUploads, WithPagination;
-
-    protected $paginationTheme = 'bootstrap';
+    use WithFileUploads;
 
     // Basic Data
     public $name;
@@ -394,11 +390,6 @@ class RouteCreationWizard extends Component
         }
     }
 
-    public function updatingSearchShipment()
-    {
-        $this->resetPage();
-    }
-
     public function updatedSelectAll($value)
     {
         if ($value) {
@@ -437,7 +428,7 @@ class RouteCreationWizard extends Component
             });
         }
 
-        $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->paginate(30);
+        $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->take(200)->get();
 
         return view('livewire.route-creation-wizard', [
             'drivers' => Driver::where('tenant_id', $tenant->id)->where('is_active', true)->get(),

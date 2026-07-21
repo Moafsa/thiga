@@ -159,7 +159,7 @@
                             <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5);"></i>
                         </div>
                         <div style="font-size: 0.8em; color: rgba(255,255,255,0.6); white-space: nowrap;">
-                            Exibindo {{ $availableShipments->count() }} de {{ $availableShipments->total() }} cargas
+                            Exibindo {{ $availableShipments->count() }} cargas disponíveis
                         </div>
                     </div>
 
@@ -198,10 +198,6 @@
                             @endforelse
                         </tbody>
                     </table>
-
-                    <div style="margin-top: 15px;">
-                        {{ $availableShipments->links() }}
-                    </div>
                 </div>
             </div>
         </div>
