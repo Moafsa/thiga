@@ -122,10 +122,16 @@ class DashboardController extends Controller
             'cancelled' => (clone $shipmentsQuery)->where('status', 'cancelled')->count(),
         ];
 
+        $totalInvoiceRevenue = (clone $invoicesQuery)->sum('total_amount') ?? 0;
+        $totalShipmentRevenue = (clone $shipmentsQuery)->sum('value') ?? 0;
+        $calculatedRevenue = max($totalInvoiceRevenue, $totalShipmentRevenue);
+
+        $totalExpenses = (clone $expensesQuery)->sum('amount') ?? 0;
+
         // Financial statistics (governed by date & route filters)
         $financialStats = [
-            'monthly_revenue' => (clone $invoicesQuery)->where('status', 'paid')->sum('total_amount'),
-            'monthly_expenses' => (clone $expensesQuery)->where('status', 'paid')->sum('amount'),
+            'monthly_revenue' => $calculatedRevenue,
+            'monthly_expenses' => $totalExpenses,
             'open_invoices' => (clone $invoicesQuery)->whereIn('status', ['open', 'overdue'])->count(),
             'overdue_invoices' => (clone $invoicesQuery)->where('status', 'overdue')->count(),
             'overdue_amount' => (clone $invoicesQuery)->where('status', 'overdue')->sum('total_amount'),

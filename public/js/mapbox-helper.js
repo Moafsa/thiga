@@ -579,6 +579,7 @@ class MapboxHelper {
         const styles = {
             'streets': 'mapbox://styles/mapbox/streets-v12',
             'dark': 'mapbox://styles/mapbox/dark-v11',
+            'night': 'mapbox://styles/mapbox/navigation-night-v1',
             'light': 'mapbox://styles/mapbox/light-v11',
             'satellite': 'mapbox://styles/mapbox/satellite-streets-v12',
             'outdoors': 'mapbox://styles/mapbox/outdoors-v12',
@@ -766,9 +767,10 @@ class StyleSwitcherControl {
         };
 
         addOption('Ruas (Padrão)', 'streets', 'fas fa-map');
-        addOption('Premium Dark', 'dark', 'fas fa-moon');
+        addOption('Modo Night', 'night', 'fas fa-moon');
+        addOption('Premium Dark', 'dark', 'fas fa-adjust');
         addOption('Satélite Real', 'satellite', 'fas fa-globe-americas');
-        addOption('Navegação 3D', 'navigation', 'fas fa-navigation');
+        addOption('Navegação 3D', 'navigation', 'fas fa-route');
 
         styleButton.addEventListener('click', () => {
             styleMenu.style.display = styleMenu.style.display === 'none' ? 'flex' : 'none';

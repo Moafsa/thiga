@@ -321,7 +321,6 @@ class RouteController extends Controller
                         return back()->withErrors(['cte_xml_numbers' => 'Erro ao processar números de XML: ' . $e->getMessage()])->withInput();
                     }
                 }
-            }
 
             // Process addresses if provided
             if ($request->has('addresses') && !empty($request->addresses)) {
