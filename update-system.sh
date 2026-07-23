@@ -15,11 +15,19 @@ if ! docker ps >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if container exists
-if ! docker ps -a | grep -q "tms_saas_app"; then
-    echo "[ERROR] Application container not found. Please run the initialization script first."
+# Detect active application container
+CONTAINER_NAME=""
+if docker ps --format '{{.Names}}' | grep -q "^tms-app$"; then
+    CONTAINER_NAME="tms-app"
+elif docker ps --format '{{.Names}}' | grep -q "^tms_saas_app$"; then
+    CONTAINER_NAME="tms_saas_app"
+elif docker ps --format '{{.Names}}' | grep -q "^tms_saas_app_prod$"; then
+    CONTAINER_NAME="tms_saas_app_prod"
+else
+    echo "[ERROR] Application container not found. Please start the docker environment first."
     exit 1
 fi
+echo "[INFO] Using container: $CONTAINER_NAME"
 
 echo "[1/8] Pulling latest code changes..."
 echo "[INFO] Make sure you have pulled the latest code from git before running this script."
@@ -27,7 +35,7 @@ sleep 2
 
 echo ""
 echo "[2/8] Installing/updating Composer dependencies..."
-docker exec tms_saas_app composer install --no-interaction --optimize-autoloader
+docker exec "$CONTAINER_NAME" composer install --no-interaction --optimize-autoloader
 if [ $? -ne 0 ]; then
     echo "[ERROR] Failed to install dependencies"
     exit 1
@@ -35,7 +43,7 @@ fi
 
 echo ""
 echo "[3/8] Running database migrations..."
-docker exec tms_saas_app php artisan migrate --force
+docker exec "$CONTAINER_NAME" php artisan migrate --force
 if [ $? -ne 0 ]; then
     echo "[ERROR] Failed to run migrations"
     exit 1
@@ -43,31 +51,31 @@ fi
 
 echo ""
 echo "[4/8] Clearing all caches..."
-docker exec tms_saas_app php artisan config:clear >/dev/null 2>&1
-docker exec tms_saas_app php artisan cache:clear >/dev/null 2>&1
-docker exec tms_saas_app php artisan route:clear >/dev/null 2>&1
-docker exec tms_saas_app php artisan view:clear >/dev/null 2>&1
+docker exec "$CONTAINER_NAME" php artisan config:clear >/dev/null 2>&1 || true
+docker exec "$CONTAINER_NAME" php artisan cache:clear >/dev/null 2>&1 || true
+docker exec "$CONTAINER_NAME" php artisan route:clear >/dev/null 2>&1 || true
+docker exec "$CONTAINER_NAME" php artisan view:clear >/dev/null 2>&1 || true
 echo "[OK] Caches cleared"
 
 echo ""
 echo "[5/8] Optimizing application for production..."
-docker exec tms_saas_app php artisan config:cache >/dev/null 2>&1
-docker exec tms_saas_app php artisan route:cache >/dev/null 2>&1
-docker exec tms_saas_app php artisan view:cache >/dev/null 2>&1
-docker exec tms_saas_app php artisan optimize >/dev/null 2>&1
+docker exec "$CONTAINER_NAME" php artisan config:cache >/dev/null 2>&1 || true
+docker exec "$CONTAINER_NAME" php artisan route:cache >/dev/null 2>&1 || true
+docker exec "$CONTAINER_NAME" php artisan view:cache >/dev/null 2>&1 || true
+docker exec "$CONTAINER_NAME" php artisan optimize >/dev/null 2>&1 || true
 echo "[OK] Application optimized"
 
 echo ""
 echo "[6/8] Creating required storage directories..."
-docker exec tms_saas_app mkdir -p storage/app/public/cache/photos
-docker exec tms_saas_app mkdir -p storage/app/public/drivers
-docker exec tms_saas_app chmod -R 775 storage
-docker exec tms_saas_app chmod -R 775 bootstrap/cache
+docker exec "$CONTAINER_NAME" mkdir -p storage/app/public/cache/photos || true
+docker exec "$CONTAINER_NAME" mkdir -p storage/app/public/drivers || true
+docker exec "$CONTAINER_NAME" chmod -R 775 storage || true
+docker exec "$CONTAINER_NAME" chmod -R 775 bootstrap/cache || true
 echo "[OK] Storage directories created"
 
 echo ""
 echo "[7/8] Verifying scheduled tasks..."
-if docker exec tms_saas_app php artisan schedule:list >/dev/null 2>&1; then
+if docker exec "$CONTAINER_NAME" php artisan schedule:list >/dev/null 2>&1; then
     echo "[OK] Scheduled tasks configured:"
     echo "  - Cache cleanup: Daily at 02:00"
     echo "  - CNH expiration check: Daily at 08:00"
@@ -77,7 +85,7 @@ fi
 
 echo ""
 echo "[8/8] Testing new commands..."
-if docker exec tms_saas_app php artisan cache:clean-old --days=7 --force >/dev/null 2>&1; then
+if docker exec "$CONTAINER_NAME" php artisan cache:clean-old --days=7 --force >/dev/null 2>&1; then
     echo "[OK] Cache cleanup command working"
 else
     echo "[WARNING] Cache cleanup command test failed"

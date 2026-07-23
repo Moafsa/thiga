@@ -102,9 +102,40 @@
     
     .filters-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        align-items: end;
+    }
+    .filter-group label {
+        display: block;
+        font-size: 0.78em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(245,245,245,0.55);
+        margin-bottom: 6px;
+    }
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 9px 12px;
+        background: var(--cor-principal);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px;
+        color: var(--cor-texto-claro);
+        font-size: 0.9em;
+        transition: border-color 0.2s;
+    }
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: var(--cor-acento);
+    }
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        padding-top: 22px;
     }
 </style>
 @endpush
@@ -177,7 +208,7 @@
 </div>
 
 <!-- Filters -->
-<div class="card">
+<div class="card" style="padding: 20px 24px;">
     <form method="GET" action="{{ route('accounts.receivable.index') }}">
         <div class="filters-grid">
             <div class="filter-group">
@@ -208,15 +239,14 @@
                 <label>Data Final</label>
                 <input type="date" name="end_date" value="{{ request('end_date') }}">
             </div>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
-            <a href="{{ route('accounts.receivable.index') }}" class="btn-secondary">
-                Limpar
-            </a>
-            <button type="submit" class="btn-primary">
-                <i class="fas fa-search"></i>
-                Filtrar
-            </button>
+            <div class="filter-actions">
+                <a href="{{ route('accounts.receivable.index') }}" class="btn-secondary" style="padding: 9px 14px; white-space: nowrap;">
+                    <i class="fas fa-times"></i> Limpar
+                </a>
+                <button type="submit" class="btn-primary" style="padding: 9px 16px; white-space: nowrap;">
+                    <i class="fas fa-search"></i> Filtrar
+                </button>
+            </div>
         </div>
     </form>
 </div>

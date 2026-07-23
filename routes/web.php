@@ -35,14 +35,17 @@ Route::get('/driver/login/phone', [DriverLoginController::class, 'showPhoneForm'
 Route::post('/driver/login/request-code', [DriverLoginController::class, 'requestCode'])->name('driver.login.request-code');
 Route::get('/driver/login/code', [DriverLoginController::class, 'showCodeForm'])->name('driver.login.code');
 Route::post('/driver/login/verify-code', [DriverLoginController::class, 'verifyCode'])->name('driver.login.verify-code');
+Route::post('/driver/ai-copilot/query', [App\Http\Controllers\DriverAiController::class, 'query'])->name('driver.ai-copilot.query');
 
 // Client login routes
+Route::get('/client/autologin/{token}', [App\Http\Controllers\Auth\ClientAutologinController::class, 'autologin'])->name('client.autologin');
 Route::get('/client/login/phone', [App\Http\Controllers\Auth\ClientLoginController::class, 'showPhoneForm'])->name('client.login.phone');
 Route::post('/client/login/request-code', [App\Http\Controllers\Auth\ClientLoginController::class, 'requestCode'])->name('client.login.request-code');
 Route::get('/client/login/code', [App\Http\Controllers\Auth\ClientLoginController::class, 'showCodeForm'])->name('client.login.code');
 Route::post('/client/login/verify-code', [App\Http\Controllers\Auth\ClientLoginController::class, 'verifyCode'])->name('client.login.verify-code');
 
 // Salesperson login routes
+Route::get('/salesperson/autologin/{token}', [App\Http\Controllers\Auth\SalespersonAutologinController::class, 'autologin'])->name('salesperson.autologin');
 Route::get('/salesperson/login/phone', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'showPhoneForm'])->name('salesperson.login.phone');
 Route::post('/salesperson/login/request-code', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'requestCode'])->name('salesperson.login.request-code');
 Route::get('/salesperson/login/code', [App\Http\Controllers\Auth\SalespersonLoginController::class, 'showCodeForm'])->name('salesperson.login.code');
@@ -68,6 +71,9 @@ Route::middleware(['web', 'auth'])->group(function () {
         return view('smart-dispatch-test');
     })->name('smart-dispatch-test');
     Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+
+    // Graphify AI Assistant Copilot route
+    Route::post('/ai-assistant/query', [App\Http\Controllers\GraphifyAiController::class, 'query'])->name('ai-assistant.query');
 
     // Subscription routes
     Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
@@ -98,6 +104,8 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/{salesperson}', [App\Http\Controllers\SalespersonController::class, 'show'])->name('show');
         Route::get('/{salesperson}/edit', [App\Http\Controllers\SalespersonController::class, 'edit'])->name('edit');
         Route::put('/{salesperson}', [App\Http\Controllers\SalespersonController::class, 'update'])->name('update');
+        Route::post('/{salesperson}/reset-credentials', [App\Http\Controllers\SalespersonController::class, 'resetCredentials'])->name('reset-credentials');
+        Route::post('/{salesperson}/send-whatsapp', [App\Http\Controllers\SalespersonController::class, 'sendWhatsAppCredentials'])->name('send-whatsapp');
         Route::delete('/{salesperson}', [App\Http\Controllers\SalespersonController::class, 'destroy'])->name('destroy');
         Route::post('/{salesperson}/discount-settings', [App\Http\Controllers\SalespersonController::class, 'updateDiscountSettings'])->name('updateDiscountSettings');
     });
@@ -237,6 +245,8 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/{client}', [App\Http\Controllers\ClientController::class, 'show'])->name('show');
         Route::get('/{client}/edit', [App\Http\Controllers\ClientController::class, 'edit'])->name('edit');
         Route::put('/{client}', [App\Http\Controllers\ClientController::class, 'update'])->name('update');
+        Route::post('/{client}/reset-credentials', [App\Http\Controllers\ClientController::class, 'resetCredentials'])->name('reset-credentials');
+        Route::post('/{client}/send-whatsapp', [App\Http\Controllers\ClientController::class, 'sendWhatsAppCredentials'])->name('send-whatsapp');
         Route::delete('/{client}', [App\Http\Controllers\ClientController::class, 'destroy'])->name('destroy');
         Route::post('/{client}/restore-listing', [App\Http\Controllers\ClientController::class, 'restoreListing'])->name('restore-listing');
     });

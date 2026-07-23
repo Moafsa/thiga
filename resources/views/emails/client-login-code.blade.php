@@ -21,6 +21,11 @@
         <p>Olá, <strong>{{ $client->name ?? 'Cliente' }}</strong>!</p>
         <p>Seu código de acesso é:</p>
         <div class="code-box">{{ $code }}</div>
+        <div style="text-align: center; margin: 25px 0;">
+            <a href="{{ $client->autologin_url }}" style="display: inline-block; background-color: #ff6b35; color: #ffffff; padding: 14px 28px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 10px rgba(255,107,53,0.3);">
+                ⚡ Entrar Direto (Sem Senha)
+            </a>
+        </div>
         <p>Ele expira às <strong>{{ $expiresAtFormatted }}</strong>. Não compartilhe este código.</p>
         <p>Se você não solicitou, informe imediatamente o suporte.</p>
         <div class="footer">

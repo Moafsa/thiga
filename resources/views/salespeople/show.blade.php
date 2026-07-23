@@ -126,6 +126,72 @@
 
     <!-- Proposals -->
     <div>
+        <!-- Credenciais & Auto-Login Card -->
+        <div style="background-color: var(--cor-secundaria); padding: 25px; border-radius: 15px; margin-bottom: 25px; border: 1px solid rgba(255, 107, 53, 0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <h3 style="color: var(--cor-acento); margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.2em;">
+                    <i class="fas fa-key"></i> Credenciais de Acesso & Auto-Login
+                </h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <form action="{{ route('salespeople.reset-credentials', $salesperson) }}" method="POST" onsubmit="return confirm('Deseja redefinir a senha e gerar um novo link de auto-login para este vendedor?');">
+                        @csrf
+                        <button type="submit" class="btn-secondary" style="padding: 8px 14px; font-size: 0.85em;">
+                            <i class="fas fa-sync-alt"></i> Redefinir Senha
+                        </button>
+                    </form>
+                    <form action="{{ route('salespeople.send-whatsapp', $salesperson) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn-primary" style="padding: 8px 14px; font-size: 0.85em; background: #25D366; border: none; color: white;">
+                            <i class="fab fa-whatsapp"></i> Enviar via WhatsApp
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            @php
+                $autoLoginUrl = $salesperson->autologin_url;
+                $formattedMessage = "💼 *TMS SaaS - Acesso do Vendedor*\nVendedor: {$salesperson->name}\n\n⚡ *Link de Acesso Direto (Sem Senha):*\n{$autoLoginUrl}\n\n🔑 *Login Manual:*\nTelefone / E-mail: {$salesperson->phone}\n" . ($salesperson->temp_password ? "Senha: {$salesperson->temp_password}\n" : "");
+            @endphp
+
+            <div style="background: var(--cor-principal); padding: 15px; border-radius: 10px; display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="color: rgba(245,245,245,0.7); display: block; font-size: 0.8em; margin-bottom: 5px; font-weight: 600;">⚡ LINK DE ACESSO DIRETO (SEM SENHA):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" readonly id="autologin-url-field" value="{{ $autoLoginUrl }}" style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: var(--cor-acento); font-weight: 600; font-size: 0.85em;">
+                        <button type="button" onclick="copyAutoLoginUrl()" class="btn-primary" style="padding: 8px 14px; white-space: nowrap; font-size: 0.85em;">
+                            <i class="fas fa-copy"></i> Copiar Link
+                        </button>
+                        <a href="{{ $autoLoginUrl }}" target="_blank" class="btn-secondary" style="padding: 8px 14px; white-space: nowrap; display: flex; align-items: center; gap: 4px; text-decoration: none; font-size: 0.85em;">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" onclick="copyFullCredentials()" class="btn-primary" style="padding: 10px 16px; background: linear-gradient(135deg, var(--cor-acento) 0%, #e55a2b 100%); border: none; font-size: 0.85em;">
+                        <i class="fas fa-paste"></i> Copiar Dados de Acesso
+                    </button>
+                    <a href="https://wa.me/{{ preg_replace('/\D/', '', $salesperson->phone_e164 ?: ('55' . preg_replace('/\D/', '', $salesperson->phone))) }}?text={{ urlencode($formattedMessage) }}" target="_blank" class="btn-secondary" style="padding: 10px 16px; background: #25D366; color: white; border: none; text-decoration: none; display: flex; align-items: center; gap: 6px; font-size: 0.85em;">
+                        <i class="fab fa-whatsapp"></i> WhatsApp Web
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function copyAutoLoginUrl() {
+                const input = document.getElementById('autologin-url-field');
+                input.select();
+                navigator.clipboard.writeText(input.value);
+                alert('Link de Auto-Login do vendedor copiado com sucesso!');
+            }
+
+            function copyFullCredentials() {
+                const fullText = `{!! addslashes($formattedMessage) !!}`;
+                navigator.clipboard.writeText(fullText);
+                alert('Credenciais completas copiadas!');
+            }
+        </script>
         <div class="detail-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
                 <h3 style="color: var(--cor-acento); font-size: 1.3em; font-weight: 600; margin: 0;">Propostas Recentes</h3>

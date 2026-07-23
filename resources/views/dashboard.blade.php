@@ -429,6 +429,19 @@
             </div>
         </div>
     </a>
+    <a href="{{ route('cte-xmls.index') }}" class="stat-card" style="text-decoration: none;">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            <i class="fas fa-file-code"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ $cteXmlStats['total'] ?? 0 }}</h3>
+            <p>CT-es Cadastradas (XMLs)</p>
+            <div class="stat-trend">
+                Usadas: <strong style="color: #4caf50;">{{ $cteXmlStats['used'] ?? 0 }}</strong> | 
+                A Usar: <strong style="color: #ff9800;">{{ $cteXmlStats['unused'] ?? 0 }}</strong>
+            </div>
+        </div>
+    </a>
 
     @if(isset($fiscalStats))
     <a href="{{ route('fiscal.ctes.index') ?? '#' }}" class="stat-card" style="text-decoration: none;">

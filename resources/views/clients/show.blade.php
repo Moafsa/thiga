@@ -136,6 +136,83 @@
     </div>
 </div>
 
+<!-- Credenciais & Auto-Login Card -->
+<div class="detail-section" style="border: 1px solid rgba(255, 107, 53, 0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <h3 style="margin: 0; padding-bottom: 0; border: none; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-key"></i> Credenciais de Acesso & Auto-Login
+        </h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <form action="{{ route('clients.reset-credentials', $client) }}" method="POST" onsubmit="return confirm('Deseja redefinir a senha e gerar um novo link de auto-login para este cliente?');">
+                @csrf
+                <button type="submit" class="btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">
+                    <i class="fas fa-sync-alt"></i> Redefinir Senha
+                </button>
+            </form>
+            <form action="{{ route('clients.send-whatsapp', $client) }}" method="POST">
+                @csrf
+                <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 0.9em; background: #25D366; border: none; color: white;">
+                    <i class="fab fa-whatsapp"></i> Enviar via WhatsApp
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @php
+        $autoLoginUrl = $client->autologin_url;
+        $formattedMessage = "📦 *TMS SaaS - Acesso do Cliente*\nCliente: {$client->name}\n\n⚡ *Link de Acesso Direto (Sem Senha):*\n{$autoLoginUrl}\n\n🔑 *Login Manual:*\nTelefone / E-mail: {$client->phone}\n" . ($client->temp_password ? "Senha: {$client->temp_password}\n" : "");
+    @endphp
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; background: var(--cor-principal); padding: 20px; border-radius: 12px;">
+        <div style="grid-column: 1 / -1;">
+            <label style="color: rgba(245,245,245,0.7); display: block; font-size: 0.85em; margin-bottom: 6px; font-weight: 600;">⚡ LINK DE ACESSO DIRETO (SEM SENHA):</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" readonly id="autologin-url-field" value="{{ $autoLoginUrl }}" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: var(--cor-acento); font-weight: 600; font-size: 0.9em;">
+                <button type="button" onclick="copyAutoLoginUrl()" class="btn-primary" style="padding: 10px 18px; white-space: nowrap;">
+                    <i class="fas fa-copy"></i> Copiar Link
+                </button>
+                <a href="{{ $autoLoginUrl }}" target="_blank" class="btn-secondary" style="padding: 10px 18px; white-space: nowrap; display: flex; align-items: center; gap: 6px; text-decoration: none;">
+                    <i class="fas fa-external-link-alt"></i> Abrir
+                </a>
+            </div>
+        </div>
+
+        <div>
+            <span style="color: rgba(245,245,245,0.7); display: block; font-size: 0.85em;">Telefone (Login):</span>
+            <span style="color: var(--cor-texto-claro); font-weight: 600; font-size: 1.05em;">{{ $client->phone ?? 'N/A' }}</span>
+        </div>
+
+        <div>
+            <span style="color: rgba(245,245,245,0.7); display: block; font-size: 0.85em;">Senha Atual / Gerada:</span>
+            <span style="color: #10b981; font-weight: 700; font-size: 1.1em; letter-spacing: 0.5px;">{{ $client->temp_password ?? '—' }}</span>
+        </div>
+
+        <div style="grid-column: 1 / -1; margin-top: 10px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" onclick="copyFullCredentials()" class="btn-primary" style="padding: 12px 20px; background: linear-gradient(135deg, var(--cor-acento) 0%, #e55a2b 100%); border: none;">
+                <i class="fas fa-paste"></i> Copiar Todos os Dados de Acesso (1-Clique)
+            </button>
+            <a href="https://wa.me/{{ preg_replace('/\D/', '', $client->phone_e164 ?: ('55' . preg_replace('/\D/', '', $client->phone))) }}?text={{ urlencode($formattedMessage) }}" target="_blank" class="btn-secondary" style="padding: 12px 20px; background: #25D366; color: white; border: none; text-decoration: none; display: flex; align-items: center; gap: 8px;">
+                <i class="fab fa-whatsapp" style="font-size: 1.2em;"></i> WhatsApp Web (Enviar Direto)
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copyAutoLoginUrl() {
+        const input = document.getElementById('autologin-url-field');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        alert('Link de Auto-Login do cliente copiado com sucesso!');
+    }
+
+    function copyFullCredentials() {
+        const fullText = `{!! addslashes($formattedMessage) !!}`;
+        navigator.clipboard.writeText(fullText);
+        alert('Credenciais completas copiadas!');
+    }
+</script>
+
 <div class="detail-section">
     <h3><i class="fas fa-user"></i> Informações Básicas</h3>
     <div class="detail-grid">

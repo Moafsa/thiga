@@ -123,6 +123,12 @@
                     </div>
                 </div>
                 <div class="salesperson-actions">
+                    <button type="button" onclick="navigator.clipboard.writeText('{{ $salesperson->autologin_url }}'); alert('Link de Auto-Login de {{ addslashes($salesperson->name) }} copiado!');" class="action-btn" title="Copiar Link de Auto-Login" style="color: var(--cor-acento);">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <a href="{{ route('salespeople.show', $salesperson) }}" class="action-btn" title="Ver Detalhes">
+                        <i class="fas fa-eye"></i>
+                    </a>
                     <a href="{{ route('salespeople.edit', $salesperson) }}" class="action-btn" title="Editar">
                         <i class="fas fa-edit"></i>
                     </a>

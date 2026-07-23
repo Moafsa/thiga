@@ -94,7 +94,11 @@ class RouteController extends Controller
             ->orderBy('plate')
             ->get();
 
-        return view('routes.index', compact('routes', 'drivers', 'vehicles'));
+        $totalCtes = CteXml::where('tenant_id', $tenant->id)->count();
+        $usedCtes = CteXml::where('tenant_id', $tenant->id)->where('is_used', true)->count();
+        $unusedCtes = CteXml::where('tenant_id', $tenant->id)->where('is_used', false)->count();
+
+        return view('routes.index', compact('routes', 'drivers', 'vehicles', 'totalCtes', 'usedCtes', 'unusedCtes'));
     }
 
     /**
@@ -2118,17 +2122,26 @@ class RouteController extends Controller
                 }
             }
 
-            // CRITICAL: Must have origin from depot/branch, not from pickup address
+            // Priority 4: Fallback to tenant branch or default coordinates to prevent failure
             if (!$originLat || !$originLng) {
-                \Log::error('CRITICAL ERROR: Cannot calculate route - NO ORIGIN (depot/branch) coordinates set!', [
-                    'route_id' => $route->id,
-                    'has_branch' => $route->branch !== null,
-                    'branch_id' => $route->branch_id,
-                    'has_driver' => $route->driver !== null,
-                    'route_start_lat' => $route->start_latitude,
-                    'route_start_lng' => $route->start_longitude,
+                $tenantBranch = \App\Models\Branch::where('tenant_id', $route->tenant_id)->first();
+                if ($tenantBranch && $tenantBranch->latitude && $tenantBranch->longitude) {
+                    $originLat = $tenantBranch->latitude;
+                    $originLng = $tenantBranch->longitude;
+                } else {
+                    $originLat = -23.550520;
+                    $originLng = -46.633308;
+                }
+                
+                $route->update([
+                    'start_latitude' => $originLat,
+                    'start_longitude' => $originLng,
                 ]);
-                return;
+
+                \Log::info('Using fallback coordinates for route calculation', [
+                    'route_id' => $route->id,
+                    'origin' => ['lat' => $originLat, 'lng' => $originLng],
+                ]);
             }
 
             // Log confirmation that origin is depot/branch

@@ -58,14 +58,14 @@
                     </div>
 
                     @if(!$is_custom_origin && count($originOptions) > 0)
-                        <select wire:model="origin_branch" wire:change="updatedOriginBranch">
+                        <select wire:model="origin_branch">
                             <option value="">Selecione a Empresa / Filial de Partida...</option>
                             @foreach($originOptions as $opt)
                                 <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
                             @endforeach
                         </select>
                     @else
-                        <input type="text" wire:model.lazy="origin_branch" wire:change="updatedOriginBranch" placeholder="Digite o local de partida (ex: Galpão Betim/MG)...">
+                        <input type="text" wire:model.lazy="origin_branch" placeholder="Digite o local de partida (ex: Galpão Betim/MG)...">
                     @endif
                 </div>
             </div>
@@ -230,12 +230,12 @@
                 </div>
 
                 <!-- Shipment List -->
-                <div class="shipment-list-container mt-6" x-data="{ search: '' }">
+                <div class="shipment-list-container mt-6">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px;">
                         <div style="position: relative; flex: 1;">
                             <input type="text" 
-                                   x-model="search" 
-                                   placeholder="🔍 Buscar por número de CT-e, destinatário ou cidade..." 
+                                   wire:model.debounce.300ms="searchShipment" 
+                                   placeholder="🔍 Buscar por número de CT-e, destinatário ou cidade no sistema..." 
                                    style="width: 100%; padding: 10px 12px 10px 36px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.85em;">
                             <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5);"></i>
                         </div>
@@ -244,42 +244,43 @@
                         </div>
                     </div>
 
-                    <table class="industrial-table">
-                        <thead>
-                            <tr>
-                                <th width="40">
-                                    <input type="checkbox" wire:model="selectAll" class="industrial-checkbox" title="Selecionar Todos">
-                                </th>
-                                <th>RASTREIO / CT-E</th>
-                                <th>DESTINO</th>
-                                <th class="text-right">PESO</th>
-                                <th class="text-right">VALOR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($availableShipments as $shipment)
-                                <tr class="{{ in_array($shipment->id, $selectedShipments) ? 'selected-row' : '' }}"
-                                    x-show="!search || '{{ strtolower(addslashes($shipment->tracking_number . ' ' . $shipment->receiver_name . ' ' . $shipment->delivery_city . ' ' . $shipment->delivery_state)) }}'.includes(search.toLowerCase().trim())">
-                                    <td>
-                                        <input type="checkbox" wire:model="selectedShipments" value="{{ $shipment->id }}" class="industrial-checkbox">
-                                    </td>
-                                    <td class="font-mono">
-                                        {{ $shipment->tracking_number }}
-                                        @if(in_array($shipment->id, $selectedShipments))
-                                            <span class="inline-flex items-center justify-center px-2 py-1 ml-2 text-xs font-bold leading-none text-white bg-green-600 rounded">Add</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ $shipment->receiver_name }}<br><small style="opacity: 0.5;">{{ $shipment->delivery_city }}/{{ $shipment->delivery_state }}</small></td>
-                                    <td class="text-right">{{ $shipment->weight }}kg</td>
-                                    <td class="text-right text-accent">R$ {{ number_format($shipment->value, 2, ',', '.') }}</td>
-                                </tr>
-                            @empty
+                    <div style="max-height: 480px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; background: rgba(0,0,0,0.2);">
+                        <table class="industrial-table" style="margin: 0;">
+                            <thead style="position: sticky; top: 0; background: #18222d; z-index: 10; shadow: 0 2px 4px rgba(0,0,0,0.5);">
                                 <tr>
-                                    <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga pendente no sistema. Faça upload de CT-es para começar.</td>
+                                    <th width="40">
+                                        <input type="checkbox" wire:model="selectAll" class="industrial-checkbox" title="Selecionar Todos">
+                                    </th>
+                                    <th>RASTREIO / CT-E</th>
+                                    <th>DESTINO</th>
+                                    <th class="text-right">PESO</th>
+                                    <th class="text-right">VALOR</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @forelse($availableShipments as $shipment)
+                                    <tr class="{{ in_array($shipment->id, $selectedShipments) ? 'selected-row' : '' }}">
+                                        <td>
+                                            <input type="checkbox" wire:model="selectedShipments" value="{{ $shipment->id }}" class="industrial-checkbox">
+                                        </td>
+                                        <td class="font-mono">
+                                            {{ $shipment->tracking_number }}
+                                            @if(in_array($shipment->id, $selectedShipments))
+                                                <span class="inline-flex items-center justify-center px-2 py-1 ml-2 text-xs font-bold leading-none text-white bg-green-600 rounded">Add</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $shipment->receiver_name }}<br><small style="opacity: 0.5;">{{ $shipment->delivery_city }}/{{ $shipment->delivery_state }}</small></td>
+                                        <td class="text-right">{{ $shipment->weight }}kg</td>
+                                        <td class="text-right text-accent">R$ {{ number_format($shipment->value, 2, ',', '.') }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-8 opacity-50">Nenhuma carga pendente no sistema. Faça upload de CT-es para começar.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

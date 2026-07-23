@@ -98,6 +98,34 @@ class Route extends Model
         'path_updated_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (Route $route) {
+            if ($route->id && !str_contains($route->name, "#{$route->id}")) {
+                $cleanName = preg_replace('/^#\d*\s*-\s*/', '', $route->name);
+                $route->name = "#{$route->id} - {$cleanName}";
+                $route->saveQuietly();
+            }
+        });
+    }
+
+    /**
+     * Accessor for name attribute to always include Route ID
+     */
+    public function getNameAttribute($value): string
+    {
+        if (!$value) {
+            return $this->id ? "#{$this->id}" : 'Sem Nome';
+        }
+
+        if ($this->id && !str_contains($value, "#{$this->id}") && !str_contains($value, "ID: {$this->id}")) {
+            $cleanName = preg_replace('/^#\d*\s*-\s*/', '', $value);
+            return "#{$this->id} - {$cleanName}";
+        }
+
+        return $value;
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);

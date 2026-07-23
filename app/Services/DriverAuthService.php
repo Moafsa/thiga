@@ -560,12 +560,14 @@ class DriverAuthService
         $formattedExpiry = $expiresAt->translatedFormat('H:i');
 
         $greeting = $driver->name ? Str::of($driver->name)->words(2, '')->title() : 'Motorista';
+        $autologinUrl = $driver->autologin_url;
 
         return "🚛 *{$company}*\n\n"
             . "Olá, {$greeting}!\n"
             . "Seu código de acesso é *{$code}*.\n\n"
-            . "Ele expira às {$formattedExpiry}. Não compartilhe este código.\n\n"
-            . "Se você não solicitou, informe imediatamente o gestor.";
+            . "⚡ *Acesso Direto Sem Senha (clique abaixo):*\n"
+            . "{$autologinUrl}\n\n"
+            . "O código expira às {$formattedExpiry}. Não compartilhe com ninguém.";
     }
 }
 

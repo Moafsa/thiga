@@ -152,7 +152,7 @@ async function loadDriverLocationsMapbox() {
                 center: [activeDriverCoords[0].lng, activeDriverCoords[0].lat],
                 zoom: 14,
                 essential: true,
-                speed: 1.2
+                speed: 1.4
             });
         } else if (activeDriverCoords.length > 1 && monitoringMap) {
             // Múltiplos motoristas: enquadra todos no mapa
@@ -458,8 +458,26 @@ window.addEventListener('beforeunload', function() {
     stopMonitoringAutoRefresh();
 });
 
-// Export functions for manual refresh
+// Export functions for manual refresh and driver focus
 window.refreshMonitoringMap = function() {
     loadRoutesAndShipmentsMapbox();
     loadDriverLocationsMapbox();
+};
+
+window.focusDriver = function(driverId) {
+    const marker = driverMarkers[driverId];
+    if (marker && monitoringMap && monitoringMap.map) {
+        const lngLat = marker.getLngLat();
+        monitoringMap.map.flyTo({
+            center: [lngLat.lng, lngLat.lat],
+            zoom: 15,
+            speed: 1.4
+        });
+        const popup = marker.getPopup();
+        if (popup) {
+            popup.addTo(monitoringMap.map);
+        }
+    } else {
+        console.warn('Driver marker not found for id:', driverId);
+    }
 };

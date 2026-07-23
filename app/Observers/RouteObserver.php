@@ -33,11 +33,15 @@ class RouteObserver
      */
     public function created(Route $route): void
     {
-        // Notify driver if route was created with a driver assigned and has coordinates
-        // Note: Coordinates may not be available immediately if geocoding happens after creation
-        // The updated() method will handle notification when driver is assigned later
-        if ($route->driver_id && $route->start_latitude && $route->start_longitude) {
-            $this->notifyDriverAboutRoute($route);
+        try {
+            // Notify driver if route was created with a driver assigned and has coordinates
+            // Note: Coordinates may not be available immediately if geocoding happens after creation
+            // The updated() method will handle notification when driver is assigned later
+            if ($route->driver_id && $route->start_latitude && $route->start_longitude) {
+                $this->notifyDriverAboutRoute($route);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Error in RouteObserver created event: ' . $e->getMessage());
         }
     }
 
@@ -46,58 +50,62 @@ class RouteObserver
      */
     public function updated(Route $route): void
     {
-        // Check if financial data was updated
-        $financialFields = [
-            'driver_diarias_count',
-            'driver_diaria_value',
-            'deposit_toll',
-            'deposit_expenses',
-            'deposit_fuel',
-        ];
+        try {
+            // Check if financial data was updated
+            $financialFields = [
+                'driver_diarias_count',
+                'driver_diaria_value',
+                'deposit_toll',
+                'deposit_expenses',
+                'deposit_fuel',
+            ];
 
-        $hasFinancialChanges = false;
-        foreach ($financialFields as $field) {
-            if ($route->wasChanged($field)) {
-                $hasFinancialChanges = true;
-                break;
+            $hasFinancialChanges = false;
+            foreach ($financialFields as $field) {
+                if ($route->wasChanged($field)) {
+                    $hasFinancialChanges = true;
+                    break;
+                }
             }
-        }
 
-        if ($hasFinancialChanges && $route->driver_id) {
-            // Clear wallet cache for the driver
-            $this->clearDriverWalletCache($route->driver_id);
+            if ($hasFinancialChanges && $route->driver_id) {
+                // Clear wallet cache for the driver
+                $this->clearDriverWalletCache($route->driver_id);
 
-            // Send notifications if values were added
-            $this->handleFinancialNotifications($route);
-        }
-
-        // Check if driver was assigned to route
-        if ($route->wasChanged('driver_id') && $route->driver_id) {
-            // Only notify if route has coordinates (route is ready)
-            if ($route->start_latitude && $route->start_longitude) {
-                $this->notifyDriverAboutRoute($route);
+                // Send notifications if values were added
+                $this->handleFinancialNotifications($route);
             }
-        }
 
-        // Check if coordinates were just added and route already has a driver
-        // This handles the case when route calculation happens after route creation
-        if (
-            $route->driver_id &&
-            ($route->wasChanged('start_latitude') || $route->wasChanged('start_longitude')) &&
-            $route->start_latitude &&
-            $route->start_longitude
-        ) {
-            // Only notify if this is the first time coordinates are set
-            // (avoid duplicate notifications)
-            $wasNotified = $route->settings['whatsapp_notified'] ?? false;
-            if (!$wasNotified) {
-                $this->notifyDriverAboutRoute($route);
-                // Mark as notified to avoid duplicates
-                $settings = $route->settings ?? [];
-                $settings['whatsapp_notified'] = true;
-                $route->settings = $settings;
-                $route->saveQuietly(); // Use saveQuietly to avoid triggering observer again
+            // Check if driver was assigned to route
+            if ($route->wasChanged('driver_id') && $route->driver_id) {
+                // Only notify if route has coordinates (route is ready)
+                if ($route->start_latitude && $route->start_longitude) {
+                    $this->notifyDriverAboutRoute($route);
+                }
             }
+
+            // Check if coordinates were just added and route already has a driver
+            // This handles the case when route calculation happens after route creation
+            if (
+                $route->driver_id &&
+                ($route->wasChanged('start_latitude') || $route->wasChanged('start_longitude')) &&
+                $route->start_latitude &&
+                $route->start_longitude
+            ) {
+                // Only notify if this is the first time coordinates are set
+                // (avoid duplicate notifications)
+                $wasNotified = $route->settings['whatsapp_notified'] ?? false;
+                if (!$wasNotified) {
+                    $this->notifyDriverAboutRoute($route);
+                    // Mark as notified to avoid duplicates
+                    $settings = $route->settings ?? [];
+                    $settings['whatsapp_notified'] = true;
+                    $route->settings = $settings;
+                    $route->saveQuietly(); // Use saveQuietly to avoid triggering observer again
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Error in RouteObserver updated event: ' . $e->getMessage());
         }
 
         // Create route history snapshot when route is completed

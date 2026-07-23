@@ -21,6 +21,8 @@ class Client extends Model
     protected $fillable = [
         'tenant_id',
         'user_id',
+        'login_token',
+        'temp_password',
         'name',
         'cnpj',
         'email',
@@ -35,6 +37,27 @@ class Client extends Model
         'marker',
         'excluded_from_listing_at',
     ];
+
+    /**
+     * Ensure client has a login token for magic link auto-login
+     */
+    public function ensureLoginToken(): string
+    {
+        if (empty($this->login_token)) {
+            $this->login_token = \Illuminate\Support\Str::random(32) . dechex(time()) . \Illuminate\Support\Str::random(16);
+            $this->save();
+        }
+        return $this->login_token;
+    }
+
+    /**
+     * Get 1-click Auto-Login URL attribute
+     */
+    public function getAutologinUrlAttribute(): string
+    {
+        $token = $this->ensureLoginToken();
+        return url("/client/autologin/{$token}");
+    }
 
     protected $casts = [
         'is_active' => 'boolean',

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class SalespersonController extends Controller
 {
@@ -215,5 +216,68 @@ class SalespersonController extends Controller
         ]);
 
         return back()->with('success', 'Configurações de desconto atualizadas!');
+    }
+
+    /**
+     * Reset credentials for a salesperson (generates new password and login token)
+     */
+    public function resetCredentials(Salesperson $salesperson)
+    {
+        $this->authorize('update', $salesperson);
+
+        $newPassword = Str::ucfirst(Str::random(4)) . rand(1000, 9999) . '!';
+        $salesperson->login_token = Str::random(32) . dechex(time()) . Str::random(16);
+        $salesperson->temp_password = $newPassword;
+        $salesperson->save();
+
+        if ($salesperson->user) {
+            $salesperson->user->password = Hash::make($newPassword);
+            $salesperson->user->save();
+        }
+
+        return redirect()->back()->with('success', 'Credenciais e Link de Auto-Login redefinidos com sucesso para ' . $salesperson->name . '!');
+    }
+
+    /**
+     * Send salesperson credentials via integrated WhatsApp or WhatsApp Web
+     */
+    public function sendWhatsAppCredentials(Salesperson $salesperson)
+    {
+        $this->authorize('view', $salesperson);
+
+        $salesperson->ensureLoginToken();
+        $autologinUrl = $salesperson->autologin_url;
+        $phoneDigits = preg_replace('/\D/', '', $salesperson->phone);
+
+        if (empty($phoneDigits)) {
+            return redirect()->back()->with('error', 'O vendedor não possui telefone cadastrado.');
+        }
+
+        $phoneWithDdi = str_starts_with($phoneDigits, '55') ? $phoneDigits : ('55' . $phoneDigits);
+
+        $message = "💼 *TMS SaaS - Dados de Acesso do Vendedor*\n\n";
+        $message .= "Olá, *{$salesperson->name}*!\n\n";
+        $message .= "⚡ *Acesso Direto sem Senha (clique no link):*\n";
+        $message .= "{$autologinUrl}\n\n";
+        $message .= "🔑 *Dados para Login Manual:*\n";
+        $message .= "Telefone / E-mail: {$salesperson->phone}\n";
+        if ($salesperson->temp_password) {
+            $message .= "Senha: {$salesperson->temp_password}\n";
+        }
+        $message .= "\nBons negócios!";
+
+        try {
+            /** @var \App\Services\WhatsAppNotificationService $waService */
+            $waService = app(\App\Services\WhatsAppNotificationService::class);
+            $sent = $waService->sendNotification($phoneWithDdi, $message, $salesperson->tenant_id);
+
+            if ($sent) {
+                return redirect()->back()->with('success', 'Credenciais enviadas via WhatsApp para ' . $salesperson->name . '!');
+            }
+
+            return redirect()->back()->with('warning', 'Link gerado, mas WhatsApp automático indisponível. Utilize o botão do WhatsApp Web.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('warning', 'Link gerado, mas WhatsApp automático indisponível. Utilize o botão do WhatsApp Web.');
+        }
     }
 }

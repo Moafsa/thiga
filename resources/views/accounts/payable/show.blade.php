@@ -1,307 +1,295 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Despesa #{{ $expense->id }} - Contas a Pagar</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Poppins', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center">
-                    <a href="{{ route('dashboard') }}" class="text-2xl font-bold text-green-600">
-                        <i class="fas fa-truck mr-2"></i>
-                        TMS SaaS
-                    </a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <a href="{{ route('accounts.payable.index') }}" class="text-gray-700 hover:text-gray-900">
-                        <i class="fas fa-arrow-left mr-2"></i>Voltar
-                    </a>
-                    <span class="text-gray-700">{{ Auth::user()->name }}</span>
-                    <form method="POST" action="{{ route('logout') }}" class="inline">
-                        @csrf
-                        <button type="submit" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
+@extends('layouts.app')
+
+@section('title', 'Despesa #{{ $expense->id }} - Contas a Pagar')
+@section('page-title', 'Detalhes da Despesa')
+
+@push('styles')
+@include('shared.styles')
+<style>
+    .detail-card {
+        background: var(--cor-secundaria);
+        border-radius: 16px;
+        padding: 28px;
+        border: 1px solid rgba(255, 107, 53, 0.15);
+        margin-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .detail-label {
+        color: rgba(245,245,245,0.55);
+        font-size: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .detail-value {
+        color: var(--cor-texto-claro);
+        font-size: 1.05em;
+        font-weight: 600;
+    }
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 24px;
+        margin-top: 20px;
+    }
+    .status-badge-lg {
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: 700;
+    }
+    .badge-paid    { background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid rgba(76,175,80,0.4); }
+    .badge-overdue { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); }
+    .badge-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid rgba(255,193,7,0.4); }
+
+    .payment-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.06);
+        margin-bottom: 10px;
+    }
+    .modal-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+        z-index: 2000; display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+        background: var(--cor-secundaria);
+        border: 1px solid rgba(255,107,53,0.25);
+        border-radius: 18px; padding: 32px;
+        max-width: 480px; width: 90%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-title { color: var(--cor-acento); font-size: 1.2em; font-weight: 700; margin-bottom: 22px; }
+    .form-field { margin-bottom: 18px; }
+    .form-field label { display: block; color: rgba(245,245,245,0.75); font-size: 0.85em; font-weight: 600; margin-bottom: 6px; }
+    .form-field input, .form-field select, .form-field textarea {
+        width: 100%; padding: 11px 14px;
+        background: var(--cor-principal);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px; color: var(--cor-texto-claro); font-size: 0.95em;
+    }
+    .form-field input:focus, .form-field select:focus { outline: none; border-color: var(--cor-acento); }
+</style>
+@endpush
+
+@section('content')
+<div style="max-width: 900px; margin: 0 auto; padding: 10px 0;">
+
+    {{-- Flash messages --}}
+    @if(session('success'))
+        <div style="background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.4); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; color: #4caf50; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-check-circle"></i> {{ session('success') }}
         </div>
-    </header>
+    @endif
+    @if(session('error'))
+        <div style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; color: #ef4444; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-exclamation-triangle"></i> {{ session('error') }}
+        </div>
+    @endif
 
-    <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Expense Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ $expense->description }}</h1>
-                    @if($expense->category)
-                        <span class="px-3 py-1 text-sm rounded-full inline-block" 
-                              style="background-color: {{ $expense->category->color ?? '#e5e7eb' }}20; color: {{ $expense->category->color ?? '#6b7280' }}">
-                            {{ $expense->category->name }}
-                        </span>
-                    @endif
-                </div>
-                <span class="px-4 py-2 rounded-full text-sm font-semibold 
-                    {{ $expense->status === 'paid' ? 'bg-green-100 text-green-800' : 
-                       ($expense->isOverdue() ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                    @if($expense->status === 'paid')
-                        Paga
-                    @elseif($expense->isOverdue())
-                        Vencida
-                    @else
-                        Pendente
-                    @endif
+    {{-- Header --}}
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h1 style="color: var(--cor-texto-claro); font-size: 1.6em; font-weight: 700; margin: 0;">
+                {{ $expense->description }}
+            </h1>
+            @if($expense->category)
+                <span style="display: inline-block; margin-top: 8px; padding: 3px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 600;
+                      background-color: {{ $expense->category->color ?? '#e5e7eb' }}22;
+                      color: {{ $expense->category->color ?? '#a0aec0' }};
+                      border: 1px solid {{ $expense->category->color ?? '#a0aec0' }}44;">
+                    {{ $expense->category->name }}
                 </span>
-            </div>
+            @endif
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="status-badge-lg 
+                @if($expense->status === 'paid') badge-paid
+                @elseif($expense->isOverdue()) badge-overdue
+                @else badge-pending @endif">
+                @if($expense->status === 'paid') ✅ Paga
+                @elseif($expense->isOverdue()) ⚠️ Vencida
+                @else ⏳ Pendente @endif
+            </span>
+            <a href="{{ route('accounts.payable.index') }}" class="btn-secondary" style="text-decoration:none; padding: 8px 16px; border-radius: 8px; font-size: 0.9em;">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                <div>
-                    <p class="text-sm text-gray-600">Valor</p>
-                    <p class="font-semibold text-gray-900 text-lg">R$ {{ number_format($expense->amount, 2, ',', '.') }}</p>
+    {{-- Main Info Card --}}
+    <div class="detail-card">
+        <h2 style="color: var(--cor-acento); font-size: 1.05em; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-file-invoice-dollar"></i> Informações da Despesa
+        </h2>
+        <div class="detail-grid">
+            <div>
+                <div class="detail-label">Valor</div>
+                <div class="detail-value" style="font-size: 1.5em; color: var(--cor-acento);">
+                    R$ {{ number_format($expense->amount, 2, ',', '.') }}
                 </div>
-                <div>
-                    <p class="text-sm text-gray-600">Data de Vencimento</p>
-                    <p class="font-semibold text-gray-900">{{ $expense->due_date->format('d/m/Y') }}</p>
-                    @if($expense->isOverdue())
-                        <p class="text-sm text-red-600 font-semibold">
-                            {{ abs(now()->diffInDays($expense->due_date, false)) }} dias em atraso
-                        </p>
-                    @endif
-                </div>
-                @if($expense->isPaid())
-                    <div>
-                        <p class="text-sm text-gray-600">Data de Pagamento</p>
-                        <p class="font-semibold text-gray-900">{{ $expense->paid_at->format('d/m/Y') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Método de Pagamento</p>
-                        <p class="font-semibold text-gray-900">{{ $expense->payment_method ?? 'N/A' }}</p>
+            </div>
+            <div>
+                <div class="detail-label">Vencimento</div>
+                <div class="detail-value">{{ $expense->due_date->format('d/m/Y') }}</div>
+                @if($expense->isOverdue())
+                    <div style="color: #ef4444; font-size: 0.82em; margin-top: 3px; font-weight: 600;">
+                        {{ abs(now()->diffInDays($expense->due_date, false)) }} dias em atraso
                     </div>
                 @endif
             </div>
-
-            @if($expense->vehicle || $expense->route)
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200">
-                @if($expense->vehicle)
+            @if($expense->isPaid())
                 <div>
-                    <p class="text-sm text-gray-600">Veículo (Manutenção)</p>
-                    <p class="font-semibold text-gray-900">
-                        <a href="{{ route('vehicles.show', $expense->vehicle) }}" class="text-green-600 hover:text-green-700">
+                    <div class="detail-label">Data do Pagamento</div>
+                    <div class="detail-value">{{ $expense->paid_at->format('d/m/Y') }}</div>
+                </div>
+                <div>
+                    <div class="detail-label">Método</div>
+                    <div class="detail-value">{{ $expense->payment_method ?? '—' }}</div>
+                </div>
+            @endif
+            @if($expense->vehicle)
+                <div>
+                    <div class="detail-label">Veículo (Manutenção)</div>
+                    <div class="detail-value">
+                        <a href="{{ route('vehicles.show', $expense->vehicle) }}" style="color: var(--cor-acento); text-decoration: none;">
                             {{ $expense->vehicle->formatted_plate }}
                         </a>
                         @if($expense->vehicle->brand && $expense->vehicle->model)
-                            <span class="text-gray-600"> - {{ $expense->vehicle->brand }} {{ $expense->vehicle->model }}</span>
+                            <span style="opacity: 0.7; font-size: 0.9em;"> — {{ $expense->vehicle->brand }} {{ $expense->vehicle->model }}</span>
                         @endif
-                    </p>
+                    </div>
                 </div>
-                @endif
-                @if($expense->route)
+            @endif
+            @if($expense->route)
                 <div>
-                    <p class="text-sm text-gray-600">Rota</p>
-                    <p class="font-semibold text-gray-900">
-                        <a href="{{ route('routes.show', $expense->route) }}" class="text-green-600 hover:text-green-700">
+                    <div class="detail-label">Rota</div>
+                    <div class="detail-value">
+                        <a href="{{ route('routes.show', $expense->route) }}" style="color: var(--cor-acento); text-decoration: none;">
                             {{ $expense->route->name }}
                         </a>
-                        <span class="text-gray-600"> - {{ $expense->route->scheduled_date->format('d/m/Y') }}</span>
-                    </p>
+                        <span style="opacity: 0.7; font-size: 0.9em;"> — {{ $expense->route->scheduled_date->format('d/m/Y') }}</span>
+                    </div>
                 </div>
-                @endif
-            </div>
             @endif
         </div>
 
-        <!-- Notes -->
         @if($expense->notes)
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-3">Observações</h2>
-                <p class="text-gray-700 whitespace-pre-line">{{ $expense->notes }}</p>
+            <div style="margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.08);">
+                <div class="detail-label">Observações</div>
+                <div style="color: var(--cor-texto-claro); margin-top: 6px; opacity: 0.9; line-height: 1.6;">{{ $expense->notes }}</div>
             </div>
         @endif
+    </div>
 
-        <!-- Payments -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">Pagamentos</h2>
-                @if($expense->status !== 'paid')
-                    <button onclick="openPaymentModal()" 
-                            class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-                        <i class="fas fa-plus mr-2"></i>Registrar Pagamento
-                    </button>
-                @endif
-            </div>
-
-            @if($expense->payments->count() > 0)
-                <div class="space-y-3">
-                    @foreach($expense->payments as $payment)
-                        <div class="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
-                            <div>
-                                <p class="font-semibold text-gray-900">R$ {{ number_format($payment->amount, 2, ',', '.') }}</p>
-                                <p class="text-sm text-gray-600">
-                                    {{ $payment->paid_at ? $payment->paid_at->format('d/m/Y') : $payment->due_date->format('d/m/Y') }}
-                                    @if($payment->payment_method)
-                                        - {{ $payment->payment_method }}
-                                    @endif
-                                </p>
-                                @if($payment->description)
-                                    <p class="text-sm text-gray-500 mt-1">{{ $payment->description }}</p>
-                                @endif
-                            </div>
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold 
-                                {{ $payment->isPaid() ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                {{ $payment->isPaid() ? 'Pago' : 'Pendente' }}
-                            </span>
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <p class="text-gray-500 text-center py-4">Nenhum pagamento registrado</p>
+    {{-- Payments Card --}}
+    <div class="detail-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: var(--cor-acento); font-size: 1.05em; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-money-bill-wave"></i> Pagamentos
+            </h2>
+            @if($expense->status !== 'paid')
+                <button type="button" onclick="document.getElementById('paymentModal').classList.add('active')" class="btn-primary" style="padding: 8px 18px; font-size: 0.9em;">
+                    <i class="fas fa-plus"></i> Registrar Pagamento
+                </button>
             @endif
         </div>
 
-        <!-- Actions -->
-        @if($expense->status !== 'paid')
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-end space-x-3">
-                    <a href="{{ route('accounts.payable.edit', $expense) }}" 
-                       class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700">
-                        <i class="fas fa-edit mr-2"></i>Editar
-                    </a>
-                    <form method="POST" action="{{ route('accounts.payable.destroy', $expense) }}" 
-                          onsubmit="return confirm('Tem certeza que deseja excluir esta despesa?')" 
-                          class="inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" 
-                                class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
-                            <i class="fas fa-trash mr-2"></i>Excluir
-                        </button>
-                    </form>
+        @if($expense->payments->count() > 0)
+            @foreach($expense->payments as $payment)
+                <div class="payment-row">
+                    <div>
+                        <div style="font-weight: 700; color: var(--cor-texto-claro); font-size: 1.05em;">
+                            R$ {{ number_format($payment->amount, 2, ',', '.') }}
+                        </div>
+                        <div style="font-size: 0.82em; opacity: 0.65; margin-top: 2px;">
+                            {{ $payment->paid_at ? $payment->paid_at->format('d/m/Y') : ($payment->due_date ? $payment->due_date->format('d/m/Y') : '—') }}
+                            @if($payment->payment_method) · {{ $payment->payment_method }} @endif
+                        </div>
+                        @if($payment->description)
+                            <div style="font-size: 0.8em; opacity: 0.55; margin-top: 2px;">{{ $payment->description }}</div>
+                        @endif
+                    </div>
+                    <span style="padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 700;
+                          {{ $payment->isPaid() ? 'background: rgba(76,175,80,0.2); color: #4caf50;' : 'background: rgba(255,193,7,0.2); color: #ffc107;' }}">
+                        {{ $payment->isPaid() ? 'Pago' : 'Pendente' }}
+                    </span>
                 </div>
+            @endforeach
+        @else
+            <div style="text-align: center; padding: 30px; opacity: 0.45;">
+                <i class="fas fa-inbox" style="font-size: 2em; display: block; margin-bottom: 10px;"></i>
+                Nenhum pagamento registrado
             </div>
         @endif
     </div>
 
-    <!-- Payment Modal -->
-    <div id="paymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-900">Registrar Pagamento</h3>
-                    <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <form method="POST" action="{{ route('accounts.payable.payment', $expense) }}">
-                    @csrf
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Valor * (Máximo: R$ {{ number_format($expense->amount, 2, ',', '.') }})
-                            </label>
-                            <input type="number" 
-                                   name="amount" 
-                                   step="0.01" 
-                                   min="0.01" 
-                                   max="{{ $expense->amount }}" 
-                                   value="{{ $expense->amount }}"
-                                   required
-                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Data do Pagamento *</label>
-                            <input type="date" 
-                                   name="paid_at" 
-                                   value="{{ date('Y-m-d') }}" 
-                                   required
-                                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pagamento *</label>
-                            <select name="payment_method" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
-                                <option value="">Selecione...</option>
-                                <option value="Dinheiro">Dinheiro</option>
-                                <option value="PIX">PIX</option>
-                                <option value="Transferência Bancária">Transferência Bancária</option>
-                                <option value="Boleto">Boleto</option>
-                                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                                <option value="Cartão de Débito">Cartão de Débito</option>
-                                <option value="Cheque">Cheque</option>
-                                <option value="Outro">Outro</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
-                            <textarea name="description" rows="3" 
-                                      class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"></textarea>
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" onclick="closePaymentModal()" 
-                                class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">
-                            Cancelar
-                        </button>
-                        <button type="submit" 
-                                class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
-                            <i class="fas fa-check mr-2"></i>Registrar
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+    {{-- Action Buttons --}}
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+        <form method="POST" action="{{ route('accounts.payable.destroy', $expense) }}"
+              onsubmit="return confirm('⚠️ Tem certeza que deseja excluir esta despesa permanentemente?')" style="margin: 0;">
+            @csrf
+            @method('DELETE')
+            <button type="submit" style="background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-trash-alt"></i> Excluir Despesa
+            </button>
+        </form>
+
+        @if($expense->status !== 'paid')
+            <a href="{{ route('accounts.payable.edit', $expense) }}" class="btn-primary" style="text-decoration: none; padding: 10px 22px;">
+                <i class="fas fa-edit"></i> Editar Despesa
+            </a>
+        @endif
     </div>
+</div>
 
-    <!-- Success/Error Messages -->
-    @if(session('success'))
-        <div class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            <i class="fas fa-check mr-2"></i>
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            <i class="fas fa-exclamation-triangle mr-2"></i>
-            {{ session('error') }}
-        </div>
-    @endif
-
-    <script>
-        function openPaymentModal() {
-            document.getElementById('paymentModal').classList.remove('hidden');
-        }
-
-        function closePaymentModal() {
-            document.getElementById('paymentModal').classList.add('hidden');
-        }
-
-        // Auto-hide messages
-        setTimeout(() => {
-            const messages = document.querySelectorAll('.fixed');
-            messages.forEach(msg => msg.remove());
-        }, 5000);
-    </script>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
+{{-- Payment Modal --}}
+<div id="paymentModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-title"><i class="fas fa-money-bill-wave"></i> Registrar Pagamento</div>
+        <form method="POST" action="{{ route('accounts.payable.payment', $expense) }}">
+            @csrf
+            <div class="form-field">
+                <label>Valor * (máx: R$ {{ number_format($expense->amount, 2, ',', '.') }})</label>
+                <input type="number" name="amount" step="0.01" min="0.01" max="{{ $expense->amount }}" value="{{ $expense->amount }}" required>
+            </div>
+            <div class="form-field">
+                <label>Data do Pagamento *</label>
+                <input type="date" name="paid_at" value="{{ date('Y-m-d') }}" required>
+            </div>
+            <div class="form-field">
+                <label>Método de Pagamento *</label>
+                <select name="payment_method" required>
+                    <option value="">Selecione...</option>
+                    <option>Dinheiro</option>
+                    <option>PIX</option>
+                    <option>Transferência Bancária</option>
+                    <option>Boleto</option>
+                    <option>Cartão de Crédito</option>
+                    <option>Cartão de Débito</option>
+                    <option>Cheque</option>
+                    <option>Outro</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Descrição (opcional)</label>
+                <textarea name="description" rows="2"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px;">
+                <button type="button" onclick="document.getElementById('paymentModal').classList.remove('active')" class="btn-secondary" style="padding: 10px 18px;">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn-primary" style="padding: 10px 22px;">
+                    <i class="fas fa-check"></i> Confirmar Pagamento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endsection

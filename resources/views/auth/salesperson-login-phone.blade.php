@@ -261,7 +261,7 @@
 
             <div class="info-box">
                 <i class="fab fa-whatsapp"></i>
-                <span>Enviaremos um código de 6 dígitos através do WhatsApp.</span>
+                <span>Enviaremos o código de acesso e o link de entrada direta sem senha pelo WhatsApp.</span>
             </div>
 
             <form method="POST" action="{{ route('salesperson.login.request-code') }}">

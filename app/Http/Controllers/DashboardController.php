@@ -11,6 +11,7 @@ use App\Models\Route;
 use App\Models\Driver;
 use App\Models\Vehicle;
 use App\Models\FiscalDocument;
+use App\Models\CteXml;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -309,6 +310,12 @@ class DashboardController extends Controller
 
         $routesList = Route::where('tenant_id', $tenant->id)->orderBy('name')->get();
 
+        $cteXmlStats = [
+            'total' => CteXml::where('tenant_id', $tenant->id)->count(),
+            'used' => CteXml::where('tenant_id', $tenant->id)->where('is_used', true)->count(),
+            'unused' => CteXml::where('tenant_id', $tenant->id)->where('is_used', false)->count(),
+        ];
+
         return view('dashboard', compact(
             'shipmentsStats',
             'financialStats',
@@ -319,6 +326,7 @@ class DashboardController extends Controller
             'vehiclesStats',
             'performanceKpis',
             'fiscalStats',
+            'cteXmlStats',
             'recentShipments',
             'recentInvoices',
             'monthlyRevenue',

@@ -51,7 +51,6 @@ class EventServiceProvider extends ServiceProvider
 
         // Register Financial Observers
         \App\Models\DriverExpense::observe(\App\Observers\DriverExpenseObserver::class);
-        \App\Models\Route::observe(\App\Observers\RouteObserver::class);
     }
 
     /**

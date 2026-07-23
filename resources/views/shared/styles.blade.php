@@ -297,6 +297,46 @@
     .action-btn.delete-btn:hover {
         color: #d32f2f !important;
     }
+
+    /* Dark Theme Pagination Styling */
+    nav[role="navigation"] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        color: rgba(255,255,255,0.7);
+        margin-top: 20px;
+    }
+    nav[role="navigation"] svg {
+        width: 18px;
+        height: 18px;
+    }
+    nav[role="navigation"] a,
+    nav[role="navigation"] span[aria-current="page"] span,
+    nav[role="navigation"] span[aria-disabled="true"] span {
+        color: var(--cor-texto-claro) !important;
+        background-color: var(--cor-secundaria) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-radius: 6px !important;
+        padding: 8px 14px !important;
+        font-size: 0.9em !important;
+        text-decoration: none !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex;
+        align-items: center;
+    }
+    nav[role="navigation"] a:hover {
+        background-color: var(--cor-acento) !important;
+        color: var(--cor-principal) !important;
+        border-color: var(--cor-acento) !important;
+        font-weight: bold !important;
+    }
+    nav[role="navigation"] span[aria-current="page"] span {
+        background-color: var(--cor-acento) !important;
+        color: var(--cor-principal) !important;
+        border-color: var(--cor-acento) !important;
+        font-weight: 700 !important;
+    }
 </style>
 
 

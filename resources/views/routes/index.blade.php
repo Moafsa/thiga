@@ -140,6 +140,39 @@
     </a>
 </div>
 
+<!-- CT-e Statistics Summary Bar -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px;">
+    <div style="background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(var(--cor-acento-rgb), 0.1) 100%); border: 1px solid rgba(var(--cor-acento-rgb), 0.3); padding: 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="color: rgba(245,245,245,0.7); font-size: 0.85em; display: block; margin-bottom: 5px;">Total de CT-es Cadastradas</span>
+            <strong style="color: var(--cor-acento); font-size: 1.8em;">{{ number_format($totalCtes ?? 0, 0, ',', '.') }}</strong>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(var(--cor-acento-rgb), 0.2); display: flex; align-items: center; justify-content: center; color: var(--cor-acento); font-size: 1.4em;">
+            <i class="fas fa-file-code"></i>
+        </div>
+    </div>
+
+    <div style="background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(76, 175, 80, 0.1) 100%); border: 1px solid rgba(76, 175, 80, 0.3); padding: 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="color: rgba(245,245,245,0.7); font-size: 0.85em; display: block; margin-bottom: 5px;">CT-es Usadas em Rotas</span>
+            <strong style="color: #4caf50; font-size: 1.8em;">{{ number_format($usedCtes ?? 0, 0, ',', '.') }}</strong>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(76, 175, 80, 0.2); display: flex; align-items: center; justify-content: center; color: #4caf50; font-size: 1.4em;">
+            <i class="fas fa-check-circle"></i>
+        </div>
+    </div>
+
+    <div style="background: linear-gradient(135deg, var(--cor-secundaria) 0%, rgba(255, 152, 0, 0.1) 100%); border: 1px solid rgba(255, 152, 0, 0.3); padding: 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="color: rgba(245,245,245,0.7); font-size: 0.85em; display: block; margin-bottom: 5px;">CT-es a Usar (Disponíveis)</span>
+            <strong style="color: #ff9800; font-size: 1.8em;">{{ number_format($unusedCtes ?? 0, 0, ',', '.') }}</strong>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(255, 152, 0, 0.2); display: flex; align-items: center; justify-content: center; color: #ff9800; font-size: 1.4em;">
+            <i class="fas fa-clock"></i>
+        </div>
+    </div>
+</div>
+
 <!-- Barra de Busca e Filtros -->
 <div style="background-color: var(--cor-secundaria); padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.08);">
     <form action="{{ route('routes.index') }}" method="GET" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">

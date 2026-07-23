@@ -108,7 +108,7 @@ class RouteCreationWizard extends Component
         $this->dispatchBrowserEvent('close-manual-modal');
     }
 
-    public function updatedXmlFiles()
+    public function updatedXmlFiles($value = null)
     {
         $this->processXmlFiles();
     }
@@ -242,12 +242,12 @@ class RouteCreationWizard extends Component
         $this->autoGenerateRouteName();
     }
 
-    public function updatedOriginBranch()
+    public function updatedOriginBranch($value = null)
     {
         $this->autoGenerateRouteName();
     }
 
-    public function updatedManualCteNumbers()
+    public function updatedManualCteNumbers($value = null)
     {
         $this->processManualCteNumbers();
     }
@@ -345,7 +345,7 @@ class RouteCreationWizard extends Component
         }
     }
 
-    public function updatedSelectedShipments()
+    public function updatedSelectedShipments($value = null)
     {
         $this->calculateTotals();
     }
@@ -413,15 +413,43 @@ class RouteCreationWizard extends Component
 
         $tenant = Auth::user()->tenant;
 
+        $branchId = !empty($this->branch_id) ? $this->branch_id : null;
+        $startLat = null;
+        $startLng = null;
+
+        if ($branchId) {
+            $branch = \App\Models\Branch::find($branchId);
+            if ($branch) {
+                $startLat = $branch->latitude;
+                $startLng = $branch->longitude;
+            }
+        }
+
+        if (!$startLat || !$startLng) {
+            $firstBranch = \App\Models\Branch::where('tenant_id', $tenant->id)->first();
+            if ($firstBranch) {
+                $branchId = $branchId ?: $firstBranch->id;
+                $startLat = $firstBranch->latitude;
+                $startLng = $firstBranch->longitude;
+            }
+        }
+
+        if (!$startLat || !$startLng) {
+            $startLat = -23.550520;
+            $startLng = -46.633308;
+        }
+
         $route = \App\Models\Route::create([
             'tenant_id' => $tenant->id,
             'name' => $this->name,
             'scheduled_date' => $this->scheduled_date,
             'start_time' => $this->start_time ?: '08:00',
-            'driver_id' => $this->driver_id,
-            'vehicle_id' => $this->vehicle_id,
-            'branch_id' => $this->branch_id,
-            'origin_branch' => $this->origin_branch,
+            'driver_id' => !empty($this->driver_id) ? $this->driver_id : null,
+            'vehicle_id' => !empty($this->vehicle_id) ? $this->vehicle_id : null,
+            'branch_id' => $branchId,
+            'origin_branch' => !empty($this->origin_branch) ? $this->origin_branch : null,
+            'start_latitude' => $startLat,
+            'start_longitude' => $startLng,
             'status' => 'scheduled',
         ]);
 
@@ -534,14 +562,22 @@ class RouteCreationWizard extends Component
     {
         if ($value) {
             $tenant = Auth::user()->tenant;
+            $like = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
             $shipmentsQuery = Shipment::where('tenant_id', $tenant->id)->whereNull('route_id');
             if (!empty($this->searchShipment)) {
                 $search = trim($this->searchShipment);
-                $shipmentsQuery->where(function ($q) use ($search) {
-                    $q->where('tracking_number', 'like', "%{$search}%")
-                        ->orWhere('title', 'like', "%{$search}%")
-                        ->orWhere('receiver_name', 'like', "%{$search}%")
-                        ->orWhere('delivery_city', 'like', "%{$search}%");
+                $shipmentsQuery->where(function ($q) use ($search, $like) {
+                    if (is_numeric($search)) {
+                        $q->where('id', (int)$search);
+                    }
+                    $q->orWhere('tracking_number', $like, "%{$search}%")
+                        ->orWhere('title', $like, "%{$search}%")
+                        ->orWhere('tracking_code', $like, "%{$search}%")
+                        ->orWhere('recipient_name', $like, "%{$search}%")
+                        ->orWhere('cte_number', $like, "%{$search}%")
+                        ->orWhere('invoice_number', $like, "%{$search}%")
+                        ->orWhere('delivery_city', $like, "%{$search}%")
+                        ->orWhere('pickup_city', $like, "%{$search}%");
                 });
             }
             $allIds = $shipmentsQuery->pluck('id')->toArray();
@@ -555,20 +591,37 @@ class RouteCreationWizard extends Component
     public function render()
     {
         $tenant = Auth::user()->tenant;
+        $like = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
         $shipmentsQuery = Shipment::where('tenant_id', $tenant->id)->whereNull('route_id');
 
         if (!empty($this->searchShipment)) {
             $search = trim($this->searchShipment);
-            $shipmentsQuery->where(function ($q) use ($search) {
-                $q->where('tracking_number', 'like', "%{$search}%")
-                    ->orWhere('title', 'like', "%{$search}%")
-                    ->orWhere('receiver_name', 'like', "%{$search}%")
-                    ->orWhere('delivery_city', 'like', "%{$search}%");
+            $shipmentsQuery->where(function ($q) use ($search, $like) {
+                if (is_numeric($search)) {
+                    $q->where('id', (int)$search);
+                }
+                $q->orWhere('tracking_number', $like, "%{$search}%")
+                    ->orWhere('title', $like, "%{$search}%")
+                    ->orWhere('tracking_code', $like, "%{$search}%")
+                    ->orWhere('recipient_name', $like, "%{$search}%")
+                    ->orWhere('cte_number', $like, "%{$search}%")
+                    ->orWhere('invoice_number', $like, "%{$search}%")
+                    ->orWhere('delivery_city', $like, "%{$search}%")
+                    ->orWhere('pickup_city', $like, "%{$search}%");
             });
+            // When actively searching, search across the ENTIRE system without taking limit 200
+            $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            // When not searching, show 200 recent shipments
+            $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->take(200)->get();
         }
 
-        $availableShipments = $shipmentsQuery->orderBy('created_at', 'desc')->take(200)->get();
+        // Always ensure selected shipments are present in $availableShipments list so they appear in the table with green 'Add' badge
+        if (!empty($this->selectedShipments)) {
+            $selectedObj = Shipment::whereIn('id', $this->selectedShipments)->get();
+            $availableShipments = $availableShipments->merge($selectedObj)->unique('id')->values();
+        }
 
         $companies = \App\Models\Company::where('tenant_id', $tenant->id)->where('is_active', true)->get();
         $branches = Branch::where('tenant_id', $tenant->id)->where('is_active', true)->get();

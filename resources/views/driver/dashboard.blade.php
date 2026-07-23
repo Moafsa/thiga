@@ -1045,30 +1045,60 @@
     </button>
 </div>
 
-<!-- Location Tracking Toggle Card -->
-<div class="driver-card" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.12); padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px;">
-            <div id="location-icon-box" style="width: 48px; height: 48px; border-radius: 12px; background: rgba(239, 68, 68, 0.2); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; transition: all 0.3s ease;">
-                <i class="fas fa-satellite-dish" id="location-status-icon"></i>
-            </div>
-            <div>
-                <h3 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
-                    Compartilhar Localização (GPS)
-                </h3>
-                <p style="margin: 0; font-size: 0.82rem; color: #94a3b8; line-height: 1.3;" id="location-status-desc">
-                    Localização desligada — Você não está visível no Mapa do Admin.
-                </p>
-            </div>
+<!-- Compartilhar Localização (GPS) Card - Visível para TODOS os motoristas -->
+<div class="driver-card" style="background: var(--cor-secundaria); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h3 style="color: var(--cor-acento); font-size: 1.1em; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-satellite-dish"></i> Compartilhar Localização (GPS)
+            </h3>
+            <p id="gps-status-text" style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 0;">
+                Transmissão de localização em tempo real desativada
+            </p>
         </div>
-
-        <!-- Toggle Switch -->
-        <label style="position: relative; display: inline-block; width: 56px; height: 30px; cursor: pointer; flex-shrink: 0;">
-            <input type="checkbox" id="location-toggle-input" onchange="handleLocationToggle(this.checked)" style="opacity: 0; width: 0; height: 0;">
-            <span id="location-slider-track" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .3s; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);"></span>
-            <span id="location-slider-thumb" style="position: absolute; height: 22px; width: 22px; left: 4px; bottom: 3px; background-color: #94a3b8; transition: .3s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.4);"></span>
-        </label>
+        <div>
+            <label class="gps-switch" style="position: relative; display: inline-block; width: 56px; height: 30px; cursor: pointer;">
+                <input type="checkbox" id="gps-toggle-switch" style="opacity: 0; width: 0; height: 0;">
+                <span class="gps-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.25); transition: .3s ease; border-radius: 34px; border: 1px solid rgba(255,255,255,0.2);">
+                    <span class="gps-knob" style="position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: #ffffff; transition: .3s ease; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></span>
+                </span>
+            </label>
+        </div>
     </div>
+    <div id="gps-details-info" style="margin-top: 12px; font-size: 0.8em; color: rgba(245, 245, 245, 0.6); display: none;">
+        <span><i class="fas fa-location-arrow" style="color: #4caf50; margin-right: 5px;"></i> Transmitindo GPS a cada 15s</span>
+        <span id="gps-last-sent" style="float: right;"></span>
+    </div>
+</div>
+
+<style>
+#gps-toggle-switch:checked + .gps-slider {
+    background-color: #4caf50 !important;
+    border-color: #4caf50 !important;
+}
+#gps-toggle-switch:checked + .gps-slider .gps-knob {
+    transform: translateX(26px) !important;
+}
+</style>
+
+<!-- Navigation / Location Map (Sempre Visível) -->
+<div class="route-map-container" style="background-color: var(--cor-secundaria); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+        <h3 style="color: var(--cor-acento); margin: 0; font-size: 1.2em; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-map-marked-alt"></i>
+            @if($activeRoute && $activeRoute->shipments->isNotEmpty())
+                Mapa de Navegação da Rota
+            @else
+                Mapa de Navegação / Localização
+            @endif
+        </h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" onclick="centerMapOnDriver()" style="padding: 8px 14px; font-size: 0.85em; background: rgba(33,150,243,0.2); color: #2196F3; border: 1px solid #2196F3; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-crosshairs"></i> Minha Posição
+            </button>
+        </div>
+    </div>
+    <div id="route-map" style="width: 100%; height: 380px; border-radius: 10px; overflow: hidden; position: relative;"></div>
 </div>
 
 @if($activeRoute)
@@ -1090,115 +1120,165 @@
         </div>
     </div>
 
-    <!-- Route Map -->
-    @if($activeRoute && $activeRoute->shipments->isNotEmpty())
-    <div class="route-map-container">
-        <h3>
-            <i class="fas fa-map-marked-alt"></i>
-            Mapa da Rota
-        </h3>
-        <div id="route-map" style="width: 100%; height: 400px; border-radius: 10px; overflow: hidden;"></div>
+    <!-- Location Status -->
+    @if($driver->current_latitude && $driver->current_longitude)
+    <div class="driver-card">
+        <div class="driver-card-header">
+            <div class="driver-card-title">
+                <i class="fas fa-map-marker-alt"></i> Localização Ativa
+            </div>
+            <span class="status-badge delivered">
+                <i class="fas fa-check-circle"></i> Online
+            </span>
+        </div>
+        <p style="color: rgba(245, 245, 245, 0.7); font-size: 0.9em;">
+            Última atualização: {{ (isset($driver->attributes["last_location_update"]) && $driver->attributes["last_location_update"]) ? \Carbon\Carbon::parse($driver->attributes["last_location_update"])->diffForHumans() : "Nunca" }}
+        </p>
     </div>
     @endif
 
-    <!-- Shipments List -->
-    <div id="shipments">
-        <h2 style="color: var(--cor-acento); margin-bottom: 15px; font-size: 1.2em;">
-            <i class="fas fa-truck"></i> Entregas ({{ $shipments->count() }})
-        </h2>
+    <!-- Nested Timeline Route Section (Ordem de Entrega Otimizada) -->
+    <div id="shipments" style="margin-top: 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: var(--cor-acento); margin: 0; font-size: 1.2em; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-route"></i> Itinerário Otimizado da Rota ({{ $shipments->count() }} Entregas)
+            </h2>
+            <span style="background: rgba(33,150,243,0.2); color: #2196F3; border: 1px solid #2196F3; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600;">
+                <i class="fas fa-magic"></i> Melhor Caminho
+            </span>
+        </div>
+
         
-        @forelse($shipments as $shipment)
-        <div class="shipment-card" data-shipment-id="{{ $shipment->id }}">
-            <div class="shipment-card-header">
-                <div class="shipment-info">
-                    <h3>{{ $shipment->tracking_number }}</h3>
-                    <p>{{ $shipment->title }}</p>
-                    @if($shipment->receiverClient)
-                    <p><i class="fas fa-user"></i> {{ $shipment->receiverClient->name }}</p>
-                    @endif
-                    @if($shipment->delivery_address || $shipment->delivery_city || $shipment->delivery_state || $shipment->delivery_zip_code)
-                    <div class="address-info">
-                        <strong><i class="fas fa-map-marker-alt"></i> Endereço de Entrega:</strong>
-                        @if($shipment->delivery_address)
-                        <div class="address-line">
-                            <i class="fas fa-road"></i>{{ $shipment->delivery_address }}
-                        </div>
-                        @endif
-                        <div class="address-line">
-                            <i class="fas fa-city"></i>
-                            @if($shipment->delivery_city)
-                                {{ $shipment->delivery_city }}
-                            @endif
-                            @if($shipment->delivery_state)
-                                / {{ $shipment->delivery_state }}
-                            @endif
-                            @if($shipment->delivery_zip_code)
-                                - CEP: {{ $shipment->delivery_zip_code }}
-                            @endif
-                        </div>
+        @if($shipments->count() > 0)
+            <div class="nested-route-timeline" style="position: relative; padding-left: 28px; border-left: 3px dashed rgba(255,255,255,0.25); margin-left: 12px; margin-bottom: 20px;">
+
+                <!-- 1. PONTO DE PARTIDA (FILIAL / DEPÓSITO DE ORIGEM) -->
+                <div class="timeline-step-node" style="position: relative; margin-bottom: 25px;">
+                    <div style="position: absolute; left: -42px; top: 0; width: 28px; height: 28px; border-radius: 50%; background: #FF9800; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.85em; font-weight: bold; border: 2px solid var(--cor-principal); box-shadow: 0 0 10px rgba(255,152,0,0.5);">
+                        <i class="fas fa-warehouse"></i>
                     </div>
-                    @endif
+                    <div style="background: rgba(255,152,0,0.12); border: 1px solid rgba(255,152,0,0.3); border-radius: 10px; padding: 12px 16px;">
+                        <span style="color: #FF9800; font-weight: 700; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px;">Ponto de Partida (Carregamento)</span>
+                        <h4 style="color: #fff; margin: 4px 0 2px 0; font-size: 1em; font-weight: 600;">
+                            <i class="fas fa-building" style="color: var(--cor-acento);"></i> {{ $activeRoute->branch ? $activeRoute->branch->name : ($activeRoute->origin_branch ?: 'Origem da Carga') }}
+                        </h4>
+                        <p style="color: rgba(245,245,245,0.6); font-size: 0.8em; margin: 0;">Início da rota otimizada e partida do veículo</p>
+                    </div>
                 </div>
-                <span class="status-badge {{ $shipment->status }}">
-                    {{ ucfirst(str_replace('_', ' ', $shipment->status)) }}
-                </span>
-            </div>
-            
-            @if($shipment->delivery_latitude && $shipment->delivery_longitude)
-            <button class="nav-btn" onclick="openNavigation({{ $shipment->delivery_latitude }}, {{ $shipment->delivery_longitude }}, {{ json_encode($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state) }})">
-                <i class="fas fa-directions"></i> Abrir Navegação GPS
-            </button>
-            @endif
-            
-            {{-- Display delivery proofs with photos --}}
-            @if($shipment->deliveryProofs && $shipment->deliveryProofs->count() > 0)
-            <div class="proof-photos" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                <h4 style="color: var(--cor-acento); font-size: 0.9em; margin-bottom: 10px;">
-                    <i class="fas fa-camera"></i> Fotos de Comprovante
-                </h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
-                    @foreach($shipment->deliveryProofs as $proof)
-                        @foreach($proof->photo_urls as $photoUrl)
-                            @if($photoUrl)
-                                <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--cor-principal); border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : '#4CAF50' }};">
-                                    <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}', '{{ $proof->delivery_time->format('d/m/Y H:i') }}')">
-                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 5px; font-size: 0.7em; color: white; text-align: center;">
-                                        {{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Entrega' }}
+
+                <!-- 2. PARADAS ANINHADAS POR CT-E EM ORDEM OTIMIZADA -->
+                @foreach($shipments as $index => $shipment)
+                    @php
+                        $stepNumber = $index + 1;
+                        $isDelivered = $shipment->status === 'delivered';
+                        $isException = $shipment->status === 'exception';
+                        $isPending = !$isDelivered && !$isException;
+                        
+                        $nodeColor = $isDelivered ? '#4caf50' : ($isException ? '#f44336' : '#2196F3');
+                        $nodeIcon = $isDelivered ? 'check' : ($isException ? 'exclamation' : 'box');
+                    @endphp
+                    <div class="timeline-step-node shipment-node" data-shipment-id="{{ $shipment->id }}" style="position: relative; margin-bottom: 25px;">
+                        <!-- Node Circle Badge -->
+                        <div style="position: absolute; left: -42px; top: 12px; width: 28px; height: 28px; border-radius: 50%; background: {{ $nodeColor }}; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.85em; font-weight: bold; border: 2px solid var(--cor-principal); box-shadow: 0 0 10px {{ $nodeColor }}80;">
+                            {{ $stepNumber }}
+                        </div>
+
+                        <div class="shipment-card" data-shipment-id="{{ $shipment->id }}" style="margin-bottom: 0; background: var(--cor-secundaria); border-radius: 12px; padding: 18px; border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid {{ $nodeColor }};">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                                <div>
+                                    <span style="font-size: 0.75em; text-transform: uppercase; font-weight: 700; color: {{ $nodeColor }};">Parada {{ $stepNumber }} de {{ $shipments->count() }}</span>
+                                    <h3 style="color: var(--cor-acento); font-size: 1.1em; margin: 2px 0 4px 0;">
+                                        <i class="fas fa-barcode"></i> {{ $shipment->tracking_number }}
+                                    </h3>
+                                    @if($shipment->title)
+                                        <p style="color: var(--cor-texto-claro); font-size: 0.9em; font-weight: 600; margin: 0 0 4px 0;">{{ $shipment->title }}</p>
+                                    @endif
+                                </div>
+                                <span class="status-badge {{ $shipment->status }}" style="background: rgba({{ $isDelivered ? '76,175,80' : ($isException ? '244,67,54' : '33,150,243') }}, 0.2); color: {{ $nodeColor }}; border: 1px solid {{ $nodeColor }}; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85em;">
+                                    @if($isDelivered)
+                                        <i class="fas fa-check-circle"></i> Entregue
+                                    @elseif($isException)
+                                        <i class="fas fa-exclamation-triangle"></i> Não Entregue / Ocorrência
+                                    @else
+                                        <i class="fas fa-clock"></i> Pendente
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                @if($shipment->receiverClient)
+                                    <div style="font-size: 0.9em; color: var(--cor-texto-claro);">
+                                        <strong style="color: var(--cor-acento); display: block; font-size: 0.8em; text-transform: uppercase;">Recebedor / Cliente:</strong>
+                                        <i class="fas fa-user"></i> {{ $shipment->receiverClient->name }}
+                                    </div>
+                                @endif
+                                <div style="font-size: 0.9em; color: var(--cor-texto-claro);">
+                                    <strong style="color: rgba(245,245,245,0.7); display: block; font-size: 0.8em; text-transform: uppercase;">Endereço de Entrega:</strong>
+                                    <i class="fas fa-map-marker-alt" style="color: #f44336;"></i> 
+                                    {{ $shipment->delivery_address ?: ($shipment->delivery_city ? "{$shipment->delivery_city}/{$shipment->delivery_state}" : 'Endereço cadastrado') }}
+                                </div>
+                            </div>
+
+                            <!-- Botão GPS de Navegação -->
+                            @if($shipment->delivery_latitude && $shipment->delivery_longitude)
+                                <button type="button" class="nav-btn" onclick="openNavigation({{ $shipment->delivery_latitude }}, {{ $shipment->delivery_longitude }}, {{ json_encode($shipment->delivery_address . ', ' . $shipment->delivery_city . '/' . $shipment->delivery_state) }})" style="width: 100%; margin-bottom: 12px; padding: 10px; background: rgba(33,150,243,0.15); color: #2196F3; border: 1px solid #2196F3; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <i class="fas fa-directions"></i> Abrir Navegação GPS (Waze / Maps)
+                                </button>
+                            @endif
+
+                            <!-- Miniaturas de Comprovantes/Ocorrências -->
+                            @if($shipment->deliveryProofs && $shipment->deliveryProofs->count() > 0)
+                                <div class="proof-photos" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                                    <h4 style="color: var(--cor-acento); font-size: 0.85em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fas fa-camera"></i> Fotos e Assinaturas Registradas:
+                                    </h4>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                        @foreach($shipment->deliveryProofs as $proof)
+                                            @foreach($proof->photo_urls as $photoUrl)
+                                                @if($photoUrl)
+                                                    <div style="position: relative; width: 65px; height: 65px; border-radius: 8px; overflow: hidden; border: 2px solid {{ $proof->proof_type === 'pickup' ? '#FFD700' : ($proof->proof_type === 'other' ? '#f44336' : '#4CAF50') }}; background: #000;">
+                                                        <img src="{{ $photoUrl }}" alt="Comprovante" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('{{ $photoUrl }}', '{{ $proof->proof_type === 'pickup' ? 'Coleta' : 'Comprovante' }}', '{{ $proof->delivery_time ? $proof->delivery_time->format('d/m/Y H:i') : '' }}')">
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        @endforeach
                                     </div>
                                 </div>
                             @endif
-                        @endforeach
-                    @endforeach
+
+                            <!-- Ações Rápidas: Entregue vs Não Entregue -->
+                            <div class="shipment-actions" style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
+                                <button type="button" class="btn-action delivered" onclick="updateShipmentStatus({{ $shipment->id }}, 'delivered')" style="flex: 1; min-width: 130px; padding: 12px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; background: #4caf50; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.9em; box-shadow: 0 4px 10px rgba(76,175,80,0.3);">
+                                    <i class="fas fa-check-circle"></i> Entregue
+                                </button>
+                                
+                                <button type="button" class="btn-action exception" onclick="showExceptionModal({{ $shipment->id }})" style="flex: 1; min-width: 130px; padding: 12px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; background: #f44336; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.9em; box-shadow: 0 4px 10px rgba(244,67,54,0.3);">
+                                    <i class="fas fa-times-circle"></i> Não Entregue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+                <!-- 3. PONTO FINAL (DESTINO / RETORNO) -->
+                <div class="timeline-step-node" style="position: relative;">
+                    <div style="position: absolute; left: -42px; top: 0; width: 28px; height: 28px; border-radius: 50%; background: #9C27B0; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.85em; font-weight: bold; border: 2px solid var(--cor-principal); box-shadow: 0 0 10px rgba(156,39,176,0.5);">
+                        <i class="fas fa-flag-checkered"></i>
+                    </div>
+                    <div style="background: rgba(156,39,176,0.12); border: 1px solid rgba(156,39,176,0.3); border-radius: 10px; padding: 12px 16px;">
+                        <span style="color: #9C27B0; font-weight: 700; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px;">Conclusão da Rota</span>
+                        <h4 style="color: #fff; margin: 4px 0 2px 0; font-size: 1em; font-weight: 600;">Retorno à Base / Filial</h4>
+                        <p style="color: rgba(245,245,245,0.6); font-size: 0.8em; margin: 0;">Finalização do percurso e recolhimento</p>
+                    </div>
                 </div>
+
             </div>
-            @endif
-            
-            <div class="shipment-actions">
-                @if($shipment->status === 'pending' || $shipment->status === 'scheduled')
-                    @if(($shipment->shipment_type ?? 'delivery') === 'pickup')
-                        <button class="btn-action pickup" onclick="updateShipmentStatus({{ $shipment->id }}, 'picked_up')">
-                            <i class="fas fa-hand-holding"></i> Coletado
-                        </button>
-                    @else
-                        <button class="btn-action delivered" onclick="updateShipmentStatus({{ $shipment->id }}, 'delivered')">
-                            <i class="fas fa-check-circle"></i> Entregue
-                        </button>
-                    @endif
-                @endif
-                
-                @if($shipment->status === 'picked_up')
-                    <button class="btn-action delivered" onclick="updateShipmentStatus({{ $shipment->id }}, 'delivered')">
-                        <i class="fas fa-check-circle"></i> Entregue
-                    </button>
-                @endif
+        @else
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>Nenhuma entrega nesta rota</p>
             </div>
-        </div>
-        @empty
-        <div class="empty-state">
-            <i class="fas fa-inbox"></i>
-            <p>Nenhuma entrega nesta rota</p>
-        </div>
-        @endforelse
+        @endif
     </div>
 @else
     <div class="empty-state">
@@ -1357,155 +1437,263 @@
     </div>
     @endif
 
-    <!-- Completed Routes Timeline -->
-    @if(isset($routeHistory) && $routeHistory->count() > 0)
-    <div class="timeline-container">
-        <h3 style="color: var(--cor-acento); margin-bottom: 20px; font-size: 1.1em;">
-            <i class="fas fa-check-circle"></i> Rotas Concluídas
-        </h3>
-        <div class="timeline">
-            @foreach($routeHistory as $index => $history)
-            <div class="timeline-item">
-                <div class="timeline-marker" style="background: {{ $history->efficiency_badge_color === 'green' ? '#4caf50' : ($history->efficiency_badge_color === 'blue' ? '#2196F3' : ($history->efficiency_badge_color === 'yellow' ? '#ffc107' : '#f44336')) }};">
-                    <i class="fas fa-route"></i>
-                </div>
-                <div class="timeline-content">
-                    <div class="route-history-card">
-                        <div class="route-history-header-card">
-                            <div>
-                                <h4>{{ $history->route_name }}</h4>
-                                <p class="route-date">
-                                    <i class="fas fa-calendar"></i> {{ $history->completed_at->format('d/m/Y') }}
-                                    <span style="margin-left: 10px;">
-                                        <i class="fas fa-clock"></i> {{ $history->completed_at->format('H:i') }}
+    <!-- History Sub-Tabs Navigation -->
+    <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; flex-wrap: wrap;">
+        <button type="button" id="tab-btn-shipments-history" onclick="switchHistoryTab('shipments')" class="history-tab-btn active" style="flex: 1 1 130px; padding: 10px 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; background: var(--cor-acento); color: var(--cor-principal); font-size: 0.85em; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;">
+            <i class="fas fa-box"></i> Entregas Realizadas ({{ $completedShipments->count() }})
+        </button>
+        <button type="button" id="tab-btn-routes-history" onclick="switchHistoryTab('routes')" class="history-tab-btn" style="flex: 1 1 130px; padding: 10px 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.1); color: var(--cor-texto-claro); font-size: 0.85em; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;">
+            <i class="fas fa-route"></i> Rotas Concluídas ({{ $completedRoutes->count() }})
+        </button>
+    </div>
+
+    <!-- Completed Deliveries History List -->
+    <div id="history-shipments-tab" class="history-tab-content" style="max-width: 100%; overflow-x: hidden;">
+        @if(isset($completedShipments) && $completedShipments->count() > 0)
+            <div style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
+                @foreach($completedShipments as $cShipment)
+                    <div class="shipment-card" style="border-left: 4px solid #4caf50; background: var(--cor-secundaria); padding: 14px; border-radius: 12px; margin-bottom: 0; width: 100%; box-sizing: border-box; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                            <div style="max-width: 100%; overflow-wrap: anywhere;">
+                                <h3 style="color: var(--cor-acento); font-size: 1.05em; margin: 0 0 4px 0; word-break: break-word;">
+                                    <i class="fas fa-barcode"></i> {{ $cShipment->tracking_number }}
+                                </h3>
+                                @if($cShipment->title)
+                                    <p style="color: var(--cor-texto-claro); font-size: 0.85em; margin: 0 0 4px 0; font-weight: 600; word-break: break-word;">{{ $cShipment->title }}</p>
+                                @endif
+                            </div>
+                            <span class="status-badge delivered" style="background: rgba(76,175,80,0.2); color: #4caf50; border: 1px solid #4caf50; font-size: 0.75em; padding: 4px 8px;">
+                                <i class="fas fa-check-circle"></i> Entregue {{ $cShipment->updated_at ? $cShipment->updated_at->format('d/m/Y H:i') : '' }}
+                            </span>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box;">
+                            @if($cShipment->receiverClient)
+                                <div>
+                                    <span style="color: rgba(245,245,245,0.6); font-size: 0.75em; display: block;">Cliente / Recebedor:</span>
+                                    <span style="color: var(--cor-texto-claro); font-weight: 600; font-size: 0.85em; word-break: break-word;">
+                                        <i class="fas fa-user" style="color: var(--cor-acento);"></i> {{ $cShipment->receiverClient->name }}
                                     </span>
-                                </p>
-                            </div>
-                            <div class="efficiency-badge" style="background: rgba({{ $history->efficiency_badge_color === 'green' ? '76, 175, 80' : ($history->efficiency_badge_color === 'blue' ? '33, 150, 243' : ($history->efficiency_badge_color === 'yellow' ? '255, 193, 7' : '244, 67, 54')) }}, 0.2); border: 2px solid {{ $history->efficiency_badge_color === 'green' ? '#4caf50' : ($history->efficiency_badge_color === 'blue' ? '#2196F3' : ($history->efficiency_badge_color === 'yellow' ? '#ffc107' : '#f44336')) }};">
-                                <span style="font-size: 1.2em; font-weight: 700;">{{ number_format($history->efficiency_score ?? 0, 0) }}</span>
-                                <span style="font-size: 0.8em; opacity: 0.8;">pontos</span>
-                            </div>
-                        </div>
-                        
-                        <div class="route-stats-grid">
-                            <div class="route-stat">
-                                <i class="fas fa-route"></i>
-                                <div>
-                                    <span class="stat-label">Distância</span>
-                                    <span class="stat-value">{{ $history->formatted_distance }}</span>
                                 </div>
-                            </div>
-                            <div class="route-stat">
-                                <i class="fas fa-clock"></i>
-                                <div>
-                                    <span class="stat-label">Duração</span>
-                                    <span class="stat-value">{{ $history->formatted_duration }}</span>
-                                </div>
-                            </div>
-                            <div class="route-stat">
-                                <i class="fas fa-box"></i>
-                                <div>
-                                    <span class="stat-label">Entregas</span>
-                                    <span class="stat-value">{{ $history->delivered_shipments }}/{{ $history->total_shipments }}</span>
-                                </div>
-                            </div>
-                            <div class="route-stat">
-                                <i class="fas fa-tachometer-alt"></i>
-                                <div>
-                                    <span class="stat-label">Velocidade Média</span>
-                                    <span class="stat-value">{{ $history->average_speed_kmh ? number_format($history->average_speed_kmh, 0) . ' km/h' : 'N/A' }}</span>
-                                </div>
-                            </div>
-                        </div>
+                            @endif
 
-                        @if($history->achievement_badges && count($history->achievement_badges) > 0)
-                        <div class="achievements-section">
-                            <strong style="color: var(--cor-acento); font-size: 0.9em; display: block; margin-bottom: 8px;">
-                                <i class="fas fa-trophy"></i> Conquistas:
-                            </strong>
-                            <div class="achievements-list">
-                                @foreach($history->achievement_badges as $badge)
-                                <span class="achievement-badge" style="background: rgba({{ $badge['color'] === 'green' ? '76, 175, 80' : ($badge['color'] === 'blue' ? '33, 150, 243' : ($badge['color'] === 'gold' ? '255, 215, 0' : ($badge['color'] === 'purple' ? '156, 39, 176' : '255, 152, 0'))) }}, 0.2); border: 1px solid {{ $badge['color'] === 'green' ? '#4caf50' : ($badge['color'] === 'blue' ? '#2196F3' : ($badge['color'] === 'gold' ? '#FFD700' : ($badge['color'] === 'purple' ? '#9c27b0' : '#FF9800'))) }};">
-                                    <i class="fas fa-{{ $badge['icon'] }}"></i> {{ $badge['label'] }}
+                            <div>
+                                <span style="color: rgba(245,245,245,0.6); font-size: 0.75em; display: block;">Endereço de Entrega:</span>
+                                <span style="color: var(--cor-texto-claro); font-size: 0.85em; word-break: break-word;">
+                                    <i class="fas fa-map-marker-alt" style="color: #f44336;"></i> 
+                                    {{ $cShipment->delivery_address ?: ($cShipment->delivery_city ? "{$cShipment->delivery_city}/{$cShipment->delivery_state}" : 'Endereço registrado') }}
                                 </span>
-                                @endforeach
                             </div>
-                        </div>
-                        @endif
 
-                        @if($history->net_profit > 0)
-                        <div class="route-profit" style="margin-top: 10px; padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border-left: 3px solid #4caf50;">
-                            <strong style="color: #4caf50;">
-                                <i class="fas fa-dollar-sign"></i> Lucro: R$ {{ number_format($history->net_profit, 2, ',', '.') }}
-                            </strong>
+                            @if($cShipment->route)
+                                <div>
+                                    <span style="color: rgba(245,245,245,0.6); font-size: 0.75em; display: block;">Rota Realizada:</span>
+                                    <span style="color: var(--cor-acento); font-size: 0.85em; font-weight: 600; word-break: break-word;">
+                                        <i class="fas fa-route"></i> {{ $cShipment->route->name }}
+                                    </span>
+                                </div>
+                            @endif
                         </div>
+
+                        <!-- Proofs Thumbnails -->
+                        @if($cShipment->deliveryProofs && $cShipment->deliveryProofs->count() > 0)
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                                <strong style="color: var(--cor-acento); font-size: 0.85em; display: block; margin-bottom: 8px;">
+                                    <i class="fas fa-camera"></i> Comprovante e Assinatura Registrados:
+                                </strong>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    @foreach($cShipment->deliveryProofs as $dProof)
+                                        @if($dProof->photo_urls && count($dProof->photo_urls) > 0)
+                                            @foreach($dProof->photo_urls as $pUrl)
+                                                @if($pUrl)
+                                                    <div style="position: relative; width: 60px; height: 60px; border-radius: 6px; overflow: hidden; border: 2px solid #4caf50;">
+                                                        <img src="{{ $pUrl }}" alt="Foto" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openPhotoModal('{{ $pUrl }}', 'Comprovante', '{{ $dProof->delivery_time ? $dProof->delivery_time->format('d/m/Y H:i') : '' }}', 'Foto de Entrega')">
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                        @if($dProof->signature_url)
+                                            <div style="position: relative; width: 90px; height: 60px; border-radius: 6px; overflow: hidden; border: 2px solid #2196F3; background: #fff;">
+                                                <img src="{{ $dProof->signature_url }}" alt="Assinatura" style="width:100%; height:100%; object-fit:contain; cursor:pointer;" onclick="openPhotoModal('{{ $dProof->signature_url }}', 'Assinatura', '{{ $dProof->delivery_time ? $dProof->delivery_time->format('d/m/Y H:i') : '' }}', 'Recebedor: {{ addslashes($dProof->recipient_name ?? '') }}')">
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
                         @endif
                     </div>
-                </div>
+                @endforeach
             </div>
-            @endforeach
-        </div>
-        
-        <div style="text-align: center; margin-top: 20px;">
-            <button class="btn-primary" onclick="loadMoreHistory()" id="loadMoreBtn" style="display: none;">
-                <i class="fas fa-chevron-down"></i> Carregar Mais
-            </button>
-        </div>
+        @else
+            <div class="empty-state" style="margin: 20px 0;">
+                <i class="fas fa-box-open" style="font-size: 3em; opacity: 0.3;"></i>
+                <p style="margin-top: 15px;">Nenhuma entrega concluída registrada ainda.</p>
+            </div>
+        @endif
     </div>
-    @else
-    <div class="empty-state" style="margin-top: 20px;">
-        <i class="fas fa-history" style="font-size: 3em; opacity: 0.3;"></i>
-        <p style="margin-top: 15px;">Nenhuma rota concluída ainda.</p>
-        <p style="font-size: 0.9em; opacity: 0.7;">Seu histórico aparecerá aqui após completar rotas.</p>
+
+    <!-- Completed Routes History List -->
+    <div id="history-routes-tab" class="history-tab-content" style="display: none; max-width: 100%; overflow-x: hidden;">
+        @if(isset($completedRoutes) && $completedRoutes->count() > 0)
+            <div style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
+                @foreach($completedRoutes as $cRoute)
+                    <div style="background: var(--cor-principal); padding: 14px; border-radius: 12px; border-left: 4px solid var(--cor-acento); border: 1px solid rgba(255,255,255,0.1); width: 100%; box-sizing: border-box; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                            <div style="max-width: 100%; overflow-wrap: anywhere;">
+                                <h4 style="color: var(--cor-acento); font-size: 1.05em; margin: 0 0 5px 0; word-break: break-word;">
+                                    <i class="fas fa-route"></i> {{ $cRoute->name }}
+                                </h4>
+                                <p style="color: rgba(245,245,245,0.7); font-size: 0.8em; margin: 0;">
+                                    <i class="fas fa-calendar"></i> Agendada: {{ $cRoute->scheduled_date ? $cRoute->scheduled_date->format('d/m/Y') : 'N/A' }}
+                                    @if($cRoute->completed_at)
+                                        <span style="display: inline-block; margin-left: 6px; color: #4caf50;">
+                                            <i class="fas fa-check-circle"></i> Concluída: {{ $cRoute->completed_at->format('d/m/Y H:i') }}
+                                        </span>
+                                    @endif
+                                </p>
+                            </div>
+                            <span class="status-badge delivered" style="font-size: 0.75em; padding: 4px 8px;">Concluída</span>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%; box-sizing: border-box;">
+                            <div style="background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px;">
+                                <span style="color: rgba(245,245,245,0.6); font-size: 0.75em; display: block;">Total de Entregas:</span>
+                                <span style="color: var(--cor-texto-claro); font-weight: 700; font-size: 0.9em;">
+                                    <i class="fas fa-box" style="color: var(--cor-acento);"></i> {{ $cRoute->shipments->count() }} cargas
+                                </span>
+                            </div>
+                            @if($cRoute->vehicle)
+                                <div style="background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px;">
+                                    <span style="color: rgba(245,245,245,0.6); font-size: 0.75em; display: block;">Veículo Utilizado:</span>
+                                    <span style="color: var(--cor-texto-claro); font-weight: 600; font-size: 0.85em;">
+                                        <i class="fas fa-truck"></i> {{ $cRoute->vehicle->formatted_plate }}
+                                    </span>
+                                </div>
+                            @endif
+                            @if($cRoute->estimated_distance)
+                                <div style="background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px;">
+                                    <span style="color: rgba(245,245,245,0.6); font-size: 0.75em; display: block;">Distância Estimada:</span>
+                                    <span style="color: var(--cor-texto-claro); font-weight: 600; font-size: 0.85em;">
+                                        <i class="fas fa-road"></i> {{ number_format($cRoute->estimated_distance, 1, ',', '.') }} km
+                                    </span>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="empty-state" style="margin: 20px 0;">
+                <i class="fas fa-history" style="font-size: 3em; opacity: 0.3;"></i>
+                <p style="margin-top: 15px;">Nenhuma rota concluída registrada no histórico.</p>
+            </div>
+        @endif
     </div>
-    @endif
 </div>
 
-<!-- Status Update Modal -->
+<script>
+function switchHistoryTab(tab) {
+    const shipmentsTab = document.getElementById('history-shipments-tab');
+    const routesTab = document.getElementById('history-routes-tab');
+    const shipmentsBtn = document.getElementById('tab-btn-shipments-history');
+    const routesBtn = document.getElementById('tab-btn-routes-history');
+
+    if (tab === 'shipments') {
+        if (shipmentsTab) shipmentsTab.style.display = 'block';
+        if (routesTab) routesTab.style.display = 'none';
+        if (shipmentsBtn) {
+            shipmentsBtn.style.background = 'var(--cor-acento)';
+            shipmentsBtn.style.color = 'var(--cor-principal)';
+        }
+        if (routesBtn) {
+            routesBtn.style.background = 'rgba(255,255,255,0.1)';
+            routesBtn.style.color = 'var(--cor-texto-claro)';
+        }
+    } else {
+        if (shipmentsTab) shipmentsTab.style.display = 'none';
+        if (routesTab) routesTab.style.display = 'block';
+        if (routesBtn) {
+            routesBtn.style.background = 'var(--cor-acento)';
+            routesBtn.style.color = 'var(--cor-principal)';
+        }
+        if (shipmentsBtn) {
+            shipmentsBtn.style.background = 'rgba(255,255,255,0.1)';
+            shipmentsBtn.style.color = 'var(--cor-texto-claro)';
+        }
+    }
+}
+</script>
+
+<!-- Status Update Modal (Entregue / Não Entregue) -->
 <div id="statusModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 500px; border-radius: 15px;">
         <div class="modal-header">
-            <h3>Atualizar Status</h3>
+            <h3 id="modalTitleText" style="color: var(--cor-acento); font-size: 1.2em; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-clipboard-check"></i> Atualizar Status
+            </h3>
             <button class="close-modal" onclick="closeModal('statusModal')">&times;</button>
         </div>
         <form id="statusForm" onsubmit="submitStatusUpdate(event)">
             <input type="hidden" id="modalShipmentId" name="shipment_id">
             <input type="hidden" id="modalStatus" name="status">
             
-            <div class="file-input-wrapper">
-                <label for="proofPhoto" class="file-input-label">
-                    <i class="fas fa-camera"></i><br>
-                    <span>Adicionar Foto de Comprovante</span>
+            <!-- Motivo da Ocorrência (Exibido apenas para 'exception') -->
+            <div id="exception-reason-section" style="display: none; margin-bottom: 15px;">
+                <label style="color: #f44336; font-weight: 600; display: block; margin-bottom: 8px; font-size: 0.9em;">
+                    <i class="fas fa-exclamation-triangle"></i> Motivo da Não Entrega / Ocorrência *
                 </label>
-                <input type="file" id="proofPhoto" name="photo" accept="image/*" capture="environment" onchange="previewPhoto(this)">
-                <img id="photoPreview" class="photo-preview" style="display: none;">
+                <select name="exception_reason" id="exception_reason" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); font-size: 0.95em;">
+                    <option value="Cliente Ausente">🚪 Cliente Ausente / Fechado</option>
+                    <option value="Endereço Não Encontrado">📍 Endereço Não Encontrado / Inexistente</option>
+                    <option value="Recusado pelo Destinatário">🚫 Recusado pelo Destinatário</option>
+                    <option value="Mercadoria Avariada">📦 Mercadoria Avariada / Danificada</option>
+                    <option value="Estabelecimento Fechado">🏢 Estabelecimento Fechado</option>
+                    <option value="Dificuldade de Acesso / Segurança">⚠️ Dificuldade de Acesso / Segurança</option>
+                    <option value="Outros">❓ Outros Motivos (Descreva abaixo)</option>
+                </select>
+            </div>
+
+            <!-- Upload de Foto Obrigatório -->
+            <div class="file-input-wrapper" style="margin-bottom: 15px;">
+                <label for="proofPhoto" class="file-input-label" style="border: 2px dashed var(--cor-acento); border-radius: 10px; padding: 20px; text-align: center; display: block; cursor: pointer; background: rgba(0,0,0,0.2);">
+                    <i class="fas fa-camera" style="font-size: 2em; color: var(--cor-acento); margin-bottom: 8px;"></i><br>
+                    <span id="photoLabelText" style="font-weight: 600; color: #fff;">📸 Tirar / Adicionar Foto (Obrigatório) *</span><br>
+                    <small style="color: rgba(245,245,245,0.6); font-size: 0.75em;">Otimizada e comprimida automaticamente</small>
+                </label>
+                <input type="file" id="proofPhoto" name="photo" accept="image/*" capture="environment" onchange="previewPhoto(this)" style="display: none;" required>
+                <img id="photoPreview" class="photo-preview" style="display: none; width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; margin-top: 10px; border: 2px solid var(--cor-acento);">
+            </div>
+
+            <!-- Aviso de Coordenadas GPS -->
+            <div style="background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); border-radius: 8px; padding: 10px; margin-bottom: 15px; font-size: 0.8em; color: #2196F3; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-satellite-dish" style="font-size: 1.2em;"></i>
+                <span>Suas coordenadas GPS exatas serão vinculadas ao comprovante.</span>
             </div>
             
-            <!-- Signature block -->
+            <!-- Seção de Assinatura (Exibida apenas para 'delivered') -->
             <div id="signature-section" style="display: none; margin-bottom: 15px;">
-                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Dados do Recebedor</label>
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px; font-weight: 600;">Nome do Recebedor</label>
                 <input type="text" name="recipient_name" id="recipient_name" placeholder="Nome de quem recebeu" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); margin-bottom: 10px;">
                 <input type="text" name="recipient_document" id="recipient_document" placeholder="Documento (RG/CPF) - Opcional" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); margin-bottom: 10px;">
                 
-                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Assinatura do Recebedor</label>
+                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px; font-weight: 600;">Assinatura do Recebedor (Opcional)</label>
                 <div style="background: white; border-radius: 8px; overflow: hidden; position: relative; touch-action: none;">
-                    <canvas id="signature-pad" style="width: 100%; height: 200px; display: block;"></canvas>
+                    <canvas id="signature-pad" style="width: 100%; height: 180px; display: block;"></canvas>
                     <button type="button" onclick="if(window.signaturePad) window.signaturePad.clear()" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; color: white; border-radius: 4px; padding: 6px 12px; font-size: 0.85em; cursor: pointer; z-index: 10;">Limpar</button>
                 </div>
-                <!-- Hidden input that will hold base64 string -->
                 <input type="hidden" name="recipient_signature" id="recipient_signature">
             </div>
 
             <div style="margin-bottom: 15px;">
-                <label style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px;">Observações (opcional)</label>
-                <textarea name="notes" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); resize: none;"></textarea>
+                <label id="notesLabelText" style="color: var(--cor-texto-claro); display: block; margin-bottom: 8px; font-weight: 600;">Justificativa / Observações</label>
+                <textarea name="notes" id="statusNotes" rows="3" placeholder="Digite observações..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--cor-principal); color: var(--cor-texto-claro); resize: none;"></textarea>
             </div>
             
             <div style="display: flex; gap: 10px;">
-                <button type="submit" id="submitStatusBtn" class="btn-primary" style="flex: 1;">
+                <button type="submit" id="submitStatusBtn" class="btn-primary" style="flex: 1; padding: 12px; font-weight: 700;">
                     <i class="fas fa-check"></i> Confirmar
                 </button>
-                <button type="button" class="btn-secondary" onclick="closeModal('statusModal')" style="flex: 1;">
+                <button type="button" class="btn-secondary" onclick="closeModal('statusModal')" style="flex: 1; padding: 12px;">
                     Cancelar
                 </button>
             </div>
@@ -1605,23 +1793,43 @@
         document.getElementById('modalShipmentId').value = shipmentId;
         document.getElementById('modalStatus').value = status;
         
+        const modalTitle = document.getElementById('modalTitleText');
+        const photoLabel = document.getElementById('photoLabelText');
+        const notesLabel = document.getElementById('notesLabelText');
+        const notesInput = document.getElementById('statusNotes');
+        const exceptionSec = document.getElementById('exception-reason-section');
         const sigSection = document.getElementById('signature-section');
-        if (sigSection) {
-            sigSection.style.display = status === 'delivered' ? 'block' : 'none';
-            if (status === 'delivered') {
+        
+        if (status === 'delivered') {
+            if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-check-circle" style="color: #4caf50;"></i> Confirmar Entrega Realizada';
+            if (photoLabel) photoLabel.innerHTML = '📸 Foto da Entrega / Comprovante (Obrigatório) *';
+            if (notesLabel) notesLabel.innerHTML = 'Observações da Entrega (Opcional)';
+            if (notesInput) {
+                notesInput.placeholder = 'Comentários adicionais sobre a entrega...';
+                notesInput.required = false;
+            }
+            if (exceptionSec) exceptionSec.style.display = 'none';
+            if (sigSection) {
+                sigSection.style.display = 'block';
                 setTimeout(resizeCanvas, 50);
             }
+        } else if (status === 'exception') {
+            if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #f44336;"></i> Registrar Não Entrega / Ocorrência';
+            if (photoLabel) photoLabel.innerHTML = '📸 Foto da Ocorrência / Fachada (Obrigatório) *';
+            if (notesLabel) notesLabel.innerHTML = 'Justificativa Detalhada (Obrigatório) *';
+            if (notesInput) {
+                notesInput.placeholder = 'Descreva com detalhes o motivo pelo qual a entrega não pôde ser realizada...';
+                notesInput.required = true;
+            }
+            if (exceptionSec) exceptionSec.style.display = 'block';
+            if (sigSection) sigSection.style.display = 'none';
         }
         
         document.getElementById('statusModal').classList.add('active');
     }
 
     function showExceptionModal(shipmentId) {
-        currentShipmentId = shipmentId;
-        currentStatus = 'exception';
-        document.getElementById('modalShipmentId').value = shipmentId;
-        document.getElementById('modalStatus').value = 'exception';
-        document.getElementById('statusModal').classList.add('active');
+        updateShipmentStatus(shipmentId, 'exception');
     }
 
     function closeModal(modalId) {
@@ -1665,7 +1873,139 @@
         }
     }
 
-    // ========================================================
+    async function submitStatusUpdate(event) {
+        event.preventDefault();
+        
+        const photoFileInput = document.getElementById('proofPhoto');
+        if (!photoFileInput || !photoFileInput.files || !photoFileInput.files[0]) {
+            alert('⚠️ A foto é obrigatória! Por favor, tire ou selecione uma foto de comprovante/ocorrência.');
+            return;
+        }
+
+        const submitBtn = document.getElementById('submitStatusBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+        }
+        
+        const formEl = event.target;
+        const formData = new FormData(formEl);
+        const shipmentId = formData.get('shipment_id');
+        const status = formData.get('status');
+        const rawNotes = formData.get('notes') || '';
+        const exceptionReason = formData.get('exception_reason') || '';
+        const recipientName = formData.get('recipient_name') || '';
+        const recipientDocument = formData.get('recipient_document') || '';
+
+        if (status === 'exception' && !rawNotes && !exceptionReason) {
+            alert('⚠️ Por favor, forneça o motivo e a justificativa da não entrega.');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Confirmar';
+            }
+            return;
+        }
+
+        const notes = status === 'exception' ? `[${exceptionReason}] ${rawNotes}` : rawNotes;
+        
+        let signatureData = null;
+        if (status === 'delivered' && window.signaturePad && !window.signaturePad.isEmpty()) {
+            signatureData = window.signaturePad.toDataURL('image/png');
+        }
+        
+        // Get current geolocation coordinates
+        let lat = 0.00000000;
+        let lng = 0.00000000;
+        let accuracy = null;
+        
+        try {
+            const position = await new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 6000,
+                        maximumAge: 0
+                    });
+                } else {
+                    reject(new Error("Não suportado"));
+                }
+            });
+            lat = position.coords.latitude;
+            lng = position.coords.longitude;
+            accuracy = position.coords.accuracy;
+        } catch (e) {
+            console.warn('Geolocation not obtained, checking window caches', e);
+            if (window.driverCurrentLat && window.driverCurrentLng) {
+                lat = window.driverCurrentLat;
+                lng = window.driverCurrentLng;
+            }
+        }
+        
+        // Compress proof photo if attached
+        let compressedPhotoBase64 = null;
+        if (photoFileInput && photoFileInput.files && photoFileInput.files[0]) {
+            try {
+                if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Otimizando Foto...';
+                compressedPhotoBase64 = await compressPhoto(photoFileInput.files[0]);
+            } catch (err) {
+                console.error("Erro na compressão Canvas. Usando fallback bruto.", err);
+                try {
+                    compressedPhotoBase64 = await new Promise((res, rej) => {
+                        const reader = new FileReader();
+                        reader.onload = e => res(e.target.result);
+                        reader.onerror = rej;
+                        reader.readAsDataURL(photoFileInput.files[0]);
+                    });
+        // Prepare offline-friendly packet
+        const updatePayload = {
+            shipment_id: shipmentId,
+            status: status,
+            notes: notes,
+            recipient_name: recipientName,
+            recipient_document: recipientDocument,
+            recipient_signature: signatureData,
+            photo: compressedPhotoBase64,
+            latitude: lat,
+            longitude: lng,
+            accuracy: accuracy,
+            completed_at_offline: new Date().toISOString()
+        };
+        
+        // Force offline routing if strictly offline
+        if (!navigator.onLine) {
+            await handleOfflineSave(updatePayload);
+            return;
+        }
+        
+        // Try sending online
+        try {
+            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            
+            const submissionFormData = new FormData();
+            submissionFormData.append('shipment_id', shipmentId);
+            submissionFormData.append('status', status);
+            submissionFormData.append('notes', notes);
+            submissionFormData.append('recipient_name', recipientName);
+            submissionFormData.append('recipient_document', recipientDocument);
+            submissionFormData.append('latitude', lat);
+            submissionFormData.append('longitude', lng);
+            if (accuracy) submissionFormData.append('accuracy', accuracy);
+            
+            if (signatureData) {
+                submissionFormData.append('recipient_signature', signatureData);
+            }
+            
+            if (compressedPhotoBase64) {
+                const photoBlob = dataURLtoBlob(compressedPhotoBase64);
+                submissionFormData.append('photo', photoBlob, 'photo.jpg');
+            }
+            
+            await performOnlineSubmit(submissionFormData, shipmentId);
+        } catch (error) {
+            console.warn("Falha de rede ao transmitir status. Salvando na fila local offline.", error);
+            await handleOfflineSave(updatePayload);
+        }
+    }
     // IndexedDB & Offline Queue Management
     // ========================================================
     const DB_NAME = 'thiga_driver_pwa';
@@ -2257,32 +2597,155 @@
         }
     }
 
-    // Auto-update location from browser geolocation
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(function(position) {
-            const routeId = window.routeId || null;
-            
-            // Update location on server using web endpoint (session auth)
-            fetch('/driver/location/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                },
-                body: JSON.stringify({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    route_id: routeId,
-                })
+    // Realtime GPS Tracking System with localStorage persistence & 15s safety interval
+    let gpsWatchId = null;
+    let gpsIntervalId = null;
+    let lastKnownPosition = null;
+
+    function sendGpsLocation(position) {
+        if (!position || !position.coords) return;
+        lastKnownPosition = position;
+        const routeId = window.routeId || null;
+        const lat = parseFloat(position.coords.latitude);
+        const lng = parseFloat(position.coords.longitude);
+        const accuracy = position.coords.accuracy || 0;
+
+        fetch('/driver/location/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({
+                latitude: lat,
+                longitude: lng,
+                accuracy: accuracy,
+                route_id: routeId,
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Location updated on server:', data);
-            })
-            .catch(err => {
-                console.error('Error updating location on server:', err);
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('GPS Location updated on server:', data);
+            const lastSentElem = document.getElementById('gps-last-sent');
+            if (lastSentElem) {
+                lastSentElem.textContent = 'Enviado às ' + new Date().toLocaleTimeString('pt-BR');
+            }
+        })
+        .catch(err => {
+            console.error('Error updating GPS location:', err);
+        });
+
+        // Also update local variables for route map if available
+        window.driverCurrentLat = lat;
+        window.driverCurrentLng = lng;
+        if (window.driverMarker && window.routeMap && typeof window.routeMap.updateMarker === 'function') {
+            window.routeMap.updateMarker(window.driverMarker, { lat: lat, lng: lng });
+        }
+    }
+
+    function centerMapOnDriver() {
+        if (window.driverCurrentLat && window.driverCurrentLng && window.routeMap) {
+            if (typeof window.routeMap.setCenter === 'function') {
+                window.routeMap.setCenter([parseFloat(window.driverCurrentLng), parseFloat(window.driverCurrentLat)], 15);
+            } else if (typeof window.routeMap.flyTo === 'function') {
+                window.routeMap.flyTo({ center: [parseFloat(window.driverCurrentLng), parseFloat(window.driverCurrentLat)], zoom: 15 });
+            }
+        } else if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                window.driverCurrentLat = lat;
+                window.driverCurrentLng = lng;
+                if (window.routeMap) {
+                    if (typeof window.routeMap.setCenter === 'function') {
+                        window.routeMap.setCenter([lng, lat], 15);
+                    } else if (typeof window.routeMap.flyTo === 'function') {
+                        window.routeMap.flyTo({ center: [lng, lat], zoom: 15 });
+                    }
+                }
+            }, function(err) {
+                console.warn('Geolocation position error:', err);
+            }, { enableHighAccuracy: true });
+        }
+    }
+
+    function startGpsTracking() {
+        if (!navigator.geolocation) {
+            console.warn('Geolocalização não é suportada por este navegador.');
+            return;
+        }
+
+        const statusText = document.getElementById('gps-status-text');
+        const detailsInfo = document.getElementById('gps-details-info');
+        if (statusText) {
+            statusText.textContent = 'Transmissão em tempo real ATIVADA';
+            statusText.style.color = '#4caf50';
+        }
+        if (detailsInfo) detailsInfo.style.display = 'block';
+
+        // 1. Watch position
+        if (gpsWatchId === null) {
+            gpsWatchId = navigator.geolocation.watchPosition(
+                sendGpsLocation,
+                function(err) { console.warn('GPS Watch error:', err); },
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+            );
+        }
+
+        // 2. Safety fallback interval every 15s
+        if (gpsIntervalId === null) {
+            gpsIntervalId = setInterval(function() {
+                if (lastKnownPosition) {
+                    sendGpsLocation(lastKnownPosition);
+                } else if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(sendGpsLocation, function(err) {
+                        console.warn('GPS interval getCurrentPosition error:', err);
+                    }, { enableHighAccuracy: true, timeout: 10000 });
+                }
+            }, 15000);
+        }
+    }
+
+    function stopGpsTracking() {
+        if (gpsWatchId !== null) {
+            navigator.geolocation.clearWatch(gpsWatchId);
+            gpsWatchId = null;
+        }
+        if (gpsIntervalId !== null) {
+            clearInterval(gpsIntervalId);
+            gpsIntervalId = null;
+        }
+        const statusText = document.getElementById('gps-status-text');
+        const detailsInfo = document.getElementById('gps-details-info');
+        if (statusText) {
+            statusText.textContent = 'Transmissão de localização em tempo real desativada';
+            statusText.style.color = 'rgba(245, 245, 245, 0.7)';
+        }
+        if (detailsInfo) detailsInfo.style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const gpsToggle = document.getElementById('gps-toggle-switch');
+        if (gpsToggle) {
+            // Restore persisted state from localStorage (default: true for driver tracking)
+            const storedState = localStorage.getItem('driver_gps_enabled');
+            const isEnabled = storedState === null ? true : (storedState === 'true');
+            gpsToggle.checked = isEnabled;
+
+            if (isEnabled) {
+                startGpsTracking();
+            }
+
+            gpsToggle.addEventListener('change', function() {
+                localStorage.setItem('driver_gps_enabled', this.checked);
+                if (this.checked) {
+                    startGpsTracking();
+                } else {
+                    stopGpsTracking();
+                }
             });
+        }
+    });
             
             // Update map marker immediately for better UX
             if (window.routeMap) {
@@ -3536,4 +3999,99 @@
     <i class="fas fa-bell-slash"></i>
     <span>Ativar Notificações</span>
 </button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const driverForm = document.getElementById('driver-ai-form');
+    const driverInput = document.getElementById('driver-ai-input');
+    const driverMessages = document.getElementById('driver-ai-messages');
+
+    document.querySelectorAll('.driver-ai-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            if (driverInput && driverForm) {
+                driverInput.value = this.getAttribute('data-msg');
+                driverForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    });
+
+    if (driverForm) {
+        driverForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const msg = driverInput.value.trim();
+            if (!msg) return;
+
+            appendDriverMsg('user', msg);
+            driverInput.value = '';
+
+            const loadingId = 'loading-' + Date.now();
+            const loadDiv = document.createElement('div');
+            loadDiv.id = loadingId;
+            loadDiv.style.color = '#a78bfa';
+            loadDiv.style.fontSize = '0.82em';
+            loadDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando gasto e otimizando rota...';
+            driverMessages.appendChild(loadDiv);
+            driverMessages.scrollTop = driverMessages.scrollHeight;
+
+            try {
+                const res = await fetch('/driver/ai-copilot/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                const loadEl = document.getElementById(loadingId);
+                if (loadEl) loadEl.remove();
+
+                if (data.reply) {
+                    appendDriverMsg('ai', data.reply);
+                } else {
+                    appendDriverMsg('ai', '⚠️ Não foi possível processar seu gasto.');
+                }
+            } catch (err) {
+                const loadEl = document.getElementById(loadingId);
+                if (loadEl) loadEl.remove();
+                appendDriverMsg('ai', '❌ Erro de comunicação com o servidor.');
+            }
+        });
+    }
+
+    function appendDriverMsg(sender, text) {
+        if (!driverMessages) return;
+        const div = document.createElement('div');
+        if (sender === 'user') {
+            div.style.alignSelf = 'flex-end';
+            div.style.background = 'var(--cor-acento)';
+            div.style.color = 'var(--cor-principal)';
+            div.style.fontWeight = '600';
+            div.style.borderRadius = '10px 10px 2px 10px';
+            div.style.padding = '8px 12px';
+            div.style.fontSize = '0.85em';
+            div.style.maxWidth = '85%';
+            div.textContent = text;
+        } else {
+            div.style.alignSelf = 'flex-start';
+            div.style.background = 'rgba(15, 23, 42, 0.9)';
+            div.style.border = '1px solid rgba(139, 92, 246, 0.3)';
+            div.style.color = '#e2e8f0';
+            div.style.borderRadius = '10px 10px 10px 2px';
+            div.style.padding = '10px 14px';
+            div.style.fontSize = '0.85em';
+            div.style.maxWidth = '90%';
+            div.style.lineHeight = '1.4';
+
+            let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                .replace(/\n/g, '<br>');
+            div.innerHTML = formatted;
+        }
+        driverMessages.appendChild(div);
+        driverMessages.scrollTop = driverMessages.scrollHeight;
+    }
+});
+</script>
 @endpush

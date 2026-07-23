@@ -50,7 +50,11 @@ class CteXmlController extends Controller
 
         $cteXmls = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        return view('cte-xmls.index', compact('cteXmls'));
+        $totalCtes = CteXml::where('tenant_id', $tenant->id)->count();
+        $usedCtes = CteXml::where('tenant_id', $tenant->id)->where('is_used', true)->count();
+        $unusedCtes = CteXml::where('tenant_id', $tenant->id)->where('is_used', false)->count();
+
+        return view('cte-xmls.index', compact('cteXmls', 'totalCtes', 'usedCtes', 'unusedCtes'));
     }
 
     /**

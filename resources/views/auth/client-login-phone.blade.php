@@ -283,7 +283,7 @@
 
             <div class="info-box">
                 <i class="fas fa-key"></i>
-                <span>Enviaremos um código de 6 dígitos por <strong>WhatsApp</strong> (telefone) ou por <strong>e-mail</strong>, conforme o que você informar.</span>
+                <span>Enviaremos o código de acesso e o link de entrada direta sem senha por <strong>WhatsApp</strong> ou por <strong>e-mail</strong>.</span>
             </div>
 
             <form method="POST" action="{{ route('client.login.request-code') }}">

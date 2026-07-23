@@ -74,14 +74,16 @@ class PushSubscriptionController extends Controller
     public function vapidPublicKey()
     {
         $service = app(PushNotificationService::class);
-        $key = $service->getPublicKey();
-        if (empty($key)) {
-            $key = 'BKLXAlSPCOXKhKzMqDsj_NjobdO__j6HXn_gRPRsJmJitjlf3k1zwwswbhG6hBa-ILuYYg_UGvCekMbX4aeTAls';
+        $publicKey = $service->getPublicKey();
+        $fallbackKey = 'BKLXAlSPCOXKhKzMqDsj_NjobdO__j6HXn_gRPRsJmJitjlf3k1zwwswbhG6hBa-ILuYYg_UGvCekMbX4aeTAls';
+
+        if (empty($publicKey)) {
+            $publicKey = $fallbackKey;
         }
 
         return response()->json([
-            'publicKey' => $key,
-            'configured' => true,
+            'publicKey' => $publicKey,
+            'configured' => !empty($publicKey),
         ]);
     }
 

@@ -36,8 +36,24 @@
 
     @php
         $grouped = $results->groupBy('type');
-        $typeLabels = ['client' => 'Clientes', 'shipment' => 'Cargas', 'driver' => 'Motoristas', 'route' => 'Rotas'];
-        $typeIcons  = ['client' => 'fa-user-friends', 'shipment' => 'fa-truck-loading', 'driver' => 'fa-user-tie', 'route' => 'fa-route'];
+        $typeLabels = [
+            'client' => 'Clientes',
+            'salesperson' => 'Vendedores',
+            'shipment' => 'Cargas',
+            'driver' => 'Motoristas',
+            'vehicle' => 'Veículos',
+            'route' => 'Rotas',
+            'cte_xml' => 'CT-e XMLs'
+        ];
+        $typeIcons  = [
+            'client' => 'fa-user-friends',
+            'salesperson' => 'fa-store',
+            'shipment' => 'fa-truck-loading',
+            'driver' => 'fa-user-tie',
+            'vehicle' => 'fa-truck',
+            'route' => 'fa-route',
+            'cte_xml' => 'fa-file-code'
+        ];
     @endphp
 
     @foreach($grouped as $type => $items)

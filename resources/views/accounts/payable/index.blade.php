@@ -9,7 +9,46 @@
     .status-paid { background-color: rgba(76, 175, 80, 0.2); color: #4caf50; }
     .status-overdue { background-color: rgba(244, 67, 54, 0.2); color: #f44336; }
     .status-pending { background-color: rgba(255, 193, 7, 0.2); color: #ffc107; }
-    
+
+    /* Horizontal filter bar */
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        align-items: end;
+    }
+    .filter-group label {
+        display: block;
+        font-size: 0.78em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(245,245,245,0.55);
+        margin-bottom: 6px;
+    }
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 9px 12px;
+        background: var(--cor-principal);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px;
+        color: var(--cor-texto-claro);
+        font-size: 0.9em;
+        transition: border-color 0.2s;
+    }
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: var(--cor-acento);
+    }
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        padding-top: 22px;
+    }
+
     .modal {
         position: fixed;
         inset: 0;
@@ -155,7 +194,7 @@
 </div>
 
 <!-- Filters -->
-<div class="card">
+<div class="card" style="padding: 20px 24px;">
     <form method="GET" action="{{ route('accounts.payable.index') }}">
         <div class="filters-grid">
             <div class="filter-group">
@@ -164,6 +203,7 @@
                     <option value="">Todos</option>
                     <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pendentes</option>
                     <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Pagas</option>
+                    <option value="overdue" {{ request('status') === 'overdue' ? 'selected' : '' }}>Vencidas</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -185,15 +225,14 @@
                 <label>Data Final</label>
                 <input type="date" name="end_date" value="{{ request('end_date') }}">
             </div>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
-            <a href="{{ route('accounts.payable.index') }}" class="btn-secondary">
-                Limpar
-            </a>
-            <button type="submit" class="btn-primary">
-                <i class="fas fa-search"></i>
-                Filtrar
-            </button>
+            <div class="filter-actions">
+                <a href="{{ route('accounts.payable.index') }}" class="btn-secondary" style="padding: 9px 14px; white-space: nowrap;">
+                    <i class="fas fa-times"></i> Limpar
+                </a>
+                <button type="submit" class="btn-primary" style="padding: 9px 16px; white-space: nowrap;">
+                    <i class="fas fa-search"></i> Filtrar
+                </button>
+            </div>
         </div>
     </form>
 </div>
@@ -288,6 +327,13 @@
                                         <i class="fas fa-money-bill-wave"></i>
                                     </button>
                                 @endif
+                                <form method="POST" action="{{ route('accounts.payable.destroy', $expense) }}" style="display: inline;" onsubmit="return confirm('⚠️ Tem certeza que deseja excluir esta despesa permanentemente?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="action-btn" title="Excluir Despesa" style="background: none; border: none; color: #ef4444; cursor: pointer;">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>

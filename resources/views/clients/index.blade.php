@@ -266,6 +266,9 @@
                     </div>
                 </div>
                 <div class="client-actions">
+                    <button type="button" onclick="navigator.clipboard.writeText('{{ $client->autologin_url }}'); alert('Link de Auto-Login de {{ addslashes($client->name) }} copiado!');" class="action-btn" title="Copiar Link de Auto-Login" style="color: var(--cor-acento); background: none; border: none; padding: 0; cursor: pointer;">
+                        <i class="fas fa-link"></i>
+                    </button>
                     <a href="{{ route('clients.show', $client) }}" class="action-btn" title="Ver detalhes">
                         <i class="fas fa-eye"></i>
                     </a>

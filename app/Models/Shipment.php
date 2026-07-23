@@ -245,6 +245,14 @@ class Shipment extends Model
     {
         return $this->hasOne(RouteSpaceBooking::class, 'shipment_id');
     }
+
+    /**
+     * Accessor for receiver_name (maps to recipient_name for backward compatibility)
+     */
+    public function getReceiverNameAttribute()
+    {
+        return $this->attributes['recipient_name'] ?? $this->attributes['receiver_name'] ?? ($this->receiverClient->name ?? null);
+    }
 }
 
 

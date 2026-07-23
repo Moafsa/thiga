@@ -634,12 +634,14 @@
         if (!input) return;
 
         const typeIcons = {
-            client: 'fa-user-friends', shipment: 'fa-truck-loading',
-            driver: 'fa-user-tie',     route: 'fa-route'
+            client: 'fa-user-friends', salesperson: 'fa-store', shipment: 'fa-truck-loading',
+            driver: 'fa-user-tie',     route: 'fa-route',
+            vehicle: 'fa-truck',       cte_xml: 'fa-file-code'
         };
 
         const typeLabels = {
-            client: 'Cliente', shipment: 'Carga', driver: 'Motorista', route: 'Rota'
+            client: 'Cliente', salesperson: 'Vendedor', shipment: 'Carga', driver: 'Motorista', route: 'Rota',
+            vehicle: 'Veículo', cte_xml: 'CT-e'
         };
 
         let debounce;
@@ -719,8 +721,240 @@
     })();
     </script>
     
+    <!-- Compact Floating Luah IA Button -->
+    <div id="floating-sofia-wrapper" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; align-items: center; gap: 4px;">
+        <button type="button" id="floating-graphify-ai-btn" title="Luah Assistente" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; border: none; border-radius: 30px; padding: 8px 14px; font-weight: 700; box-shadow: 0 4px 15px rgba(109, 40, 217, 0.4); cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: 'Poppins', sans-serif; transition: all 0.2s ease; font-size: 0.8em;">
+            <i class="fas fa-sparkles" style="font-size: 1.1em; color: #fde047;"></i>
+            <span>Luah</span>
+        </button>
+        <button type="button" id="dismiss-sofia-btn" title="Ocultar assistente" style="background: rgba(15, 23, 42, 0.85); color: #94a3b8; border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.7em; backdrop-filter: blur(4px); transition: all 0.2s ease;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Re-open Badge (visible when dismissed) -->
+    <button type="button" id="reopen-sofia-btn" title="Abrir Luah Assistente" style="display: none; position: fixed; bottom: 15px; right: 15px; z-index: 9999; background: #6d28d9; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 36px; height: 36px; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); cursor: pointer; font-size: 0.85em;">
+        <i class="fas fa-sparkles" style="color: #fde047;"></i>
+    </button>
+
+    <!-- Luah IA Drawer Modal -->
+    <div id="graphify-ai-drawer" style="display: none; position: fixed; top: 0; right: 0; bottom: 0; width: 440px; max-width: 100vw; background: #0f172a; border-left: 1px solid rgba(139, 92, 246, 0.3); box-shadow: -10px 0 30px rgba(0,0,0,0.6); z-index: 10000; flex-direction: column; font-family: 'Poppins', sans-serif; transition: all 0.3s ease;">
+        <!-- Drawer Header -->
+        <div style="background: linear-gradient(135deg, #1e1b4b 0%, #311b92 100%); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: #a78bfa; font-size: 1.2em;">
+                    <i class="fas fa-sparkles"></i>
+                </div>
+                <div>
+                    <h3 style="color: #fff; margin: 0; font-size: 1.1em; font-weight: 700;">Luah - Assistente Virtual</h3>
+                    <span style="color: #a78bfa; font-size: 0.75em; display: flex; align-items: center; gap: 4px;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span> Conectada ao Sistema
+                    </span>
+                </div>
+            </div>
+            <button type="button" id="close-graphify-ai-btn" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.3em; cursor: pointer; padding: 4px;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Quick Actions Suggestions -->
+        <div style="padding: 12px 16px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;">
+            <button type="button" class="ai-chip-btn" data-prompt="Qual o resumo financeiro completo?" style="white-space: nowrap; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.78em; cursor: pointer;">
+                💰 Resumo Financeiro
+            </button>
+            <button type="button" class="ai-chip-btn" data-prompt="Quantos veículos e caminhões tenho cadastrados?" style="white-space: nowrap; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.78em; cursor: pointer;">
+                🚚 Frota de Veículos
+            </button>
+            <button type="button" class="ai-chip-btn" data-prompt="Liste os motoristas ativos" style="white-space: nowrap; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.78em; cursor: pointer;">
+                👤 Motoristas Ativos
+            </button>
+            <button type="button" class="ai-chip-btn" data-prompt="Quais rotas estão ativas ou agendadas?" style="white-space: nowrap; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.78em; cursor: pointer;">
+                🗺️ Rotas Ativas
+            </button>
+            <button type="button" class="ai-chip-btn" data-prompt="Quantos CT-es temos disponíveis para uso?" style="white-space: nowrap; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.78em; cursor: pointer;">
+                📄 Consultar CT-es
+            </button>
+            <button type="button" class="ai-chip-btn" data-prompt="Como usar o sistema e onde clicar?" style="white-space: nowrap; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 0.78em; cursor: pointer;">
+                🎓 Guia do Sistema
+            </button>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <div id="ai-chat-messages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
+            <div style="background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 14px; padding: 16px; color: #e2e8f0; font-size: 0.92em; line-height: 1.6;">
+                👋 Olá! Sou a <strong>Luah</strong>, sua assistente virtual de inteligência logística e financeira.<br><br>
+                <strong>O que posso fazer por você hoje?</strong><br>
+                Pode me pedir para criar rotas, lançar faturas/despesas, cadastrar motoristas ou qualquer consulta no sistema!
+            </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div style="padding: 16px; background: #1e293b; border-top: 1px solid rgba(255,255,255,0.08);">
+            <form id="ai-chat-form" style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="ai-chat-input" placeholder="O que você precisa fazer agora?" style="flex: 1; background: #0f172a; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 12px 14px; color: #fff; font-size: 0.9em; outline: none;">
+                <button type="submit" id="ai-chat-submit" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; border: none; border-radius: 8px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 1.1em;">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script src="{{ asset('js/viacep.js') }}"></script>
-    @livewireScripts
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const openBtn = document.getElementById('open-graphify-ai-btn');
+        const floatBtn = document.getElementById('floating-graphify-ai-btn');
+        const closeBtn = document.getElementById('close-graphify-ai-btn');
+        const drawer = document.getElementById('graphify-ai-drawer');
+        const chatForm = document.getElementById('ai-chat-form');
+        const chatInput = document.getElementById('ai-chat-input');
+        const chatMessages = document.getElementById('ai-chat-messages');
+
+        function toggleDrawer(show) {
+            if (!drawer) return;
+            drawer.style.display = show ? 'flex' : 'none';
+            if (show && chatInput) chatInput.focus();
+        }
+
+        if (openBtn) openBtn.addEventListener('click', () => toggleDrawer(true));
+        if (floatBtn) floatBtn.addEventListener('click', () => toggleDrawer(true));
+        if (closeBtn) closeBtn.addEventListener('click', () => toggleDrawer(false));
+
+        const wrapper = document.getElementById('floating-sofia-wrapper');
+        const dismissBtn = document.getElementById('dismiss-sofia-btn');
+        const reopenBtn = document.getElementById('reopen-sofia-btn');
+
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (wrapper) wrapper.style.display = 'none';
+                if (reopenBtn) reopenBtn.style.display = 'flex';
+                localStorage.setItem('sofia_btn_dismissed', 'true');
+            });
+        }
+
+        if (reopenBtn) {
+            reopenBtn.addEventListener('click', function() {
+                if (wrapper) wrapper.style.display = 'flex';
+                if (reopenBtn) reopenBtn.style.display = 'none';
+                localStorage.removeItem('sofia_btn_dismissed');
+                toggleDrawer(true);
+            });
+        }
+
+        if (localStorage.getItem('sofia_btn_dismissed') === 'true') {
+            if (wrapper) wrapper.style.display = 'none';
+            if (reopenBtn) reopenBtn.style.display = 'flex';
+        }
+
+        // Handle Quick Action Chips
+        document.querySelectorAll('.ai-chip-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const prompt = this.getAttribute('data-prompt');
+                if (chatInput) {
+                    chatInput.value = prompt;
+                    chatForm.dispatchEvent(new Event('submit'));
+                }
+            });
+        });
+
+        if (chatForm) {
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                // Append User Message
+                appendMessage('user', message);
+                chatInput.value = '';
+
+                // Loading state
+                const loadingId = appendLoading();
+
+                try {
+                    const response = await fetch('{{ route("ai-assistant.query") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+
+                    const data = await response.json();
+                    removeLoading(loadingId);
+
+                    if (data.reply) {
+                        appendMessage('ai', data.reply);
+                    } else if (data.message) {
+                        appendMessage('ai', '⚠️ ' + data.message);
+                    } else {
+                        appendMessage('ai', '⚠️ Não foi possível processar a solicitação no momento.');
+                    }
+                } catch (err) {
+                    removeLoading(loadingId);
+                    appendMessage('ai', '❌ Erro de comunicação com o servidor de IA.');
+                }
+            });
+        }
+
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            if (sender === 'user') {
+                msgDiv.style.alignSelf = 'flex-end';
+                msgDiv.style.background = '#6d28d9';
+                msgDiv.style.color = '#fff';
+                msgDiv.style.borderRadius = '12px 12px 2px 12px';
+                msgDiv.style.padding = '10px 14px';
+                msgDiv.style.fontSize = '0.88em';
+                msgDiv.style.maxWidth = '85%';
+                msgDiv.textContent = text;
+            } else {
+                msgDiv.style.alignSelf = 'flex-start';
+                msgDiv.style.background = 'rgba(15, 23, 42, 0.8)';
+                msgDiv.style.border = '1px solid rgba(139, 92, 246, 0.3)';
+                msgDiv.style.color = '#e2e8f0';
+                msgDiv.style.borderRadius = '12px 12px 12px 2px';
+                msgDiv.style.padding = '12px 16px';
+                msgDiv.style.fontSize = '0.88em';
+                msgDiv.style.maxWidth = '90%';
+                msgDiv.style.lineHeight = '1.5';
+                
+                let htmlText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                   .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                   .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: #a78bfa; text-decoration: underline;">$1</a>')
+                                   .replace(/\n/g, '<br>');
+                msgDiv.innerHTML = htmlText;
+            }
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendLoading() {
+            const id = 'loading-' + Date.now();
+            const msgDiv = document.createElement('div');
+            msgDiv.id = id;
+            msgDiv.style.alignSelf = 'flex-start';
+            msgDiv.style.background = 'rgba(139, 92, 246, 0.1)';
+            msgDiv.style.border = '1px solid rgba(139, 92, 246, 0.2)';
+            msgDiv.style.color = '#a78bfa';
+            msgDiv.style.borderRadius = '12px';
+            msgDiv.style.padding = '10px 14px';
+            msgDiv.style.fontSize = '0.85em';
+            msgDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando no grafo de dados...';
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return id;
+        }
+
+        function removeLoading(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+    });
+    </script>
 </body>
 
 </html>

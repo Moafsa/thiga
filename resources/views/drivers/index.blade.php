@@ -160,6 +160,9 @@
                     @endif
                 </div>
                 <div class="action-buttons">
+                    <button type="button" onclick="navigator.clipboard.writeText('{{ $driver->autologin_url }}'); alert('Link de Auto-Login de {{ addslashes($driver->name) }} copiado!');" class="action-btn" title="Copiar Link de Auto-Login" style="color: var(--cor-acento);">
+                        <i class="fas fa-link"></i>
+                    </button>
                     <a href="{{ route('drivers.show', $driver) }}" class="action-btn" title="Ver">
                         <i class="fas fa-eye"></i>
                     </a>
