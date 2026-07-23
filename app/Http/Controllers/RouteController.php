@@ -985,18 +985,45 @@ class RouteController extends Controller
                     ->first();
 
                 if (!$cteXml) {
+                    $defaultSender = Client::firstOrCreate(
+                        ['tenant_id' => $tenant->id, 'name' => 'Remetente Padrão'],
+                        ['is_active' => true]
+                    );
+                    $defaultReceiver = Client::firstOrCreate(
+                        ['tenant_id' => $tenant->id, 'name' => 'Destinatário Padrão'],
+                        ['is_active' => true]
+                    );
+
+                    $startAddress = $route->start_address ?: ($route->branch->address ?? 'Endereço de Origem');
+                    $startCity = $route->start_city ?: ($route->branch->city ?? 'Cidade de Origem');
+                    $startState = $route->start_state ?: ($route->branch->state ?? 'SP');
+                    $startZip = $route->start_zip_code ?: ($route->branch->postal_code ?? '00000-000');
+
                     $shipment = Shipment::create([
                         'tenant_id' => $tenant->id,
                         'route_id' => $route->id,
+                        'sender_client_id' => $defaultSender->id,
+                        'receiver_client_id' => $defaultReceiver->id,
                         'origin_branch' => $route->origin_branch,
                         'tracking_number' => 'CTE-' . $xmlNumber,
+                        'tracking_code' => 'CTE-' . $xmlNumber,
                         'title' => 'CT-e #' . $xmlNumber,
-                        'status' => 'assigned',
+                        'status' => 'scheduled',
+                        'shipment_type' => 'delivery',
                         'value' => 0,
                         'recipient_name' => 'CT-e #' . $xmlNumber,
-                        'delivery_address' => $route->start_address ?? 'Endereço de Entrega',
-                        'delivery_city' => $route->start_city ?? 'Cidade de Destino',
-                        'delivery_state' => $route->start_state ?? 'SP',
+                        'pickup_address' => $startAddress,
+                        'pickup_city' => $startCity,
+                        'pickup_state' => $startState,
+                        'pickup_zip_code' => $startZip,
+                        'delivery_address' => $startAddress,
+                        'delivery_city' => $startCity,
+                        'delivery_state' => $startState,
+                        'delivery_zip_code' => $startZip,
+                        'pickup_date' => $route->scheduled_date ?? now()->format('Y-m-d'),
+                        'pickup_time' => '08:00',
+                        'delivery_date' => $route->scheduled_date ?? now()->format('Y-m-d'),
+                        'delivery_time' => '18:00',
                     ]);
                     $createdShipments[] = $shipment;
                     continue;
