@@ -2727,10 +2727,16 @@ function switchHistoryTab(tab) {
     document.addEventListener('DOMContentLoaded', function() {
         const gpsToggle = document.getElementById('gps-toggle-switch');
         if (gpsToggle) {
-            // Restore persisted state from localStorage (default: true for driver tracking)
+            // Restore persisted state from localStorage.
+            // Default: ON if already used once (driver_gps_enabled was stored), or if there is an active route.
             const storedState = localStorage.getItem('driver_gps_enabled');
+            const hasActiveRoute = {{ $activeRoute ? 'true' : 'false' }};
+            // If never set, default ON when active route or not explicitly disabled
             const isEnabled = storedState === null ? true : (storedState === 'true');
             gpsToggle.checked = isEnabled;
+
+            // Update visual state of the slider
+            updateGpsToggleVisual(isEnabled);
 
             if (isEnabled) {
                 startGpsTracking();
@@ -2738,14 +2744,44 @@ function switchHistoryTab(tab) {
 
             gpsToggle.addEventListener('change', function() {
                 localStorage.setItem('driver_gps_enabled', this.checked);
+                updateGpsToggleVisual(this.checked);
                 if (this.checked) {
                     startGpsTracking();
+                    // Also update gps-status-text and gps-details-info
+                    const statusText = document.getElementById('gps-status-text');
+                    const detailsInfo = document.getElementById('gps-details-info');
+                    if (statusText) statusText.textContent = 'Transmitindo localização em tempo real...';
+                    if (detailsInfo) detailsInfo.style.display = 'block';
                 } else {
                     stopGpsTracking();
+                    const statusText = document.getElementById('gps-status-text');
+                    const detailsInfo = document.getElementById('gps-details-info');
+                    if (statusText) statusText.textContent = 'Transmissão de localização em tempo real desativada';
+                    if (detailsInfo) detailsInfo.style.display = 'none';
                 }
             });
+
+            // Initialize the visual state immediately
+            const statusText = document.getElementById('gps-status-text');
+            const detailsInfo = document.getElementById('gps-details-info');
+            if (isEnabled) {
+                if (statusText) statusText.textContent = 'Transmitindo localização em tempo real...';
+                if (detailsInfo) detailsInfo.style.display = 'block';
+            }
         }
     });
+
+    function updateGpsToggleVisual(enabled) {
+        const slider = document.querySelector('.gps-slider');
+        const knob = document.querySelector('.gps-knob');
+        if (enabled) {
+            if (slider) { slider.style.backgroundColor = '#4caf50'; slider.style.borderColor = '#4caf50'; }
+            if (knob) knob.style.transform = 'translateX(26px)';
+        } else {
+            if (slider) { slider.style.backgroundColor = 'rgba(255,255,255,0.25)'; slider.style.borderColor = 'rgba(255,255,255,0.2)'; }
+            if (knob) knob.style.transform = 'translateX(0px)';
+        }
+    }
             
             // Update map marker immediately for better UX
             if (window.routeMap) {
@@ -3533,26 +3569,35 @@ function switchHistoryTab(tab) {
         mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Mapa não disponível</p><p style="font-size: 0.9em; opacity: 0.8;">Mapbox não configurado.</p></div>';
     }
 
-    // Initialize map when page loads (only once and only if route map container exists)
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            const mapContainer = document.getElementById('route-map');
-            if (mapContainer && !window.routeMapInitialized && !window.routeMapInitializing) {
-                window.routeMapInitializing = true;
-                setTimeout(() => {
-                    initRouteMap();
-                }, 500); // Small delay to ensure MapboxHelper is loaded
-            }
-        });
-    } else {
+    // Initialize map when page loads — wait for MapboxHelper to be ready (retry up to 5s)
+    function tryInitRouteMap(attempts) {
         const mapContainer = document.getElementById('route-map');
-        if (mapContainer && !window.routeMapInitialized && !window.routeMapInitializing) {
-            window.routeMapInitializing = true;
-            setTimeout(() => {
+        if (!mapContainer) return;
+        if (window.routeMapInitialized) return;
+
+        if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
+            if (!window.routeMapInitializing) {
+                window.routeMapInitializing = true;
                 initRouteMap();
-            }, 500);
+            }
+        } else if (attempts > 0) {
+            setTimeout(() => tryInitRouteMap(attempts - 1), 500);
+        } else {
+            // Fallback after all retries
+            if (mapContainer) {
+                mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.6);"><i class="fas fa-map-marked-alt" style="font-size: 2em; margin-bottom: 10px;"></i><br>Mapa indisponível momentaneamente.<br><small>Recarregue a página para tentar novamente.</small></div>';
+            }
         }
     }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => tryInitRouteMap(10), 300);
+        });
+    } else {
+        setTimeout(() => tryInitRouteMap(10), 300);
+    }
+
     
     // Start proximity checking after map loads (driver-specific)
     setTimeout(() => {
@@ -3823,13 +3868,13 @@ function switchHistoryTab(tab) {
         const icon = btn.querySelector('i');
         const text = btn.querySelector('span');
         if (isSubscribed) {
-            btn.style.background = 'rgba(76, 175, 80, 0.9)';
-            icon.className = 'fas fa-bell';
-            text.textContent = 'Notificações Ativas';
+            // Hide the button — notifications are already active
+            btn.style.display = 'none';
         } else {
+            btn.style.display = 'flex';
             btn.style.background = 'rgba(var(--cor-acento-rgb), 0.9)';
-            icon.className = 'fas fa-bell-slash';
-            text.textContent = 'Ativar Notificações';
+            if (icon) icon.className = 'fas fa-bell-slash';
+            if (text) text.textContent = 'Ativar Notificações';
         }
     }
 
@@ -3955,14 +4000,14 @@ function switchHistoryTab(tab) {
     document.addEventListener('DOMContentLoaded', function() {
         initPushNotifications();
 
-        // Restore Location Switch state on page load
-        const savedState = localStorage.getItem('driver_location_tracking_enabled');
-        const toggleInput = document.getElementById('location-toggle-input');
-        
-        const shouldEnable = savedState === 'true' || (savedState === null && {{ $activeRoute ? 'true' : 'false' }});
-
-        if (toggleInput) {
-            toggleInput.checked = shouldEnable;
+        // Restore Location Switch state on page load (using gps-toggle-switch — canonical GPS toggle ID)
+        // Note: primary GPS init is handled above (gps-toggle-switch block)
+        // This block handles the legacy location-toggle-input if it exists
+        const legacyToggle = document.getElementById('location-toggle-input');
+        if (legacyToggle) {
+            const savedState = localStorage.getItem('driver_location_tracking_enabled');
+            const shouldEnable = savedState === 'true' || (savedState === null && {{ $activeRoute ? 'true' : 'false' }});
+            legacyToggle.checked = shouldEnable;
             window.handleLocationToggle(shouldEnable);
         }
     });
