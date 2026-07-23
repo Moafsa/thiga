@@ -3889,7 +3889,7 @@ function switchHistoryTab(tab) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         if (!csrfToken) return;
 
-        fetch('{{ route("location.update") }}', {
+        fetch('{{ route("driver.location.update") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
