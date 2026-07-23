@@ -3353,17 +3353,17 @@ function switchHistoryTab(tab) {
     let routeMap;
     
     async function initRouteMapWithMapbox() {
-        // Prevent multiple initializations
-        if (window.routeMapInitialized) {
-            console.log('Map already initialized, skipping...');
-            return;
-        }
-        
         const mapContainer = document.getElementById('route-map');
         if (!mapContainer || typeof MapboxHelper === 'undefined') {
             console.error('MapboxHelper not available');
-            return;
+            return false;
         }
+
+        if (window.mapboxMapCreated) {
+            console.log('Map already created, skipping...');
+            return true;
+        }
+        window.mapboxMapCreated = true;
 
         let center = [-46.6333, -23.5505]; // São Paulo default [lng, lat]
         if (window.routeOriginLat && window.routeOriginLng) {
@@ -3386,8 +3386,10 @@ function switchHistoryTab(tab) {
                 await addRouteMarkersAndPolyline();
             }
         });
+        return true;
+    }
 
-        async function addRouteMarkersAndPolyline() {
+    async function addRouteMarkersAndPolyline() {
             console.log('Adding markers and route...', {
                 routeOriginLat: window.routeOriginLat,
                 routeOriginLng: window.routeOriginLng,
@@ -3473,14 +3475,6 @@ function switchHistoryTab(tab) {
                         const hasCoords = s.delivery_lat && s.delivery_lng && 
                                          !isNaN(parseFloat(s.delivery_lat)) && 
                                          !isNaN(parseFloat(s.delivery_lng));
-                        if (!hasCoords) {
-                            console.warn('Shipment without valid delivery coordinates:', {
-                                id: s.id,
-                                tracking_number: s.tracking_number,
-                                delivery_lat: s.delivery_lat,
-                                delivery_lng: s.delivery_lng
-                            });
-                        }
                         return hasCoords;
                     })
                     .map(s => ({ 
@@ -3490,42 +3484,19 @@ function switchHistoryTab(tab) {
                         id: s.id
                     }));
                 
-                console.log('Route drawing data:', {
-                    origin,
-                    totalShipments: window.routeShipments.length,
-                    deliveriesCount: deliveries.length,
-                    deliveries
-                });
-                
                 if (deliveries.length > 0) {
-                    // For routes with multiple deliveries, create a sequential route
-                    // Origin -> Delivery 1 -> Delivery 2 -> ... -> Last Delivery -> Return to Origin
-                    const waypoints = deliveries; // All deliveries as waypoints
-                    const returnDestination = origin; // Return to origin
-                    
-                    console.log('Drawing route with return to base:', { 
-                        origin, 
-                        destination: returnDestination,
-                        waypointsCount: waypoints.length
-                    });
+                    const waypoints = deliveries;
+                    const returnDestination = origin;
                     
                     try {
                         await routeMap.drawRoute(origin, returnDestination, waypoints, {
                             color: '#FF6B35',
                             width: 6
                         });
-                        console.log('Route drawn successfully with', deliveries.length, 'delivery points and return to base');
                     } catch (error) {
                         console.error('Route drawing error:', error);
                     }
-                } else {
-                    console.error('No valid delivery coordinates found!');
                 }
-            } else {
-                console.warn('Cannot draw route - missing data:', {
-                    hasOrigin: !!(window.routeOriginLat && window.routeOriginLng),
-                    hasShipments: window.routeShipments?.length > 0
-                });
             }
 
             // Fit bounds to show all markers
@@ -3541,33 +3512,24 @@ function switchHistoryTab(tab) {
                 if (s.delivery_lat && s.delivery_lng) positions.push({ lat: parseFloat(s.delivery_lat), lng: parseFloat(s.delivery_lng) });
             });
             if (positions.length > 0) routeMap.fitBounds(positions);
-        }
     }
     
-    // Initialize route map — use initRouteMapWithMapbox() directly
-    // NOTE: initRouteMap() is defined in driver-route-map.js and would conflict, so we use our own function here.
+    // Retry initialization until MapboxHelper & mapboxAccessToken are ready
     function tryInitRouteMap(attempts) {
         const mapContainer = document.getElementById('route-map');
-        if (!mapContainer || window.routeMapInitialized) return;
+        if (!mapContainer || window.mapboxMapCreated) return;
 
         if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
-            window.routeMapInitialized = true; // lock to prevent double init
             initRouteMapWithMapbox();
         } else if (attempts > 0) {
-            setTimeout(() => tryInitRouteMap(attempts - 1), 500);
-        } else {
-            const mapContainer = document.getElementById('route-map');
-            if (mapContainer) {
-                mapContainer.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.5);gap:8px;"><i class="fas fa-map-marked-alt" style="font-size:2em;"></i><span style="font-size:0.9em;">Mapa indisponível — recarregue a página</span></div>';
-            }
+            setTimeout(() => tryInitRouteMap(attempts - 1), 300);
         }
     }
 
-    // Trigger map init after DOMContentLoaded, with retry
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(() => tryInitRouteMap(10), 400));
+        document.addEventListener('DOMContentLoaded', () => setTimeout(() => tryInitRouteMap(15), 300));
     } else {
-        setTimeout(() => tryInitRouteMap(10), 400);
+        setTimeout(() => tryInitRouteMap(15), 300);
     }
 
     
@@ -3837,22 +3799,48 @@ function switchHistoryTab(tab) {
     function updatePushButton(isSubscribed) {
         const btn = document.getElementById('push-notification-btn');
         if (!btn) return;
-        if (isSubscribed) {
+        if (isSubscribed || localStorage.getItem('driver_push_notifications_dismissed') === 'true') {
             btn.style.display = 'none';
         } else {
             btn.style.display = 'flex';
-            const icon = btn.querySelector('i');
-            const text = btn.querySelector('span');
-            if (icon) icon.className = 'fas fa-bell-slash';
-            if (text) text.textContent = 'Ativar Notificações';
         }
     }
 
-    // Also hide immediately if permission already granted (quick check without SW)
+    function checkPushNotificationButtonVisibility() {
+        const btn = document.getElementById('push-notification-btn');
+        if (!btn) return;
+
+        const isGranted = ('Notification' in window && Notification.permission === 'granted');
+        const isDenied = ('Notification' in window && Notification.permission === 'denied');
+        const isDismissed = localStorage.getItem('driver_push_notifications_dismissed') === 'true';
+        const notSupported = !('Notification' in window);
+
+        if (isGranted || isDenied || isDismissed || notSupported) {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = 'flex';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            const btn = document.getElementById('push-notification-btn');
-            if (btn) btn.style.display = 'none';
+        checkPushNotificationButtonVisibility();
+
+        const btn = document.getElementById('push-notification-btn');
+        if (btn) {
+            btn.addEventListener('click', async function() {
+                this.style.display = 'none';
+                localStorage.setItem('driver_push_notifications_dismissed', 'true');
+                if ('Notification' in window) {
+                    try {
+                        const perm = await Notification.requestPermission();
+                        if (perm === 'granted') {
+                            initPushNotifications();
+                        }
+                    } catch (e) {
+                        console.warn('Notification error:', e);
+                    }
+                }
+            });
         }
     });
 
