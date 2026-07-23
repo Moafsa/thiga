@@ -2110,7 +2110,7 @@ class RouteController extends Controller
     /**
      * Calculate multiple route options
      */
-    protected function calculateMultipleRouteOptions(Route $route): void
+    public function calculateMultipleRouteOptions(Route $route): void
     {
         try {
             \Log::info('Starting route options calculation', [

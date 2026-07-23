@@ -415,29 +415,57 @@ class RouteCreationWizard extends Component
             ]);
 
             $tenant = Auth::user()?->tenant ?: \Spatie\Multitenancy\Models\Tenant::current();
+            if (!$tenant && Auth::user()?->tenant_id) {
+                $tenant = \App\Models\Tenant::find(Auth::user()->tenant_id);
+            }
+            if (!$tenant) {
+                $tenant = \App\Models\Tenant::first();
+            }
+
             if (!$tenant) {
                 $this->addError('name', 'Nenhum tenant ativo encontrado para esta sessão.');
                 return;
             }
 
+            $mapsService = app(\App\Services\MapsService::class);
+
             $branchId = !empty($this->branch_id) ? $this->branch_id : null;
+            $branch = null;
             $startLat = null;
             $startLng = null;
 
             if ($branchId) {
                 $branch = \App\Models\Branch::find($branchId);
+            }
+
+            if (!$branch) {
+                $branch = \App\Models\Branch::where('tenant_id', $tenant->id)->first();
                 if ($branch) {
-                    $startLat = $branch->latitude;
-                    $startLng = $branch->longitude;
+                    $branchId = $branch->id;
                 }
             }
 
-            if (!$startLat || !$startLng) {
-                $firstBranch = \App\Models\Branch::where('tenant_id', $tenant->id)->first();
-                if ($firstBranch) {
-                    $branchId = $branchId ?: $firstBranch->id;
-                    $startLat = $firstBranch->latitude;
-                    $startLng = $firstBranch->longitude;
+            if ($branch) {
+                if ($branch->latitude && $branch->longitude) {
+                    $startLat = (float) $branch->latitude;
+                    $startLng = (float) $branch->longitude;
+                } else {
+                    $branchFullAddr = trim(implode(', ', array_filter([
+                        $branch->address,
+                        $branch->address_number,
+                        $branch->neighborhood,
+                        $branch->city,
+                        $branch->state,
+                        $branch->postal_code,
+                    ])));
+                    if (!empty($branchFullAddr)) {
+                        $geocodedBranch = $mapsService->geocode($branchFullAddr);
+                        if ($geocodedBranch) {
+                            $startLat = (float) $geocodedBranch['latitude'];
+                            $startLng = (float) $geocodedBranch['longitude'];
+                            $branch->update(['latitude' => $startLat, 'longitude' => $startLng]);
+                        }
+                    }
                 }
             }
 
@@ -456,6 +484,8 @@ class RouteCreationWizard extends Component
                 'branch_id' => $branchId,
                 'start_latitude' => $startLat,
                 'start_longitude' => $startLng,
+                'end_latitude' => $startLat,
+                'end_longitude' => $startLng,
                 'status' => 'scheduled',
             ];
 
@@ -466,7 +496,10 @@ class RouteCreationWizard extends Component
             $route = \App\Models\Route::create($routeData);
 
             if (!empty($this->selectedShipments)) {
-                $shipmentUpdateData = ['route_id' => $route->id];
+                $shipmentUpdateData = [
+                    'route_id' => $route->id,
+                    'status' => 'scheduled'
+                ];
                 if (Schema::hasColumn('shipments', 'origin_branch')) {
                     $shipmentUpdateData['origin_branch'] = $this->origin_branch;
                 }
@@ -475,21 +508,131 @@ class RouteCreationWizard extends Component
 
             if (!empty($this->manual_cte_numbers)) {
                 $cteNumbers = preg_split('/[^0-9A-Za-z]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+
+                $defaultSender = \App\Models\Client::firstOrCreate(
+                    ['tenant_id' => $tenant->id, 'name' => 'Remetente Padrão'],
+                    ['is_active' => true]
+                );
+                $defaultReceiver = \App\Models\Client::firstOrCreate(
+                    ['tenant_id' => $tenant->id, 'name' => 'Destinatário Padrão'],
+                    ['is_active' => true]
+                );
+
+                $startAddress = $branch ? trim(implode(', ', array_filter([$branch->address, $branch->address_number]))) : 'Endereço de Origem';
+                $startCity = $branch ? $branch->city : 'Cidade de Origem';
+                $startState = $branch ? $branch->state : 'SP';
+                $startZip = $branch ? ($branch->postal_code ?? '00000-000') : '00000-000';
+
                 foreach ($cteNumbers as $cteNum) {
                     $cteNum = trim($cteNum);
                     if (empty($cteNum)) continue;
 
+                    // 1. Check if existing Shipment already exists for this CTE number
+                    $existingShipment = Shipment::where('tenant_id', $tenant->id)
+                        ->where(function($q) use ($cteNum) {
+                            $q->where('tracking_number', $cteNum)
+                              ->orWhere('tracking_number', 'CTE-' . $cteNum)
+                              ->orWhere('title', 'like', "%{$cteNum}%");
+                        })
+                        ->first();
+
+                    if ($existingShipment) {
+                        $updateData = ['route_id' => $route->id, 'status' => 'scheduled'];
+                        if (Schema::hasColumn('shipments', 'origin_branch')) {
+                            $updateData['origin_branch'] = $this->origin_branch;
+                        }
+                        $existingShipment->update($updateData);
+                        continue;
+                    }
+
+                    // 2. Check if CteXml exists for this CTE number
+                    $cteXml = \App\Models\CteXml::where('tenant_id', $tenant->id)
+                        ->where('cte_number', $cteNum)
+                        ->first();
+
+                    $delivLat = null;
+                    $delivLng = null;
+                    $delivAddress = 'Endereço de Entrega';
+                    $delivCity = $startCity;
+                    $delivState = $startState;
+                    $delivZip = $startZip;
+
+                    if ($cteXml) {
+                        try {
+                            $xmlParser = app(\App\Services\CteXmlParserService::class);
+                            $xmlContent = null;
+                            if ($cteXml->xml_url && strpos($cteXml->xml_url, 'local:') === 0) {
+                                $localPath = str_replace('local:', '', $cteXml->xml_url);
+                                if (Storage::disk('local')->exists($localPath)) {
+                                    $xmlContent = Storage::disk('local')->get($localPath);
+                                }
+                            }
+                            if (!$xmlContent && $cteXml->xml) {
+                                $xmlContent = $cteXml->xml;
+                            }
+                            if ($xmlContent) {
+                                $cteData = $xmlParser->parseXml($xmlContent);
+                                if (!empty($cteData['destination']['city'])) {
+                                    $delivCity = $cteData['destination']['city'];
+                                }
+                                if (!empty($cteData['destination']['state'])) {
+                                    $delivState = $cteData['destination']['state'];
+                                }
+                                if (!empty($cteData['destination']['address'])) {
+                                    $delivAddress = $cteData['destination']['address'];
+                                }
+                                if (!empty($cteData['destination']['zip_code'])) {
+                                    $delivZip = $cteData['destination']['zip_code'];
+                                }
+                            }
+                        } catch (\Exception $ex) {
+                            Log::warning('Error parsing CteXml in wizard: ' . $ex->getMessage());
+                        }
+                    }
+
+                    // Geocode delivery location to obtain latitude & longitude for Mapbox/Google Maps
+                    if ($delivCity && $delivState) {
+                        $fullDelivAddr = trim(implode(', ', array_filter([$delivAddress !== 'Endereço de Entrega' ? $delivAddress : '', $delivCity, $delivState])));
+                        $geocodedDeliv = $mapsService->geocode($fullDelivAddr);
+                        if ($geocodedDeliv) {
+                            $delivLat = (float) $geocodedDeliv['latitude'];
+                            $delivLng = (float) $geocodedDeliv['longitude'];
+                        }
+                    }
+
+                    if (!$delivLat || !$delivLng) {
+                        $delivLat = $startLat;
+                        $delivLng = $startLng;
+                    }
+
                     $manualShipmentData = [
                         'tenant_id' => $tenant->id,
                         'route_id' => $route->id,
+                        'sender_client_id' => $defaultSender->id,
+                        'receiver_client_id' => $defaultReceiver->id,
                         'tracking_number' => 'CTE-' . $cteNum,
+                        'tracking_code' => 'CTE-' . $cteNum,
                         'title' => 'CT-e #' . $cteNum,
-                        'status' => 'assigned',
+                        'status' => 'scheduled',
+                        'shipment_type' => 'delivery',
                         'value' => 0,
                         'recipient_name' => 'CT-e #' . $cteNum,
-                        'delivery_address' => 'Endereço de Entrega',
-                        'delivery_city' => 'Cidade de Destino',
-                        'delivery_state' => 'SP',
+                        'pickup_address' => $startAddress ?: 'Endereço de Origem',
+                        'pickup_city' => $startCity ?: 'Cidade de Origem',
+                        'pickup_state' => $startState ?: 'SP',
+                        'pickup_zip_code' => $startZip ?: '00000-000',
+                        'pickup_latitude' => $startLat,
+                        'pickup_longitude' => $startLng,
+                        'delivery_address' => $delivAddress,
+                        'delivery_city' => $delivCity,
+                        'delivery_state' => $delivState,
+                        'delivery_zip_code' => $delivZip,
+                        'delivery_latitude' => $delivLat,
+                        'delivery_longitude' => $delivLng,
+                        'pickup_date' => $route->scheduled_date ?? now()->format('Y-m-d'),
+                        'pickup_time' => '08:00',
+                        'delivery_date' => $route->scheduled_date ?? now()->format('Y-m-d'),
+                        'delivery_time' => '18:00',
                     ];
 
                     if (Schema::hasColumn('shipments', 'origin_branch')) {
@@ -498,6 +641,14 @@ class RouteCreationWizard extends Component
 
                     Shipment::create($manualShipmentData);
                 }
+            }
+
+            // Calculate route options (waypoints, distance, duration, map path)
+            try {
+                $controller = app(\App\Http\Controllers\RouteController::class);
+                $controller->calculateMultipleRouteOptions($route);
+            } catch (\Exception $ex) {
+                Log::warning('Error calculating route options in wizard: ' . $ex->getMessage());
             }
 
             return redirect()->route('routes.show', $route->id)
