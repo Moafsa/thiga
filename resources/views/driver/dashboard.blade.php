@@ -1053,19 +1053,19 @@
                 <i class="fas fa-satellite-dish"></i> Compartilhar Localização (GPS)
             </h3>
             <p id="gps-status-text" style="color: rgba(245, 245, 245, 0.7); font-size: 0.85em; margin: 0;">
-                Transmissão de localização em tempo real desativada
+                Transmitindo localização em tempo real...
             </p>
         </div>
         <div>
             <label class="gps-switch" style="position: relative; display: inline-block; width: 56px; height: 30px; cursor: pointer;">
-                <input type="checkbox" id="gps-toggle-switch" style="opacity: 0; width: 0; height: 0;">
-                <span class="gps-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.25); transition: .3s ease; border-radius: 34px; border: 1px solid rgba(255,255,255,0.2);">
-                    <span class="gps-knob" style="position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: #ffffff; transition: .3s ease; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></span>
+                <input type="checkbox" id="gps-toggle-switch" checked style="opacity: 0; width: 0; height: 0;">
+                <span class="gps-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4caf50; transition: .3s ease; border-radius: 34px; border: 1px solid #4caf50;">
+                    <span class="gps-knob" style="position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: #ffffff; transform: translateX(26px); transition: .3s ease; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></span>
                 </span>
             </label>
         </div>
     </div>
-    <div id="gps-details-info" style="margin-top: 12px; font-size: 0.8em; color: rgba(245, 245, 245, 0.6); display: none;">
+    <div id="gps-details-info" style="margin-top: 12px; font-size: 0.8em; color: rgba(245, 245, 245, 0.6); display: block;">
         <span><i class="fas fa-location-arrow" style="color: #4caf50; margin-right: 5px;"></i> Transmitindo GPS a cada 15s</span>
         <span id="gps-last-sent" style="float: right;"></span>
     </div>
@@ -2727,47 +2727,40 @@ function switchHistoryTab(tab) {
     document.addEventListener('DOMContentLoaded', function() {
         const gpsToggle = document.getElementById('gps-toggle-switch');
         if (gpsToggle) {
-            // Restore persisted state from localStorage.
-            // Default: ON if already used once (driver_gps_enabled was stored), or if there is an active route.
+            // The HTML starts with checked=true (green, active).
+            // Only disable if the driver explicitly turned it off before.
             const storedState = localStorage.getItem('driver_gps_enabled');
-            const hasActiveRoute = {{ $activeRoute ? 'true' : 'false' }};
-            // If never set, default ON when active route or not explicitly disabled
-            const isEnabled = storedState === null ? true : (storedState === 'true');
-            gpsToggle.checked = isEnabled;
+            const isEnabled = storedState !== 'false'; // default ON unless explicitly disabled
 
-            // Update visual state of the slider
-            updateGpsToggleVisual(isEnabled);
-
-            if (isEnabled) {
+            if (!isEnabled) {
+                // Driver disabled it before — update to disabled state
+                gpsToggle.checked = false;
+                updateGpsToggleVisual(false);
+                const statusText = document.getElementById('gps-status-text');
+                const detailsInfo = document.getElementById('gps-details-info');
+                if (statusText) statusText.textContent = 'Transmissão de localização em tempo real desativada';
+                if (detailsInfo) detailsInfo.style.display = 'none';
+            } else {
+                // Active — save state and start tracking
+                localStorage.setItem('driver_gps_enabled', 'true');
                 startGpsTracking();
             }
 
             gpsToggle.addEventListener('change', function() {
-                localStorage.setItem('driver_gps_enabled', this.checked);
+                localStorage.setItem('driver_gps_enabled', this.checked ? 'true' : 'false');
                 updateGpsToggleVisual(this.checked);
+                const statusText = document.getElementById('gps-status-text');
+                const detailsInfo = document.getElementById('gps-details-info');
                 if (this.checked) {
                     startGpsTracking();
-                    // Also update gps-status-text and gps-details-info
-                    const statusText = document.getElementById('gps-status-text');
-                    const detailsInfo = document.getElementById('gps-details-info');
                     if (statusText) statusText.textContent = 'Transmitindo localização em tempo real...';
                     if (detailsInfo) detailsInfo.style.display = 'block';
                 } else {
                     stopGpsTracking();
-                    const statusText = document.getElementById('gps-status-text');
-                    const detailsInfo = document.getElementById('gps-details-info');
                     if (statusText) statusText.textContent = 'Transmissão de localização em tempo real desativada';
                     if (detailsInfo) detailsInfo.style.display = 'none';
                 }
             });
-
-            // Initialize the visual state immediately
-            const statusText = document.getElementById('gps-status-text');
-            const detailsInfo = document.getElementById('gps-details-info');
-            if (isEnabled) {
-                if (statusText) statusText.textContent = 'Transmitindo localização em tempo real...';
-                if (detailsInfo) detailsInfo.style.display = 'block';
-            }
         }
     });
 
@@ -2782,6 +2775,7 @@ function switchHistoryTab(tab) {
             if (knob) knob.style.transform = 'translateX(0px)';
         }
     }
+
             
             // Update map marker immediately for better UX
             if (window.routeMap) {
@@ -3550,52 +3544,30 @@ function switchHistoryTab(tab) {
         }
     }
     
-    // Initialize map when page loads
-    function initRouteMap() {
-        const mapContainer = document.getElementById('route-map');
-        if (!mapContainer) return;
-
-        // Use Mapbox if available
-        if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
-            if (!window.mapboxRouteMapInitialized) {
-                console.log('Using Mapbox for route map on driver dashboard');
-                window.mapboxRouteMapInitialized = true;
-            }
-            initRouteMapWithMapbox();
-            return;
-        }
-        
-        // Fallback: Show message if Mapbox not available
-        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;"><p>⚠️ Mapa não disponível</p><p style="font-size: 0.9em; opacity: 0.8;">Mapbox não configurado.</p></div>';
-    }
-
-    // Initialize map when page loads — wait for MapboxHelper to be ready (retry up to 5s)
+    // Initialize route map — use initRouteMapWithMapbox() directly
+    // NOTE: initRouteMap() is defined in driver-route-map.js and would conflict, so we use our own function here.
     function tryInitRouteMap(attempts) {
         const mapContainer = document.getElementById('route-map');
-        if (!mapContainer) return;
-        if (window.routeMapInitialized) return;
+        if (!mapContainer || window.routeMapInitialized) return;
 
         if (typeof MapboxHelper !== 'undefined' && window.mapboxAccessToken) {
-            if (!window.routeMapInitializing) {
-                window.routeMapInitializing = true;
-                initRouteMap();
-            }
+            window.routeMapInitialized = true; // lock to prevent double init
+            initRouteMapWithMapbox();
         } else if (attempts > 0) {
             setTimeout(() => tryInitRouteMap(attempts - 1), 500);
         } else {
-            // Fallback after all retries
+            const mapContainer = document.getElementById('route-map');
             if (mapContainer) {
-                mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.6);"><i class="fas fa-map-marked-alt" style="font-size: 2em; margin-bottom: 10px;"></i><br>Mapa indisponível momentaneamente.<br><small>Recarregue a página para tentar novamente.</small></div>';
+                mapContainer.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.5);gap:8px;"><i class="fas fa-map-marked-alt" style="font-size:2em;"></i><span style="font-size:0.9em;">Mapa indisponível — recarregue a página</span></div>';
             }
         }
     }
 
+    // Trigger map init after DOMContentLoaded, with retry
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => tryInitRouteMap(10), 300);
-        });
+        document.addEventListener('DOMContentLoaded', () => setTimeout(() => tryInitRouteMap(10), 400));
     } else {
-        setTimeout(() => tryInitRouteMap(10), 300);
+        setTimeout(() => tryInitRouteMap(10), 400);
     }
 
     
@@ -3865,18 +3837,24 @@ function switchHistoryTab(tab) {
     function updatePushButton(isSubscribed) {
         const btn = document.getElementById('push-notification-btn');
         if (!btn) return;
-        const icon = btn.querySelector('i');
-        const text = btn.querySelector('span');
         if (isSubscribed) {
-            // Hide the button — notifications are already active
             btn.style.display = 'none';
         } else {
             btn.style.display = 'flex';
-            btn.style.background = 'rgba(var(--cor-acento-rgb), 0.9)';
+            const icon = btn.querySelector('i');
+            const text = btn.querySelector('span');
             if (icon) icon.className = 'fas fa-bell-slash';
             if (text) text.textContent = 'Ativar Notificações';
         }
     }
+
+    // Also hide immediately if permission already granted (quick check without SW)
+    document.addEventListener('DOMContentLoaded', function() {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const btn = document.getElementById('push-notification-btn');
+            if (btn) btn.style.display = 'none';
+        }
+    });
 
     function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
