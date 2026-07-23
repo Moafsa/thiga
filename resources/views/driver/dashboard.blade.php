@@ -2777,65 +2777,7 @@ function switchHistoryTab(tab) {
             if (knob) knob.style.transform = 'translateX(26px)';
         } else {
             if (slider) { slider.style.backgroundColor = 'rgba(255,255,255,0.25)'; slider.style.borderColor = 'rgba(255,255,255,0.2)'; }
-            if (knob) knob.style.transform = 'translateX(0px)';
-        }
     }
-
-            
-            // Update map marker immediately for better UX
-            if (window.routeMap) {
-                const lat = parseFloat(position.coords.latitude);
-                const lng = parseFloat(position.coords.longitude);
-                
-                // Validate coordinates before using
-                if (!isValidCoordinate(lat) || !isValidCoordinate(lng)) {
-                    console.warn('Invalid geolocation coordinates:', position.coords);
-                    return;
-                }
-                
-                const newPosition = { lat: lat, lng: lng };
-                
-                // Update global driver location variables
-                window.driverCurrentLat = lat;
-                window.driverCurrentLng = lng;
-                
-                // Update marker - Mapbox only
-                if (window.driverMarker && window.routeMap) {
-                    if (typeof window.routeMap.updateMarker === 'function') {
-                        // Mapbox - use updateMarker method
-                        window.routeMap.updateMarker(window.driverMarker, newPosition);
-                    } else if (typeof window.driverMarker.setPosition === 'function') {
-                        // Fallback for other map types
-                        window.driverMarker.setPosition(newPosition);
-                    }
-                } else if (window.routeMap && typeof window.routeMap.addMarker === 'function') {
-                    // Create Mapbox marker if it doesn't exist
-                    window.driverMarker = window.routeMap.addMarker(newPosition, {
-                        title: 'Sua Localização',
-                        color: '#2196F3',
-                        size: 28
-                    });
-                }
-            }
-        }, function(error) {
-            console.error('Geolocation error:', error);
-            let message = 'Erro ao obter localização. Verifique o GPS.';
-            if (error.code === 1) {
-                console.warn('Geolocation permission denied');
-                message = 'Permissão de GPS negada. Por favor, libere nas configurações do Navegador/App para continuarmos rasteando.';
-            } else if (error.code === 2) {
-                console.warn('Geolocation position unavailable');
-                message = 'GPS Indisponível (Sem Sinal). Verifique se a localização está ativada no seu aparelho.';
-            } else if (error.code === 3) {
-                console.warn('Geolocation timeout');
-                message = 'Tempo esgotado ao tentar ler GPS. Tentando novamente em background...';
-            }
-            showGpsErrorAlert(message);
-        }, {
-            enableHighAccuracy: true,
-            timeout: 10000, // Increased timeout
-            maximumAge: 0
-        });
     }
 
     // Map functionality removed - no longer displaying map on driver dashboard
