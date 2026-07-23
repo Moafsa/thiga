@@ -191,7 +191,18 @@ class RouteController extends Controller
      */
     public function store(Request $request, CteXmlParserService $xmlParser)
     {
-        $tenant = Auth::user()->tenant;
+        $user = Auth::user();
+        $tenant = $user->tenant;
+        if (!$tenant && $user->tenant_id) {
+            $tenant = \App\Models\Tenant::find($user->tenant_id);
+        }
+        if (!$tenant) {
+            $tenant = \App\Models\Tenant::first();
+        }
+
+        if (!$tenant) {
+            return back()->withErrors(['error' => 'Nenhuma empresa (tenant) cadastrada no sistema.'])->withInput();
+        }
 
         \Log::info('Route store request received', [
             'has_cte_xml_numbers' => $request->has('cte_xml_numbers'),
@@ -1279,6 +1290,8 @@ class RouteController extends Controller
             ];
         }
 
+        $mapsServiceForAddresses = app(MapsService::class);
+
         // Process each address as a separate delivery destination
         // Pickup is always at the depot/branch (defaultSender), delivery is at each address
         foreach ($addresses as $index => $deliveryAddress) {
@@ -1297,8 +1310,7 @@ class RouteController extends Controller
                     $pickupAddress['zip_code'] ?? '',
                 ])));
                 // Use branch coordinates if available
-                $mapsServiceForAddresses = app(MapsService::class);
-                $pickupCoords = $branch->latitude && $branch->longitude
+                $pickupCoords = ($branch && $branch->latitude && $branch->longitude)
                     ? ['latitude' => $branch->latitude, 'longitude' => $branch->longitude]
                     : $mapsServiceForAddresses->geocode($pickupFullAddress);
             } else {
@@ -1319,7 +1331,6 @@ class RouteController extends Controller
                 $deliveryAddress['zip_code'] ?? '',
             ])));
 
-            $mapsServiceForAddresses = app(MapsService::class);
             $deliveryCoords = $mapsServiceForAddresses->geocode($deliveryFullAddress);
 
             // Create or find receiver client
