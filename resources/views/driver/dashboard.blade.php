@@ -1956,6 +1956,11 @@ function switchHistoryTab(tab) {
                         reader.onerror = rej;
                         reader.readAsDataURL(photoFileInput.files[0]);
                     });
+                } catch (e2) {
+                    console.error("Erro crítico ao ler arquivo:", e2);
+                }
+            }
+        }
         // Prepare offline-friendly packet
         const updatePayload = {
             shipment_id: shipmentId,
@@ -3799,7 +3804,12 @@ function switchHistoryTab(tab) {
     function updatePushButton(isSubscribed) {
         const btn = document.getElementById('push-notification-btn');
         if (!btn) return;
-        if (isSubscribed || localStorage.getItem('driver_push_notifications_dismissed') === 'true') {
+        
+        const isGranted = ('Notification' in window && Notification.permission === 'granted');
+        const isDenied = ('Notification' in window && Notification.permission === 'denied');
+        const isDismissed = localStorage.getItem('driver_push_notifications_dismissed') === 'true';
+        
+        if (isSubscribed || isGranted || isDenied || isDismissed) {
             btn.style.display = 'none';
         } else {
             btn.style.display = 'flex';
