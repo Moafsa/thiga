@@ -46,6 +46,8 @@ services:
     volumes:
       - ./.env.production:/var/www/.env:ro
       - ./app:/var/www/app:ro
+      - ./database:/var/www/database:ro
+      - ./public:/var/www/public:ro
       - ./resources:/var/www/resources:ro
       - ./routes:/var/www/routes:ro
       - tms_app_storage:/var/www/storage

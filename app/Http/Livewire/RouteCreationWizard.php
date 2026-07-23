@@ -13,6 +13,8 @@ use App\Models\AvailableCargo;
 use App\Services\CteXmlParserService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class RouteCreationWizard extends Component
@@ -406,81 +408,108 @@ class RouteCreationWizard extends Component
 
     public function save()
     {
-        $this->validate([
-            'name' => 'required|min:3',
-            'scheduled_date' => 'required|date',
-        ]);
+        try {
+            $this->validate([
+                'name' => 'required|min:3',
+                'scheduled_date' => 'required|date',
+            ]);
 
-        $tenant = Auth::user()->tenant;
-
-        $branchId = !empty($this->branch_id) ? $this->branch_id : null;
-        $startLat = null;
-        $startLng = null;
-
-        if ($branchId) {
-            $branch = \App\Models\Branch::find($branchId);
-            if ($branch) {
-                $startLat = $branch->latitude;
-                $startLng = $branch->longitude;
+            $tenant = Auth::user()?->tenant ?: \Spatie\Multitenancy\Models\Tenant::current();
+            if (!$tenant) {
+                $this->addError('name', 'Nenhum tenant ativo encontrado para esta sessão.');
+                return;
             }
-        }
 
-        if (!$startLat || !$startLng) {
-            $firstBranch = \App\Models\Branch::where('tenant_id', $tenant->id)->first();
-            if ($firstBranch) {
-                $branchId = $branchId ?: $firstBranch->id;
-                $startLat = $firstBranch->latitude;
-                $startLng = $firstBranch->longitude;
+            $branchId = !empty($this->branch_id) ? $this->branch_id : null;
+            $startLat = null;
+            $startLng = null;
+
+            if ($branchId) {
+                $branch = \App\Models\Branch::find($branchId);
+                if ($branch) {
+                    $startLat = $branch->latitude;
+                    $startLng = $branch->longitude;
+                }
             }
-        }
 
-        if (!$startLat || !$startLng) {
-            $startLat = -23.550520;
-            $startLng = -46.633308;
-        }
-
-        $route = \App\Models\Route::create([
-            'tenant_id' => $tenant->id,
-            'name' => $this->name,
-            'scheduled_date' => $this->scheduled_date,
-            'start_time' => $this->start_time ?: '08:00',
-            'driver_id' => !empty($this->driver_id) ? $this->driver_id : null,
-            'vehicle_id' => !empty($this->vehicle_id) ? $this->vehicle_id : null,
-            'branch_id' => $branchId,
-            'origin_branch' => !empty($this->origin_branch) ? $this->origin_branch : null,
-            'start_latitude' => $startLat,
-            'start_longitude' => $startLng,
-            'status' => 'scheduled',
-        ]);
-
-        if (!empty($this->selectedShipments)) {
-            Shipment::whereIn('id', $this->selectedShipments)
-                ->update(['route_id' => $route->id, 'origin_branch' => $this->origin_branch]);
-        }
-
-        if (!empty($this->manual_cte_numbers)) {
-            $cteNumbers = preg_split('/[^0-9A-Za-z]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
-            foreach ($cteNumbers as $cteNum) {
-                $cteNum = trim($cteNum);
-                if (empty($cteNum)) continue;
-                Shipment::create([
-                    'tenant_id' => $tenant->id,
-                    'route_id' => $route->id,
-                    'origin_branch' => $this->origin_branch,
-                    'tracking_number' => 'CTE-' . $cteNum,
-                    'title' => 'CT-e #' . $cteNum,
-                    'status' => 'assigned',
-                    'value' => 0,
-                    'recipient_name' => 'CT-e #' . $cteNum,
-                    'delivery_address' => 'Endereço de Entrega',
-                    'delivery_city' => 'Cidade de Destino',
-                    'delivery_state' => 'SP',
-                ]);
+            if (!$startLat || !$startLng) {
+                $firstBranch = \App\Models\Branch::where('tenant_id', $tenant->id)->first();
+                if ($firstBranch) {
+                    $branchId = $branchId ?: $firstBranch->id;
+                    $startLat = $firstBranch->latitude;
+                    $startLng = $firstBranch->longitude;
+                }
             }
-        }
 
-        return redirect()->route('routes.show', $route->id)
-            ->with('success', 'Rota criada com sucesso!');
+            if (!$startLat || !$startLng) {
+                $startLat = -23.550520;
+                $startLng = -46.633308;
+            }
+
+            $routeData = [
+                'tenant_id' => $tenant->id,
+                'name' => $this->name,
+                'scheduled_date' => $this->scheduled_date,
+                'start_time' => $this->start_time ?: '08:00',
+                'driver_id' => !empty($this->driver_id) ? $this->driver_id : null,
+                'vehicle_id' => !empty($this->vehicle_id) ? $this->vehicle_id : null,
+                'branch_id' => $branchId,
+                'start_latitude' => $startLat,
+                'start_longitude' => $startLng,
+                'status' => 'scheduled',
+            ];
+
+            if (Schema::hasColumn('routes', 'origin_branch')) {
+                $routeData['origin_branch'] = !empty($this->origin_branch) ? $this->origin_branch : null;
+            }
+
+            $route = \App\Models\Route::create($routeData);
+
+            if (!empty($this->selectedShipments)) {
+                $shipmentUpdateData = ['route_id' => $route->id];
+                if (Schema::hasColumn('shipments', 'origin_branch')) {
+                    $shipmentUpdateData['origin_branch'] = $this->origin_branch;
+                }
+                Shipment::whereIn('id', $this->selectedShipments)->update($shipmentUpdateData);
+            }
+
+            if (!empty($this->manual_cte_numbers)) {
+                $cteNumbers = preg_split('/[^0-9A-Za-z]+/', $this->manual_cte_numbers, -1, PREG_SPLIT_NO_EMPTY);
+                foreach ($cteNumbers as $cteNum) {
+                    $cteNum = trim($cteNum);
+                    if (empty($cteNum)) continue;
+
+                    $manualShipmentData = [
+                        'tenant_id' => $tenant->id,
+                        'route_id' => $route->id,
+                        'tracking_number' => 'CTE-' . $cteNum,
+                        'title' => 'CT-e #' . $cteNum,
+                        'status' => 'assigned',
+                        'value' => 0,
+                        'recipient_name' => 'CT-e #' . $cteNum,
+                        'delivery_address' => 'Endereço de Entrega',
+                        'delivery_city' => 'Cidade de Destino',
+                        'delivery_state' => 'SP',
+                    ];
+
+                    if (Schema::hasColumn('shipments', 'origin_branch')) {
+                        $manualShipmentData['origin_branch'] = $this->origin_branch;
+                    }
+
+                    Shipment::create($manualShipmentData);
+                }
+            }
+
+            return redirect()->route('routes.show', $route->id)
+                ->with('success', 'Rota criada com sucesso!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('RouteCreationWizard save error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $this->addError('name', 'Erro ao salvar rota: ' . $e->getMessage());
+        }
     }
 
     public function mount()
@@ -492,76 +521,83 @@ class RouteCreationWizard extends Component
 
     public function syncLegacyXmls()
     {
-        $tenant = Auth::user()->tenant;
-        $xmlParser = new CteXmlParserService();
-        
-        $defaultClient = \App\Models\Client::firstOrCreate(
-            ['tenant_id' => $tenant->id, 'name' => 'Cliente Padrão (Sistema)'],
-            ['address' => 'N/A', 'city' => 'N/A', 'state' => 'XX', 'zip_code' => '00000000', 'is_active' => true]
-        );
+        try {
+            $tenant = Auth::user()?->tenant ?: \Spatie\Multitenancy\Models\Tenant::current();
+            if (!$tenant) return;
 
-        // Get XMLs that don't have a corresponding shipment
-        $unsyncedXmls = CteXml::where('tenant_id', $tenant->id)
-            ->where('is_used', false)
-            ->get();
+            $xmlParser = new CteXmlParserService();
             
-        // We will do a manual filter for safety
-        $shipmentTrackingNumbers = Shipment::where('tenant_id', $tenant->id)->pluck('tracking_number')->toArray();
-        
-        foreach ($unsyncedXmls as $xmlRecord) {
-            if (in_array($xmlRecord->cte_number, $shipmentTrackingNumbers)) {
-                continue;
-            }
+            $defaultClient = \App\Models\Client::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'name' => 'Cliente Padrão (Sistema)'],
+                ['address' => 'N/A', 'city' => 'N/A', 'state' => 'XX', 'zip_code' => '00000000', 'is_active' => true]
+            );
 
-            try {
-                $path = str_replace('local:', '', $xmlRecord->xml_url);
-                if (Storage::disk('local')->exists($path)) {
-                    $xmlContent = Storage::disk('local')->get($path);
-                    if (empty($xmlContent)) continue;
-                    
-                    $cteData = $xmlParser->parseXml($xmlContent);
-                    if (empty($cteData['document_number'])) continue;
-                    
-                    $cteNumber = $cteData['document_number'];
-                    
-                    Shipment::create([
-                        'tenant_id' => $tenant->id,
-                        'sender_client_id' => $defaultClient->id,
-                        'receiver_client_id' => $defaultClient->id,
-                        'tracking_number' => $cteNumber,
-                        'title' => 'CT-e ' . $cteNumber,
-                        'weight' => $cteData['weight'] ?? 0,
-                        'volume' => $cteData['volume'] ?? 0,
-                        'quantity' => $cteData['quantity'] ?? 1,
-                        'value' => $cteData['goods_value'] ?? $cteData['value'] ?? 0,
-                        'pickup_address' => $cteData['origin']['address'] ?? 'Endereço Origem',
-                        'pickup_city' => $cteData['origin']['city'] ?? 'Cidade',
-                        'pickup_state' => $cteData['origin']['state'] ?? 'XX',
-                        'pickup_zip_code' => $cteData['origin']['zip_code'] ?? '00000000',
-                        'pickup_date' => $cteData['pickup_date'] ?? now()->format('Y-m-d'),
-                        'pickup_time' => '08:00:00',
-                        'delivery_address' => $cteData['destination']['address'] ?? 'Endereço Destino',
-                        'delivery_city' => $cteData['destination']['city'] ?? 'Cidade',
-                        'delivery_state' => $cteData['destination']['state'] ?? 'XX',
-                        'delivery_zip_code' => $cteData['destination']['zip_code'] ?? '00000000',
-                        'delivery_date' => $cteData['delivery_date'] ?? now()->format('Y-m-d'),
-                        'delivery_time' => '18:00:00',
-                        'status' => 'pending',
-                        'freight_value' => $cteData['value'] ?? 0,
-                    ]);
-                    
-                    $shipmentTrackingNumbers[] = $cteNumber; // prevent duplicate creation in loop
+            // Get XMLs that don't have a corresponding shipment
+            $unsyncedXmls = CteXml::where('tenant_id', $tenant->id)
+                ->where('is_used', false)
+                ->get();
+                
+            // We will do a manual filter for safety
+            $shipmentTrackingNumbers = Shipment::where('tenant_id', $tenant->id)->pluck('tracking_number')->toArray();
+            
+            foreach ($unsyncedXmls as $xmlRecord) {
+                if (in_array($xmlRecord->cte_number, $shipmentTrackingNumbers)) {
+                    continue;
                 }
-            } catch (\Exception $e) {
-                \Log::error('Erro ao sincronizar XML legado: ' . $e->getMessage());
+
+                try {
+                    $path = str_replace('local:', '', $xmlRecord->xml_url);
+                    if (Storage::disk('local')->exists($path)) {
+                        $xmlContent = Storage::disk('local')->get($path);
+                        if (empty($xmlContent)) continue;
+                        
+                        $cteData = $xmlParser->parseXml($xmlContent);
+                        if (empty($cteData['document_number'])) continue;
+                        
+                        $cteNumber = $cteData['document_number'];
+                        
+                        Shipment::create([
+                            'tenant_id' => $tenant->id,
+                            'sender_client_id' => $defaultClient->id,
+                            'receiver_client_id' => $defaultClient->id,
+                            'tracking_number' => $cteNumber,
+                            'title' => 'CT-e ' . $cteNumber,
+                            'weight' => $cteData['weight'] ?? 0,
+                            'volume' => $cteData['volume'] ?? 0,
+                            'quantity' => $cteData['quantity'] ?? 1,
+                            'value' => $cteData['goods_value'] ?? $cteData['value'] ?? 0,
+                            'pickup_address' => $cteData['origin']['address'] ?? 'Endereço Origem',
+                            'pickup_city' => $cteData['origin']['city'] ?? 'Cidade',
+                            'pickup_state' => $cteData['origin']['state'] ?? 'XX',
+                            'pickup_zip_code' => $cteData['origin']['zip_code'] ?? '00000000',
+                            'pickup_date' => $cteData['pickup_date'] ?? now()->format('Y-m-d'),
+                            'pickup_time' => '08:00:00',
+                            'delivery_address' => $cteData['destination']['address'] ?? 'Endereço Destino',
+                            'delivery_city' => $cteData['destination']['city'] ?? 'Cidade',
+                            'delivery_state' => $cteData['destination']['state'] ?? 'XX',
+                            'delivery_zip_code' => $cteData['destination']['zip_code'] ?? '00000000',
+                            'delivery_date' => $cteData['delivery_date'] ?? now()->format('Y-m-d'),
+                            'delivery_time' => '18:00:00',
+                            'status' => 'pending',
+                            'freight_value' => $cteData['value'] ?? 0,
+                        ]);
+                        
+                        $shipmentTrackingNumbers[] = $cteNumber; // prevent duplicate creation in loop
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Erro ao sincronizar XML legado: ' . $e->getMessage());
+                }
             }
+        } catch (\Throwable $e) {
+            Log::error('Error in syncLegacyXmls: ' . $e->getMessage());
         }
     }
 
     public function updatedSelectAll($value)
     {
         if ($value) {
-            $tenant = Auth::user()->tenant;
+            $tenant = Auth::user()?->tenant ?: \Spatie\Multitenancy\Models\Tenant::current();
+            if (!$tenant) return;
             $like = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
             $shipmentsQuery = Shipment::where('tenant_id', $tenant->id)->whereNull('route_id');
             if (!empty($this->searchShipment)) {
